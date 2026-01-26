@@ -2,14 +2,16 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  background: linear-gradient(
+  background:
+    linear-gradient(
       90deg,
-      rgba(58, 169, 224, 0.12),
-      rgba(249, 214, 92, 0.08)
+      color-mix(in srgb, var(--pm-color-electric-blue) 15%, transparent),
+      color-mix(in srgb, var(--pm-color-arcade-yellow) 10%, transparent)
     ),
-    rgba(14, 14, 14, 0.9);
+    color-mix(in srgb, var(--pm-color-background) 92%, var(--pm-color-surface) 8%);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--pm-color-text-primary) 12%, transparent);
 }
 
 .inner {
@@ -37,7 +39,7 @@
   height: 48px;
   border-radius: var(--pm-radius-lg);
   overflow: hidden;
-  box-shadow: var(--pm-shadow-card);
+  box-shadow: var(--pm-shadow-neon-blue);
 }
 
 .logo {
@@ -50,6 +52,7 @@
 
 .nav {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: var(--pm-space-md);
 }
 
@@ -64,8 +67,9 @@
 .navLink:hover,
 .navLink:focus-visible {
   color: var(--pm-color-text-primary);
-  background: rgba(58, 169, 224, 0.12);
+  background: color-mix(in srgb, var(--pm-color-electric-blue) 14%, transparent);
   outline: none;
+  box-shadow: var(--pm-shadow-focus-ring);
 }
 
 .actions {

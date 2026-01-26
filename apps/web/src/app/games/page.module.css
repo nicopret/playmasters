@@ -1,0 +1,26 @@
+.page {
+  display: grid;
+  gap: var(--pm-space-xl);
+  padding: var(--pm-space-xl) 0 var(--pm-space-2xl);
+}
+
+.header {
+  display: grid;
+  gap: var(--pm-space-2xs);
+}
+
+.title {
+  font-size: var(--pm-font-size-hero);
+  line-height: var(--pm-line-height-tight);
+}
+
+.subtitle {
+  color: var(--pm-color-text-secondary);
+  font-size: var(--pm-font-size-lg);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--pm-space-lg);
+}
