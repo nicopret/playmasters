@@ -3,6 +3,7 @@ import '@playmasters/brand/fonts.css';
 import '../app/global.css';
 import Header from '../components/Header/Header';
 import Footer from '../components/Footer/Footer';
+import { AuthProvider } from '../components/AuthProvider/AuthProvider';
 
 export const metadata = {
   title: 'Playmasters',
@@ -18,9 +19,11 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <div className="app-shell">
-          <Header />
-          <main className="app-main">{children}</main>
-          <Footer />
+          <AuthProvider>
+            <Header />
+            <main className="app-main">{children}</main>
+            <Footer />
+          </AuthProvider>
         </div>
       </body>
     </html>

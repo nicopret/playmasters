@@ -1,0 +1,59 @@
+.page {
+  padding: var(--pm-space-xl) 0 var(--pm-space-2xl);
+  display: grid;
+  gap: var(--pm-space-lg);
+}
+
+.card {
+  background: color-mix(in srgb, var(--pm-color-surface) 90%, var(--pm-color-background) 10%);
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
+  border-radius: var(--pm-radius-lg);
+  padding: var(--pm-space-xl);
+  box-shadow: var(--pm-shadow-card);
+  display: grid;
+  gap: var(--pm-space-md);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--pm-space-md);
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--pm-radius-pill);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--pm-color-electric-blue) 16%, var(--pm-color-background) 84%);
+  display: grid;
+  place-items: center;
+  color: var(--pm-color-midnight-black);
+  font-weight: var(--pm-font-weight-bold);
+  box-shadow: var(--pm-shadow-neon-blue);
+}
+
+.info {
+  display: grid;
+  gap: 4px;
+}
+
+.name {
+  font-size: var(--pm-font-size-xl);
+  color: var(--pm-color-text-primary);
+}
+
+.email {
+  color: var(--pm-color-text-secondary);
+}
+
+.section {
+  display: grid;
+  gap: var(--pm-space-xs);
+}
+
+.signinPrompt {
+  display: grid;
+  gap: var(--pm-space-sm);
+  text-align: center;
+}
