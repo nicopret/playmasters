@@ -1,245 +1,214 @@
-## Implement Games Registry + Games Pages
+## Implement Google Auth + UI integration + protected routes
 
-**Task:** Implement Step 2 in `apps/web`: a code-defined games registry, a `/games` listing page, and a `/games/[slug]` game detail page with a placeholder game container + leaderboard panel UI (no realtime or Dynamo yet).
+**Task:** Implement Google authentication for Playmasters using **Auth.js / NextAuth** in `apps/web` (Next.js App Router). Add sign-in/out UI in the header, session availability across the app, and protect future admin routes.
 
 ---
 
-### Context
+### Context (repo)
 
-* Nx monorepo
-* Next.js app is `apps/web` (App Router)
-* Styling is CSS Modules + design tokens from `@playmasters/brand`
-* Base UI components may exist in `@playmasters/ui` (Container/Card/Button/Badge/GameTile). Use them if available; otherwise implement minimal local equivalents token-driven.
+* Nx monorepo with `apps/web` (Next.js App Router) and shared packages.
+* Styling is CSS Modules + design tokens.
+* We do **not** use a SQL database; user identity is Google OAuth.
+* Step 1 and Step 2 are already implemented (site shell + games pages).
+* We need auth before building admin features.
 
-Step 1 is done (site shell + landing layout). Now we’re adding the **games catalog pages** and the **code registry** that drives them.
-
-  * `Container`, `Card`, `Button`, `Carousel`, `GameTile`, `Badge` (use what exists; if something doesn’t exist yet, use minimal local markup and styles)
+---
 
 ## Requirements
 
-### 1) Create a code-defined games registry (source of truth)
+### 1) Add Auth.js / NextAuth with Google Provider
 
-Create a shared registry module (choose ONE of these locations depending on repo conventions):
+Install dependencies in the workspace root:
 
-**Preferred:** `packages/games-registry` (as a small Nx lib)
-**If you don’t want a new lib yet:** `apps/web/lib/games.ts`
+* `next-auth`
 
-Either way, export:
+If needed for TypeScript:
 
-* `GameStatus = 'available' | 'coming-soon'`
-* `Game` type
-* `games` array
-* helper functions:
+* `@types/node` already exists; don’t add unnecessary types.
 
-  * `getGameBySlug(slug: string): Game | undefined`
-  * `getAllGames(): Game[]`
+Implement NextAuth in App Router using the standard pattern:
 
-**Game shape:**
+Create:
 
-```ts
-export type Game = {
-  id: string;           // stable id
-  slug: string;         // route slug
-  title: string;
-  description: string;
-  tags: string[];
-  status: 'available' | 'coming-soon';
-  thumbnailUrl?: string;  // for now can be undefined
-};
+```
+apps/web/src/auth.ts            (or apps/web/auth.ts depending on current structure)
+apps/web/app/api/auth/[...nextauth]/route.ts
 ```
 
-Populate with **at least 6 placeholder games**:
+Auth configuration requirements:
 
-* 2 marked `available`
-* 4 marked `coming-soon`
-  Use retro-ish names (e.g., “Space Blaster”, “Neon Runner”, “Pixel Paddles”, “Astro Defender”…).
+* Provider: Google
+* Session strategy: JWT (default is fine)
+* Expose stable user identifier:
 
-> Important: Games must be “published” via code deploy, no DB. This registry is the only source of truth.
+  * Use `token.sub` (Google subject) as the platform user id
+* Include user info on session:
 
-  * Button text: “Sign in” (link target can be `#` for now)
+  * name, email, image
+* Add a `callbacks.session` that maps:
 
-### 2) Add the `/games` page (Games catalog)
+  * `session.user.id = token.sub`
 
-Create route:
+Add a simple “admin allowlist” mechanism (for future admin pages):
 
-* `apps/web/app/games/page.tsx`
-* `apps/web/app/games/page.module.css`
+* Read `PLAYMASTERS_ADMIN_EMAILS` from env (comma-separated)
+* In `callbacks.session`, add:
 
-Page requirements:
+  * `session.user.isAdmin = adminEmails.includes(session.user.email)`
 
-* SSR-friendly (no client-only dependency needed)
-* Page header: title “Games”
-* Optional subtitle: “Choose a game and climb the leaderboards.”
-* Render a responsive grid of games from the registry.
-* Each tile should show:
-
-  * title
-  * short description
-  * tags (Badges)
-  * status badge (“Available” / “Coming soon”)
-  * CTA:
-
-    * if available: “Play”
-    * if coming-soon: disabled “Coming soon”
-* Tile links:
-
-  * Always link to `/games/[slug]` (even coming-soon is fine; detail page will show “Coming soon” state)
-
-Use `GameTile` from `@playmasters/ui` if it exists; otherwise implement local `GameCard` component in `apps/web/components/GameCard/*`.
+Do NOT add a DB adapter.
 
 ---
 
-### 3) Add the `/games/[slug]` page (Game detail shell)
+### 2) Environment variables + example file
 
-Create route:
+Create:
 
-* `apps/web/app/games/[slug]/page.tsx`
-* `apps/web/app/games/[slug]/page.module.css`
+```
+apps/web/.env.example
+```
+
+Include:
+
+* `GOOGLE_CLIENT_ID=`
+* `GOOGLE_CLIENT_SECRET=`
+* `NEXTAUTH_SECRET=` (include note to generate with openssl)
+* `NEXTAUTH_URL=http://localhost:3000`
+* `PLAYMASTERS_ADMIN_EMAILS=you@example.com`
+
+If the repo uses `.env.local`, ensure `.env.example` is referenced in README (optional).
+
+---
+
+### 3) Wire SessionProvider globally
+
+In App Router, use `SessionProvider` from `next-auth/react`, but it must be used in a **client component**.
+
+Create:
+
+```
+apps/web/components/AuthProvider/AuthProvider.tsx
+```
+
+```tsx
+'use client'
+import { SessionProvider } from 'next-auth/react'
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  return <SessionProvider>{children}</SessionProvider>
+}
+```
+
+Then wrap the app in `apps/web/app/layout.tsx`:
+
+```tsx
+<AuthProvider>{children}</AuthProvider>
+```
+
+Ensure this does not break SSR layout and does not move global token imports.
+
+---
+
+### 4) Header login/logout UI
+
+Update the header component to show:
+
+**When signed out**
+
+* A “Sign in with Google” button
+
+**When signed in**
+
+* Show user avatar + name (or email if no name)
+* A small menu or inline buttons:
+
+  * “Profile” link to `/profile`
+  * “Sign out”
+
+Implementation requirements:
+
+* Use `useSession()` from `next-auth/react`
+* Use `signIn('google')` and `signOut()`
+* Keep it minimal; no external dropdown library needed.
+* Use existing UI components (`Button`, `Card`) if available; otherwise simple markup + CSS Modules.
+
+---
+
+### 5) Add a `/profile` page (minimal)
+
+Create:
+
+```
+apps/web/app/profile/page.tsx
+apps/web/app/profile/page.module.css
+```
 
 Behavior:
 
-* Read `slug` from route params
-* Load game from registry
-* If not found: use `notFound()` (Next.js)
+* If user not authenticated:
 
-Layout requirements (top to bottom):
+  * show “Please sign in” + a sign-in button
+* If authenticated:
 
-1. Title + description
-2. Status badge (“Available” or “Coming soon”)
-3. **Game container placeholder**
+  * show basic profile:
 
-   * A large area (e.g., 16:9-ish box) with:
+    * avatar
+    * display name
+    * email
+    * placeholder section: “Your personal bests will appear here.”
 
-     * “Game loads here” placeholder text
-     * If `coming-soon`, show “Coming soon”
-4. **Leaderboard panel UI** (placeholder data)
-
-   * Tabs: **Global**, **Local**, **Personal**
-   * Each tab shows a table with columns:
-
-     * Rank
-     * Player
-     * Score
-     * Country (optional)
-     * Date
-   * For now:
-
-     * If `available`: show **mock entries** (5–10 rows) for Global and Local, and a “Sign in to see your personal best” message for Personal
-     * If `coming-soon`: show empty state “No scores yet”
-   * Include states:
-
-     * Empty state component
-     * “Sign in” placeholder CTA (no auth yet; link `#`)
-
-Implementation notes:
-
-* You can implement tabs using local state (`useState`) inside a small client component like:
-
-  * `apps/web/components/LeaderboardPanel/LeaderboardPanel.tsx` (client component)
-* Keep the page itself server component and render `LeaderboardPanel` as a client component.
+Do not implement scores yet.
 
 ---
 
-### 4) Update navigation to include `/games` if not already
+### 6) Protect `/admin` routes with middleware (foundation for Step 4)
 
-If header already has a “Games” link, ensure it points to `/games`.
-
----
-
-### 5) Styling requirements
-
-* All styling must use CSS Modules
-* Use brand tokens (CSS variables) only
-* Game grid must be responsive:
-
-  * 1 column mobile
-  * 2 columns small
-  * 3–4 columns desktop
-* The game container placeholder should look intentional:
-
-  * dark surface
-  * subtle border
-  * optional gradient accent or glow token
-* Leaderboard table should be readable and consistent with arcade theme:
-
-  * zebra rows optional using tokens (surface variants)
-
----
-
-## File structure to create (suggested)
+Add:
 
 ```
-apps/web/app/games/
-  page.tsx
-  page.module.css
-  [slug]/
-    page.tsx
-    page.module.css
-
-apps/web/lib/
-  games.ts                # if not using packages/games-registry
-
-apps/web/components/
-  GameCard/               # only if @playmasters/ui lacks GameTile
-  LeaderboardPanel/
-    LeaderboardPanel.tsx
-    LeaderboardPanel.module.css
-```
-apps/web/app/
-  layout.tsx
-  page.tsx
-  page.module.css
-
-apps/web/components/
-  Header/
-    Header.tsx
-    Header.module.css
-  Footer/
-    Footer.tsx
-    Footer.module.css
-  (optional) SectionHeading/
-  (optional) PlaceholderCarousel/  # only if Carousel not available
+apps/web/middleware.ts
 ```
 
-Place logo at:
+Requirements:
 
-* `apps/web/public/brand/playmaster_logo.png`
+* Protect any route under `/admin`
+* If not signed in → redirect to `/api/auth/signin`
+* If signed in but not admin (`session.user.isAdmin !== true`) → redirect to `/` (or show 403 page)
 
-Use Next.js `<Image />` for the logo.
+Use NextAuth middleware support (`withAuth`) appropriate for the installed version.
 
----
-
-## Acceptance criteria
-
-* `nx dev web` runs with no errors
-* `/games` displays the grid using registry data
-* `/games/<slug>` works for all registry items
-* Unknown slug returns 404 via `notFound()`
-* Page shows:
-
-  * placeholder game container
-  * leaderboard tabs + mock data/empty state
-* No Tailwind, no MUI, no hardcoded hex colors
+Also protect `/profile` optionally (either via middleware or page logic). It’s OK if `/profile` just shows the sign-in prompt without middleware.
 
 ---
 
-## Implementation detail suggestions (do this)
+### 7) Update “Personal” leaderboard tab message (nice integration)
 
-* Create mock leaderboard entries in a helper:
+On the game detail page leaderboard panel (from Step 2):
 
-  * `apps/web/lib/mockLeaderboards.ts`
-* Use stable mock data based on slug (e.g. seeded list) so it doesn’t change on every refresh.
-* Keep components small and reusable:
+* If signed out: “Sign in to see your personal best.”
+* If signed in: show mock “Personal Best” row (or empty state) with the user’s name.
 
-  * `LeaderboardTable` subcomponent is fine.
+Do not connect to realtime or Dynamo yet—keep it UI-only.
 
 ---
 
-### Output expected
+## Acceptance Criteria
 
-Commit-ready implementation of:
+* `nx dev web` runs without errors
+* Auth flow works locally:
 
-* games registry module
-* `/games` page
-* `/games/[slug]` page with placeholder game container and leaderboard UI
-* any small components required for tiles and leaderboards
+  * click “Sign in with Google” → authenticates → header updates
+  * sign out works
+* `/profile` displays correct signed-in/signed-out content
+* `/admin/*` is protected (redirects when not allowed)
+* No database adapter is added
+* Code is clean, typed, and uses CSS Modules + tokens (no Tailwind/MUI)
+
+---
+
+## Notes
+
+* Keep auth code isolated and reusable.
+* Prefer placing auth config in a single module and importing it from the route handler and middleware.
+* Do not implement admin UI yet—only protection scaffolding.
+

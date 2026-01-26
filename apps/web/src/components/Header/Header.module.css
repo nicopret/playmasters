@@ -77,6 +77,68 @@
   justify-content: flex-end;
 }
 
+.userCard {
+  display: flex;
+  align-items: center;
+  gap: var(--pm-space-sm);
+  background: color-mix(in srgb, var(--pm-color-surface) 92%, var(--pm-color-background) 8%);
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 12%, transparent);
+}
+
+.userMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--pm-space-sm);
+}
+
+.avatar {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--pm-radius-pill);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--pm-color-electric-blue) 18%, var(--pm-color-background) 82%);
+  display: grid;
+  place-items: center;
+  color: var(--pm-color-midnight-black);
+  font-weight: var(--pm-font-weight-bold);
+  box-shadow: var(--pm-shadow-neon-blue);
+}
+
+.avatarFallback {
+  font-size: var(--pm-font-size-md);
+}
+
+.userText {
+  display: grid;
+  gap: 2px;
+}
+
+.userName {
+  color: var(--pm-color-text-primary);
+  font-weight: var(--pm-font-weight-bold);
+}
+
+.userLinks {
+  display: flex;
+  gap: var(--pm-space-sm);
+  align-items: center;
+}
+
+.signOut {
+  border: none;
+  background: transparent;
+  color: var(--pm-color-text-secondary);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+
+.signOut:hover,
+.signOut:focus-visible {
+  color: var(--pm-color-text-primary);
+}
+
 @media (max-width: 768px) {
   .inner {
     grid-template-columns: 1fr;

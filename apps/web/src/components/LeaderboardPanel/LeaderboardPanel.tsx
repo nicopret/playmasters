@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Button, Badge } from '@playmasters/ui';
 import type { Game } from '../../lib/games';
 import type { LeaderboardData, LeaderboardEntry, LeaderboardScope } from '../../lib/mockLeaderboards';
@@ -54,17 +55,41 @@ const Table = ({ entries }: { entries: LeaderboardEntry[] }) => {
 
 export const LeaderboardPanel = ({ game, data }: Props) => {
   const [scope, setScope] = useState<LeaderboardScope>('global');
+  const { data: session } = useSession();
+
+  const personalEntries =
+    session?.user && game.status !== 'coming-soon'
+      ? data.personal.length
+        ? data.personal
+        : [
+            {
+              rank: 1,
+              player: session.user.name ?? session.user.email ?? 'You',
+              score: 12345,
+              country: '—',
+              date: '2026-01-20',
+            },
+          ]
+      : [];
 
   const renderContent = () => {
     if (scope === 'personal') {
-      return (
-        <div className={styles.personal}>
-          <div>Sign in to see your personal best.</div>
-          <Button as="a" href="#" variant="primary" size="sm">
-            Sign in
-          </Button>
-        </div>
-      );
+      if (!session?.user) {
+        return (
+          <div className={styles.personal}>
+            <div>Sign in to see your personal best.</div>
+            <Button as="a" href="/api/auth/signin" variant="primary" size="sm">
+              Sign in
+            </Button>
+          </div>
+        );
+      }
+
+      if (!personalEntries.length) {
+        return <EmptyState message="No scores yet" />;
+      }
+
+      return <Table entries={personalEntries} />;
     }
 
     const entries = data[scope];
