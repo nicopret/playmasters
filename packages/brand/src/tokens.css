@@ -1,0 +1,72 @@
+:root {
+  /* Base colors */
+  --pm-color-arcade-yellow: #f9d65c;
+  --pm-color-electric-blue: #3aa9e0;
+  --pm-color-crimson-red: #e94b5a;
+  --pm-color-midnight-black: #0e0e0e;
+  --pm-color-neon-pink: #f25c8d;
+  --pm-color-gradient-purple: #3b2a6e;
+  --pm-color-white: #ffffff;
+
+  /* Semantic colors */
+  --pm-color-background: var(--pm-color-midnight-black);
+  --pm-color-surface: #151524;
+  --pm-color-text-primary: var(--pm-color-arcade-yellow);
+  --pm-color-text-secondary: #d5d8e0;
+  --pm-color-accent: var(--pm-color-electric-blue);
+  --pm-color-danger: var(--pm-color-crimson-red);
+  --pm-color-highlight: var(--pm-color-neon-pink);
+
+  /* Gradients */
+  --pm-gradient-primary: linear-gradient(90deg, #3aa9e0 0%, #f9d65c 100%);
+  --pm-gradient-background: linear-gradient(180deg, #3b2a6e 0%, #0e0e0e 100%);
+  --pm-gradient-accent: linear-gradient(135deg, #f25c8d 0%, #e94b5a 100%);
+
+  /* Typography */
+  --pm-font-heading: 'Burbank Big Condensed Bold', 'Impact', 'Arial Black', 'Montserrat', 'Poppins', system-ui, -apple-system, sans-serif;
+  --pm-font-body: 'Montserrat', 'Poppins', 'Inter', system-ui, -apple-system, sans-serif;
+
+  --pm-font-size-xs: 12px;
+  --pm-font-size-sm: 14px;
+  --pm-font-size-md: 16px;
+  --pm-font-size-lg: 20px;
+  --pm-font-size-xl: 24px;
+  --pm-font-size-hero: 40px;
+
+  --pm-font-weight-regular: 400;
+  --pm-font-weight-medium: 500;
+  --pm-font-weight-bold: 700;
+  --pm-font-weight-black: 900;
+
+  --pm-line-height-tight: 1.1;
+  --pm-line-height-normal: 1.4;
+  --pm-line-height-relaxed: 1.6;
+
+  /* Spacing scale */
+  --pm-space-2xs: 4px;
+  --pm-space-xs: 8px;
+  --pm-space-sm: 12px;
+  --pm-space-md: 16px;
+  --pm-space-lg: 24px;
+  --pm-space-xl: 32px;
+  --pm-space-2xl: 48px;
+
+  /* Radii */
+  --pm-radius-sm: 4px;
+  --pm-radius-md: 8px;
+  --pm-radius-lg: 12px;
+  --pm-radius-pill: 999px;
+
+  /* Shadows & glows */
+  --pm-shadow-card: 0 12px 30px rgba(0, 0, 0, 0.45);
+  --pm-shadow-neon-pink: 0 0 12px rgba(242, 92, 141, 0.7), 0 0 28px rgba(242, 92, 141, 0.4);
+  --pm-shadow-neon-blue: 0 0 12px rgba(58, 169, 224, 0.7), 0 0 28px rgba(58, 169, 224, 0.4);
+  --pm-shadow-focus-ring: 0 0 0 3px rgba(58, 169, 224, 0.45);
+
+  /* Z-index */
+  --pm-z-base: 0;
+  --pm-z-overlay: 10;
+  --pm-z-modal: 100;
+  --pm-z-toast: 110;
+  --pm-z-tooltip: 120;
+}

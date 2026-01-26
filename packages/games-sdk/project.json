@@ -1,0 +1,19 @@
+{
+  "name": "games-sdk",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/games-sdk/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/games-sdk",
+        "main": "packages/games-sdk/src/index.ts",
+        "tsConfig": "packages/games-sdk/tsconfig.lib.json",
+        "assets": ["packages/games-sdk/*.md"]
+      }
+    }
+  },
+  "tags": []
+}

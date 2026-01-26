@@ -1,0 +1,19 @@
+{
+  "name": "brand",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/brand/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/brand",
+        "main": "packages/brand/src/index.ts",
+        "tsConfig": "packages/brand/tsconfig.lib.json",
+        "assets": ["packages/brand/*.md"]
+      }
+    }
+  },
+  "tags": []
+}

@@ -2,5 +2,36 @@
   "extends": "./tsconfig.base.json",
   "compileOnSave": false,
   "files": [],
-  "references": []
+  "references": [
+    {
+      "path": "./packages/games-sdk"
+    },
+    {
+      "path": "./packages/brand"
+    },
+    {
+      "path": "./packages/types"
+    },
+    {
+      "path": "./apps/realtime"
+    },
+    {
+      "path": "./realtime-e2e"
+    },
+    {
+      "path": "./packages/ui"
+    },
+    {
+      "path": "./apps/web"
+    },
+    {
+      "path": "./web-e2e"
+    }
+  ],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "commonjs",
+      "moduleResolution": "node10"
+    }
+  }
 }

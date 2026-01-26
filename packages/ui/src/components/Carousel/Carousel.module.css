@@ -1,0 +1,121 @@
+.carousel {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(58, 169, 224, 0.1), rgba(242, 92, 141, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--pm-radius-lg);
+  box-shadow: var(--pm-shadow-card);
+  color: var(--pm-color-text-secondary);
+}
+
+.slide {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: var(--pm-space-lg);
+  align-items: center;
+  padding: var(--pm-space-lg);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pm-space-sm);
+}
+
+.title {
+  font-family: var(--pm-font-heading);
+  font-size: var(--pm-font-size-xl);
+  color: var(--pm-color-text-primary);
+  line-height: var(--pm-line-height-tight);
+}
+
+.body {
+  font-size: var(--pm-font-size-md);
+  line-height: var(--pm-line-height-relaxed);
+}
+
+.image {
+  width: 100%;
+  border-radius: var(--pm-radius-md);
+  box-shadow: var(--pm-shadow-neon-blue);
+  object-fit: cover;
+  aspect-ratio: 16 / 9;
+  background: rgba(14, 14, 14, 0.6);
+}
+
+.controls {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 var(--pm-space-sm);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.controlButton {
+  pointer-events: all;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(14, 14, 14, 0.75);
+  color: var(--pm-color-text-primary);
+  border-radius: var(--pm-radius-md);
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: var(--pm-shadow-card);
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+
+.controlButton:hover {
+  background: rgba(58, 169, 224, 0.16);
+  box-shadow: var(--pm-shadow-focus-ring);
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--pm-space-xs);
+  padding: var(--pm-space-sm);
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.dotActive {
+  background: var(--pm-color-electric-blue);
+  border-color: var(--pm-color-electric-blue);
+  transform: scale(1.05);
+}
+
+.cta {
+  margin-top: var(--pm-space-sm);
+}
+
+.muted {
+  font-size: var(--pm-font-size-sm);
+  color: rgba(213, 216, 224, 0.8);
+}
+
+@media (max-width: 900px) {
+  .slide {
+    grid-template-columns: 1fr;
+    padding: var(--pm-space-md);
+  }
+
+  .controls {
+    top: auto;
+    bottom: var(--pm-space-sm);
+    transform: none;
+  }
+}

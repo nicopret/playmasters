@@ -1,0 +1,35 @@
+@font-face {
+  font-family: 'Burbank Big Condensed Bold';
+  src:
+    local('Burbank Big Condensed Bold'),
+    local('Burbank Big Condensed'),
+    url('/fonts/burbank-big-condensed-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src:
+    local('Montserrat'),
+    url('/fonts/montserrat-regular.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  src:
+    local('Poppins'),
+    url('/fonts/poppins-regular.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --pm-font-heading: 'Burbank Big Condensed Bold', 'Impact', 'Arial Black', 'Montserrat', 'Poppins', system-ui, -apple-system, sans-serif;
+  --pm-font-body: 'Montserrat', 'Poppins', 'Inter', system-ui, -apple-system, sans-serif;
+}

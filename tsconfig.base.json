@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "composite": true,
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "importHelpers": true,
     "isolatedModules": true,
-    "lib": ["es2022"],
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
+    "lib": ["DOM", "ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Node",
     "noEmitOnError": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
@@ -16,6 +17,11 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "customConditions": ["@org/source"]
+    "paths": {
+      "@playmasters/brand": ["packages/brand/src/index.ts"],
+      "@playmasters/ui": ["packages/ui/src/index.ts"],
+      "@playmasters/types": ["packages/types/src/index.ts"],
+      "@playmasters/game-sdk": ["packages/games-sdk/src/index.ts"]
+    }
   }
 }

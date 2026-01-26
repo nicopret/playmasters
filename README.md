@@ -1,104 +1,234 @@
-# New Nx Repository
+Below is a **drop-in `README.md`** you can paste into the root of your GitHub repo. It includes:
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+* Project description
+* An architectural diagram block
+* Current monorepo structure
+* How to run the components that exist right now (web, realtime, storybook, libs)
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+> I can’t create the GitHub repository for you directly from here, but this README is “repo-ready”.
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+---
 
-## Generate a library
+````md
+# 🎮 Playmasters
 
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
+Playmasters is a modern retro arcade platform where players compete for high scores in browser-based games with real-time leaderboards.
+
+The platform is designed for:
+- ⚡ Server-rendered web experience (Next.js)
+- 🌐 Real-time leaderboards (WebSockets + in-memory state)
+- 🔐 Google authentication
+- 🧠 Durable score/snapshot persistence with DynamoDB
+- 🎨 Custom arcade design system (CSS Modules + design tokens)
+- 📦 Nx monorepo for multi-app + shared packages
+
+---
+
+## Architecture
+
+### High-level diagram
+
+```mermaid
+flowchart TB
+  U[Players] -->|HTTP| WEB[apps/web\nNext.js SSR + API routes]
+  U -->|WebSocket| RT[apps/realtime\nLeaderboard Authority]
+
+  WEB -->|Create session / Submit score| RT
+  RT -->|Broadcast updates| U
+
+  RT -->|Read on boot| DDB[(DynamoDB)]
+  RT -->|Persist snapshots / scores| DDB
+
+  WEB -->|SSR fetch announcements (optional)| DDB
+  WEB -->|Imports| UI[packages/ui]
+  WEB -->|Imports| BRAND[packages/brand]
+  WEB -->|Imports| SDK[packages/game-sdk]
+  SDK --> TYPES[packages/types]
+  RT --> TYPES
+````
+
+### Runtime model (today)
+
+* **apps/web** serves the SSR landing page and game pages.
+* **apps/realtime** runs a long-lived WebSocket service:
+
+  * keeps leaderboards in memory
+  * broadcasts leaderboard updates to connected clients
+  * persists snapshots/scores to DynamoDB (when configured)
+  * restores snapshots from DynamoDB on startup
+* **packages/brand** provides global design tokens and fonts
+* **packages/ui** provides reusable UI components (CSS Modules)
+* **packages/game-sdk** is the client SDK for session + WS + score submission
+* **packages/types** defines shared event payloads and API types
+
+---
+
+## Repository layout
+
+```
+apps/
+  web/            # Next.js SSR site + API endpoints
+  realtime/       # Node WebSocket service (leaderboard authority)
+
+packages/
+  brand/          # design tokens + fonts + brand exports
+  ui/             # shared UI components (CSS Modules)
+  game-sdk/       # client SDK for games (ws + sessions + score submit)
+  types/          # shared TS contracts
+  games/          # game packages (added over time)
 ```
 
-## Run tasks
+---
 
-To build the library use:
+## Prerequisites
 
-```sh
-npx nx build pkg1
+* Node.js 20+
+* pnpm
+* (Optional for persistence) AWS credentials + DynamoDB tables
+
+Install dependencies:
+
+```bash
+pnpm install
 ```
 
-To run any task with Nx use:
+---
 
-```sh
-npx nx <target> <project-name>
+## Running the project (local dev)
+
+### 1) Run the web app (Next.js)
+
+```bash
+nx dev web
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+The web app will start on the port configured by Next.js (commonly `http://localhost:3000`).
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### 2) Run the realtime WebSocket service
 
-## Versioning and releasing
-
-To version and release the library use
-
-```
-npx nx release
+```bash
+nx serve realtime
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+The realtime service runs as a long-lived node process (port configured in `apps/realtime`).
 
-[Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+> If you’re running both services locally, open two terminals:
+>
+> * Terminal A: `nx dev web`
+> * Terminal B: `nx serve realtime`
 
-## Keep TypeScript project references up to date
+---
 
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
+## Storybook (UI previews)
 
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
+Storybook is configured for the UI library.
 
-```sh
-npx nx sync
+```bash
+nx storybook ui
 ```
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
+Storybook runs at:
 
-```sh
-npx nx sync:check
+* `http://localhost:4400`
+
+Build static Storybook output:
+
+```bash
+nx build-storybook ui
 ```
 
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
+Output directory:
 
-## Nx Cloud
+* `dist/storybook/ui`
 
-Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+---
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Building
 
-### Set up CI (non-Github Actions CI)
+### Build web
 
-**Note:** This is only required if your CI provider is not GitHub Actions.
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
+```bash
+nx build web
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Build realtime
 
-## Install Nx Console
+```bash
+nx build realtime
+```
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+---
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Linting & typechecking
 
-## Useful links
+```bash
+nx lint web
+nx lint realtime
+nx lint ui
+```
 
-Learn more:
+You can also run affected targets:
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```bash
+nx affected -t lint
+nx affected -t build
+```
 
-And join the Nx community:
+---
 
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Environment variables
+
+### Web (apps/web)
+
+If Google auth is enabled, configure the usual Auth.js / NextAuth env vars:
+
+* `GOOGLE_CLIENT_ID`
+* `GOOGLE_CLIENT_SECRET`
+* `NEXTAUTH_SECRET`
+* `NEXTAUTH_URL`
+
+### Realtime (apps/realtime)
+
+If DynamoDB persistence is enabled, configure:
+
+* `AWS_REGION`
+* `AWS_ACCESS_KEY_ID`
+* `AWS_SECRET_ACCESS_KEY`
+
+And (if you’re using explicit table names):
+
+* `DDB_TABLE_SCORES`
+* `DDB_TABLE_LEADERBOARD_SNAPSHOTS`
+* `DDB_TABLE_ANNOUNCEMENTS`
+
+> Exact variable names may differ depending on the current implementation inside `apps/realtime`. Use `.env.local` for the web app and `.env` for the realtime app (or standardize as you prefer).
+
+---
+
+## Notes on data storage
+
+Playmasters intentionally avoids a traditional SQL database initially.
+
+* Games list is **code-defined** (deployment-driven content).
+* Leaderboards are **in-memory** for low latency.
+* DynamoDB is used for **durable persistence** of:
+
+  * score history (optional)
+  * leaderboard snapshots (restore on boot)
+  * announcements (SSR-friendly and durable)
+
+---
+
+## License
+
+TBD (choose one: MIT, Apache-2.0, proprietary, etc.)
+
+```
+
+---
+
+If you want, I can also generate:
+- `CONTRIBUTING.md` (Nx conventions, branching, commit style)
+- `.env.example` files for `apps/web` and `apps/realtime`
+- A “first-time setup” script section (including DynamoDB local via Docker, if you want that workflow)
+```

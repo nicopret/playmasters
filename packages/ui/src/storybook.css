@@ -1,0 +1,46 @@
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--pm-color-background);
+  color: var(--pm-color-text-primary);
+  font-family: var(--pm-font-body);
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--pm-font-heading);
+  color: var(--pm-color-text-primary);
+  letter-spacing: 0.4px;
+}
+
+.pm-story-root {
+  padding: var(--pm-space-lg);
+  min-height: 100vh;
+  background:
+    radial-gradient(120% 120% at 50% 20%, rgba(58, 169, 224, 0.15), transparent),
+    radial-gradient(120% 120% at 20% 80%, rgba(242, 92, 141, 0.12), transparent),
+    var(--pm-color-background);
+  color: var(--pm-color-text-secondary);
+  box-sizing: border-box;
+}
+
+.docs-story {
+  background: transparent !important;
+}
+
+#storybook-root,
+#root {
+  height: 100%;
+}
+
+.sb-show-main {
+  background: transparent;
+}

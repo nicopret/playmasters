@@ -1,0 +1,38 @@
+.card {
+  background: var(--pm-color-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--pm-radius-lg);
+  box-shadow: var(--pm-shadow-card);
+  color: var(--pm-color-text-secondary);
+  transition: box-shadow 160ms ease, border-color 160ms ease, transform 120ms ease;
+}
+
+.card:focus-visible {
+  outline: none;
+  box-shadow: var(--pm-shadow-focus-ring), var(--pm-shadow-card);
+}
+
+.surface {
+  background: var(--pm-color-surface);
+}
+
+.outline {
+  border-color: rgba(213, 216, 224, 0.3);
+}
+
+.glow {
+  border-color: transparent;
+  box-shadow: var(--pm-shadow-neon-blue);
+}
+
+.padding-sm {
+  padding: var(--pm-space-sm);
+}
+
+.padding-md {
+  padding: var(--pm-space-md);
+}
+
+.padding-lg {
+  padding: var(--pm-space-lg);
+}
