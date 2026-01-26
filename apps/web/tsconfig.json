@@ -35,5 +35,13 @@
     "jest.config.cts",
     "**/*.spec.ts",
     "**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/ui"
+    },
+    {
+      "path": "../../packages/brand"
+    }
   ]
 }

@@ -1,2 +1,102 @@
 .page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pm-space-2xl);
+}
+
+.hero {
+  padding-top: var(--pm-space-xl);
+}
+
+.section {
+  padding: 0 0 var(--pm-space-xl);
+}
+
+.sectionHeader {
+  max-width: 780px;
+  margin-bottom: var(--pm-space-lg);
+  display: grid;
+  gap: var(--pm-space-xs);
+}
+
+.kicker {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: var(--pm-font-size-sm);
+  color: var(--pm-color-electric-blue);
+  margin: 0;
+}
+
+.heading {
+  font-size: var(--pm-font-size-xl);
+  line-height: var(--pm-line-height-tight);
+}
+
+.lead {
+  font-size: var(--pm-font-size-md);
+  color: var(--pm-color-text-secondary);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--pm-space-md);
+}
+
+.stepCard {
+  background: rgba(21, 21, 36, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--pm-radius-lg);
+  padding: var(--pm-space-lg);
+  box-shadow: var(--pm-shadow-card);
+  display: grid;
+  gap: var(--pm-space-sm);
+}
+
+.stepBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--pm-radius-pill);
+  background: var(--pm-gradient-primary);
+  color: var(--pm-color-midnight-black);
+  font-weight: var(--pm-font-weight-bold);
+  box-shadow: var(--pm-shadow-neon-blue);
+}
+
+.gameGrid {
+  display: grid;
+  gap: var(--pm-space-md);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.social {
+  background: linear-gradient(
+      135deg,
+      rgba(58, 169, 224, 0.12),
+      rgba(242, 92, 141, 0.12)
+    ),
+    rgba(21, 21, 36, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--pm-radius-lg);
+  padding: var(--pm-space-xl);
+  display: grid;
+  gap: var(--pm-space-md);
+  align-items: center;
+  box-shadow: var(--pm-shadow-card);
+}
+
+.socialBadges {
+  display: flex;
+  gap: var(--pm-space-xs);
+  flex-wrap: wrap;
+  margin-top: var(--pm-space-sm);
+}
+
+@media (max-width: 900px) {
+  .hero {
+    padding-top: var(--pm-space-lg);
+  }
 }
