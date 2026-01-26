@@ -1,8 +1,9 @@
 .footer {
   margin-top: var(--pm-space-2xl);
   padding: var(--pm-space-xl) 0;
-  background: rgba(21, 21, 36, 0.9);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--pm-color-surface) 88%, var(--pm-color-background) 12%);
+  border-top: 1px solid
+    color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
 }
 
 .inner {
@@ -38,10 +39,11 @@
 .link:focus-visible {
   color: var(--pm-color-text-primary);
   outline: none;
+  box-shadow: var(--pm-shadow-focus-ring);
 }
 
 .copyright {
   align-self: end;
-  color: rgba(213, 216, 224, 0.8);
+  color: color-mix(in srgb, var(--pm-color-text-secondary) 85%, transparent);
   font-size: var(--pm-font-size-sm);
 }

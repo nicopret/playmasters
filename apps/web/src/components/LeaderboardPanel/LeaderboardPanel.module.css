@@ -1,0 +1,76 @@
+.panel {
+  background: color-mix(in srgb, var(--pm-color-surface) 90%, var(--pm-color-background) 10%);
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
+  border-radius: var(--pm-radius-lg);
+  box-shadow: var(--pm-shadow-card);
+  overflow: hidden;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
+}
+
+.tab {
+  flex: 1;
+  padding: var(--pm-space-sm) var(--pm-space-md);
+  text-align: center;
+  background: transparent;
+  color: var(--pm-color-text-secondary);
+  border: none;
+  font-weight: var(--pm-font-weight-medium);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.tabActive {
+  color: var(--pm-color-text-primary);
+  background: color-mix(in srgb, var(--pm-color-electric-blue) 10%, transparent);
+}
+
+.count {
+  margin-left: var(--pm-space-2xs);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--pm-space-sm) var(--pm-space-md);
+}
+
+.table th {
+  font-family: var(--pm-font-heading);
+  color: var(--pm-color-text-primary);
+  font-weight: var(--pm-font-weight-bold);
+}
+
+.row:nth-child(odd) {
+  background: color-mix(in srgb, var(--pm-color-background) 90%, var(--pm-color-surface) 10%);
+}
+
+.row:nth-child(even) {
+  background: color-mix(in srgb, var(--pm-color-background) 85%, var(--pm-color-surface) 15%);
+}
+
+.empty {
+  padding: var(--pm-space-lg);
+  text-align: center;
+  color: var(--pm-color-text-secondary);
+}
+
+.personal {
+  padding: var(--pm-space-lg);
+  display: grid;
+  gap: var(--pm-space-sm);
+  color: var(--pm-color-text-secondary);
+}
