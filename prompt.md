@@ -13,7 +13,7 @@
 
 Step 1 is done (site shell + landing layout). Now we’re adding the **games catalog pages** and the **code registry** that drives them.
 
----
+  * `Container`, `Card`, `Button`, `Carousel`, `GameTile`, `Badge` (use what exists; if something doesn’t exist yet, use minimal local markup and styles)
 
 ## Requirements
 
@@ -56,7 +56,7 @@ Populate with **at least 6 placeholder games**:
 
 > Important: Games must be “published” via code deploy, no DB. This registry is the only source of truth.
 
----
+  * Button text: “Sign in” (link target can be `#` for now)
 
 ### 2) Add the `/games` page (Games catalog)
 
@@ -185,6 +185,27 @@ apps/web/components/
     LeaderboardPanel.tsx
     LeaderboardPanel.module.css
 ```
+apps/web/app/
+  layout.tsx
+  page.tsx
+  page.module.css
+
+apps/web/components/
+  Header/
+    Header.tsx
+    Header.module.css
+  Footer/
+    Footer.tsx
+    Footer.module.css
+  (optional) SectionHeading/
+  (optional) PlaceholderCarousel/  # only if Carousel not available
+```
+
+Place logo at:
+
+* `apps/web/public/brand/playmaster_logo.png`
+
+Use Next.js `<Image />` for the logo.
 
 ---
 
