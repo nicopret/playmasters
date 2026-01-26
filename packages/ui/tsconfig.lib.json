@@ -17,5 +17,10 @@
     "**/*.stories.js",
     "**/*.stories.jsx",
     "**/*.stories.tsx"
+  ],
+  "references": [
+    {
+      "path": "../brand/tsconfig.lib.json"
+    }
   ]
 }
