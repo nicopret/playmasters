@@ -1,214 +1,580 @@
-## Implement Google Auth + UI integration + protected routes
+## 🔹 Separate Admin App + Announcements CRUD + DynamoDB + Public SSR Integration
 
-**Task:** Implement Google authentication for Playmasters using **Auth.js / NextAuth** in `apps/web` (Next.js App Router). Add sign-in/out UI in the header, session availability across the app, and protect future admin routes.
+**Task:** Implement Step 4 for Playmasters by creating a **separate admin application** in the Nx monorepo and implementing the first real admin feature: **Announcements CRUD**, backed by **DynamoDB**, with the public website SSR-fetching announcements for the landing page carousel.
 
----
+This step establishes:
 
-### Context (repo)
-
-* Nx monorepo with `apps/web` (Next.js App Router) and shared packages.
-* Styling is CSS Modules + design tokens.
-* We do **not** use a SQL database; user identity is Google OAuth.
-* Step 1 and Step 2 are already implemented (site shell + games pages).
-* We need auth before building admin features.
+* a security boundary (separate admin app)
+* persistent content management
+* SSR data flow from DynamoDB to the public site
 
 ---
 
-## Requirements
+# Context
 
-### 1) Add Auth.js / NextAuth with Google Provider
+* Nx monorepo
+* Existing apps:
 
-Install dependencies in the workspace root:
+  * `apps/web` → public site (Next.js App Router)
+  * `apps/realtime` → websocket service
+* Step 3 completed:
 
-* `next-auth`
+  * Google auth works
+  * session includes `user.isAdmin` from allowlist
+* Styling:
 
-If needed for TypeScript:
+  * CSS Modules
+  * Design tokens from `@playmasters/brand`
+* No SQL database.
+* DynamoDB is the persistent store.
+* Admin must be a **separate Next.js app**:
 
-* `@types/node` already exists; don’t add unnecessary types.
+  * runs on a different port locally (e.g. 3001)
+  * deployable to a different server/domain later
 
-Implement NextAuth in App Router using the standard pattern:
+---
+
+# High-level goals
+
+By the end of this step:
+
+* `apps/admin` exists as its own Next.js app
+* Only admin users can access it
+* Admin can:
+
+  * list announcements
+  * create announcements
+  * edit announcements
+  * delete announcements
+  * activate/deactivate announcements
+  * control sort order
+* Max **5 active announcements enforced automatically**
+* Public landing page `/` in `apps/web`:
+
+  * SSR-fetches announcements from DynamoDB
+  * shows max 5 active
+  * falls back to placeholders if Dynamo not configured
+
+---
+
+# Part 1 — Create the admin app
+
+## 1) Generate admin Next.js app
+
+Run (via Codex):
+
+```
+nx g @nx/next:app admin --appDir --style=css --no-interactive
+```
+
+This creates:
+
+```
+apps/admin
+```
+
+Requirements:
+
+* App Router enabled
+* CSS Modules only
+* No Tailwind, no MUI
+
+---
+
+## 2) Global setup for admin app
+
+### Import brand tokens + fonts
+
+In:
+
+```
+apps/admin/app/layout.tsx
+```
+
+Add at top:
+
+```ts
+import '@playmasters/brand/tokens.css'
+import '@playmasters/brand/fonts.css'
+```
+
+Wrap children in your existing `AuthProvider` (or create one for admin if not shared).
+
+---
+
+## 3) Auth wiring in admin app
+
+Admin app must reuse the **same Google auth config** as `apps/web`.
+
+### Requirements
+
+* Reuse:
+
+  * same Google OAuth app
+  * same NEXTAUTH_SECRET
+  * same callbacks logic (including `session.user.isAdmin`)
+* Admin must deny access globally unless:
+
+  * signed in
+  * `session.user.isAdmin === true`
+
+### Implementation
+
+Create (or reuse if shared package already exists):
+
+```
+apps/admin/src/auth.ts
+apps/admin/app/api/auth/[...nextauth]/route.ts
+```
+
+This config must:
+
+* match `apps/web` auth config
+* include admin allowlist logic
+* export `auth()` helper if you already use one in web
+
+---
+
+## 4) Global admin protection (middleware)
 
 Create:
 
 ```
-apps/web/src/auth.ts            (or apps/web/auth.ts depending on current structure)
-apps/web/app/api/auth/[...nextauth]/route.ts
+apps/admin/middleware.ts
 ```
 
-Auth configuration requirements:
+Rules:
 
-* Provider: Google
-* Session strategy: JWT (default is fine)
-* Expose stable user identifier:
+* Protect **all routes except**:
 
-  * Use `token.sub` (Google subject) as the platform user id
-* Include user info on session:
+  * `/api/auth/*`
+* If not signed in → redirect to `/api/auth/signin`
+* If signed in but not admin → redirect to `http://localhost:3000/` (public site) or show 403
 
-  * name, email, image
-* Add a `callbacks.session` that maps:
+Use `withAuth` or `auth()` depending on your current Step 3 setup.
 
-  * `session.user.id = token.sub`
+This ensures:
 
-Add a simple “admin allowlist” mechanism (for future admin pages):
-
-* Read `PLAYMASTERS_ADMIN_EMAILS` from env (comma-separated)
-* In `callbacks.session`, add:
-
-  * `session.user.isAdmin = adminEmails.includes(session.user.email)`
-
-Do NOT add a DB adapter.
+* No admin UI ever loads for non-admins
+* Admin is a true security boundary
 
 ---
 
-### 2) Environment variables + example file
+# Part 2 — DynamoDB client (shared)
 
-Create:
+## 5) Create DynamoDB helper (shared location)
+
+Create a reusable Dynamo client module (prefer shared):
+
+**Preferred location:**
 
 ```
+packages/utils/src/ddb.ts
+```
+
+or
+
+```
+apps/admin/lib/ddb.ts
+```
+
+and copy later to web.
+
+It must:
+
+* Create `DynamoDBClient` with:
+
+  * region from `AWS_REGION`
+  * credentials from env
+  * optional `endpoint` override if `DDB_ENDPOINT` is set
+* Export:
+
+  * `ddbClient`
+  * `ddbDocClient` (DocumentClient)
+
+---
+
+## 6) Env variables
+
+Update both:
+
+```
+apps/admin/.env.example
 apps/web/.env.example
 ```
 
 Include:
 
-* `GOOGLE_CLIENT_ID=`
-* `GOOGLE_CLIENT_SECRET=`
-* `NEXTAUTH_SECRET=` (include note to generate with openssl)
-* `NEXTAUTH_URL=http://localhost:3000`
-* `PLAYMASTERS_ADMIN_EMAILS=you@example.com`
-
-If the repo uses `.env.local`, ensure `.env.example` is referenced in README (optional).
+```
+AWS_REGION=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+DDB_ENDPOINT=        # optional, for local Dynamo
+DDB_TABLE_ANNOUNCEMENTS=PlaymastersAnnouncements
+```
 
 ---
 
-### 3) Wire SessionProvider globally
+# Part 3 — Announcements data layer (shared contract)
 
-In App Router, use `SessionProvider` from `next-auth/react`, but it must be used in a **client component**.
+## 7) Define Announcement model
 
 Create:
 
 ```
-apps/web/components/AuthProvider/AuthProvider.tsx
+packages/types/src/announcement.ts
 ```
 
-```tsx
-'use client'
-import { SessionProvider } from 'next-auth/react'
+Export:
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>
-}
+```ts
+export type Announcement = {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+
+  isActive: boolean;
+  sortOrder: number;
+
+  createdAt: string;
+  updatedAt: string;
+};
 ```
 
-Then wrap the app in `apps/web/app/layout.tsx`:
-
-```tsx
-<AuthProvider>{children}</AuthProvider>
-```
-
-Ensure this does not break SSR layout and does not move global token imports.
+Re-export from `packages/types/index.ts`.
 
 ---
 
-### 4) Header login/logout UI
+## 8) Announcements repository module
 
-Update the header component to show:
+Create in admin:
 
-**When signed out**
+```
+apps/admin/lib/announcements.ts
+```
 
-* A “Sign in with Google” button
+This module is the **only place that touches DynamoDB for announcements**.
 
-**When signed in**
+Implement:
 
-* Show user avatar + name (or email if no name)
-* A small menu or inline buttons:
+* `listAnnouncements(): Promise<Announcement[]>`
+* `getAnnouncement(id: string): Promise<Announcement | null>`
+* `createAnnouncement(input: AnnouncementInput): Promise<Announcement>`
+* `updateAnnouncement(id: string, input: AnnouncementInput): Promise<Announcement>`
+* `deleteAnnouncement(id: string): Promise<void>`
+* `setAnnouncementActive(id: string, isActive: boolean): Promise<void>`
+* `getActiveAnnouncements(max = 5): Promise<Announcement[]>`
 
-  * “Profile” link to `/profile`
-  * “Sign out”
+Where:
 
-Implementation requirements:
+```ts
+type AnnouncementInput = {
+  title: string;
+  body: string;
+  imageUrl?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  isActive: boolean;
+  sortOrder: number;
+};
+```
 
-* Use `useSession()` from `next-auth/react`
-* Use `signIn('google')` and `signOut()`
-* Keep it minimal; no external dropdown library needed.
-* Use existing UI components (`Button`, `Card`) if available; otherwise simple markup + CSS Modules.
+### Dynamo schema (simple MVP)
+
+Use:
+
+* PK = `"ANNOUNCEMENTS"`
+* SK = `"ANNOUNCEMENT#<id>"`
+
+Store full announcement in attributes.
+
+### Enforce “max 5 active” rule
+
+After any:
+
+* create
+* update
+* activate
+
+Run:
+
+1. Fetch all active announcements
+2. Sort by:
+
+   * sortOrder DESC
+   * updatedAt DESC
+3. If active count > 5:
+
+   * automatically deactivate overflow announcements
+   * persist updates
+
+This guarantees landing page never shows more than 5.
 
 ---
 
-### 5) Add a `/profile` page (minimal)
+# Part 4 — Admin UI (Announcements CRUD)
+
+## 9) Admin routes
+
+Create routes in admin app:
+
+```
+apps/admin/app/page.tsx                    # admin dashboard
+apps/admin/app/announcements/page.tsx     # list
+apps/admin/app/announcements/new/page.tsx
+apps/admin/app/announcements/[id]/page.tsx
+```
+
+All pages must:
+
+* Assume middleware already enforced admin access
+* Still optionally verify session server-side
+
+---
+
+## 10) Admin dashboard `/`
+
+Simple page:
+
+* Title: “Playmasters Admin”
+* Links:
+
+  * Announcements
+  * (future) Scores
+  * (future) Games
+
+---
+
+## 11) Announcements list `/announcements`
+
+Features:
+
+* Table listing all announcements
+* Sorted:
+
+  * active first
+  * then sortOrder DESC
+  * then updatedAt DESC
+
+Columns:
+
+* Title
+* Active (toggle checkbox/switch)
+* Sort order
+* Updated
+* Actions: Edit / Delete
+
+Buttons:
+
+* “New announcement”
+
+Actions:
+
+* Toggle active:
+
+  * calls server action or handler
+  * enforces max 5 rule
+* Delete:
+
+  * confirm()
+  * remove from Dynamo
+
+---
+
+## 12) Create page `/announcements/new`
+
+Form fields:
+
+* Title (required)
+* Body (required, textarea)
+* Image URL (optional)
+* CTA label (optional)
+* CTA href (optional)
+* Sort order (number, default 0)
+* Active (checkbox)
+
+Buttons:
+
+* Save
+* Cancel (back to list)
+
+On submit:
+
+* Create announcement
+* Enforce max-5
+* Redirect to list
+
+---
+
+## 13) Edit page `/announcements/[id]`
+
+Same form, prefilled.
+
+Extra buttons:
+
+* Save
+* Cancel
+* Delete
+
+---
+
+## 14) Backend wiring style
+
+Use **Server Actions** (preferred):
+
+* Each form uses `action={async (formData) => ...}`
+* Calls repository functions directly
+* After mutations:
+
+  * `revalidatePath('/')`
+  * `revalidatePath('/announcements')`
+
+No REST API required for MVP.
+
+---
+
+# Part 5 — Public site integration (apps/web)
+
+## 15) Public announcements reader module
 
 Create:
 
 ```
-apps/web/app/profile/page.tsx
-apps/web/app/profile/page.module.css
+apps/web/lib/announcements.ts
+```
+
+This must:
+
+* Use same DynamoDB client logic
+* Export:
+
+```ts
+export async function getActiveAnnouncements(max = 5): Promise<Announcement[]>
+```
+
+Implementation:
+
+* Query Dynamo
+* Filter `isActive === true`
+* Sort by:
+
+  * sortOrder DESC
+  * updatedAt DESC
+* Slice to max 5
+* Catch errors:
+
+  * log server error
+  * return empty array
+
+---
+
+## 16) Update landing page carousel to use Dynamo SSR
+
+In:
+
+```
+apps/web/app/page.tsx
+```
+
+Replace placeholder announcements with:
+
+```ts
+const announcements = await getActiveAnnouncements(5);
 ```
 
 Behavior:
 
-* If user not authenticated:
+* If announcements.length > 0 → render carousel from Dynamo
+* If announcements.length === 0 → fallback to existing placeholder announcements
 
-  * show “Please sign in” + a sign-in button
-* If authenticated:
+Ensure:
 
-  * show basic profile:
-
-    * avatar
-    * display name
-    * email
-    * placeholder section: “Your personal bests will appear here.”
-
-Do not implement scores yet.
+* SSR only
+* No client fetch
+* Max 5 rendered
 
 ---
 
-### 6) Protect `/admin` routes with middleware (foundation for Step 4)
+# Styling requirements
 
-Add:
+* All admin UI styled with CSS Modules
+* Use brand tokens (dark surfaces, neon accents)
+* Admin UI must be readable and professional:
 
-```
-apps/web/middleware.ts
-```
+  * tables with zebra rows optional
+  * subtle borders
+  * clear form labels
 
-Requirements:
-
-* Protect any route under `/admin`
-* If not signed in → redirect to `/api/auth/signin`
-* If signed in but not admin (`session.user.isAdmin !== true`) → redirect to `/` (or show 403 page)
-
-Use NextAuth middleware support (`withAuth`) appropriate for the installed version.
-
-Also protect `/profile` optionally (either via middleware or page logic). It’s OK if `/profile` just shows the sign-in prompt without middleware.
+No Tailwind. No MUI.
 
 ---
 
-### 7) Update “Personal” leaderboard tab message (nice integration)
+# Acceptance Criteria
 
-On the game detail page leaderboard panel (from Step 2):
+After implementation:
 
-* If signed out: “Sign in to see your personal best.”
-* If signed in: show mock “Personal Best” row (or empty state) with the user’s name.
+### Local dev
 
-Do not connect to realtime or Dynamo yet—keep it UI-only.
+* `nx dev web` → runs at `http://localhost:3000`
+* `nx dev admin` (or `nx serve admin`) → runs at `http://localhost:3001`
+
+### Admin app
+
+* Visiting `/` in admin:
+
+  * redirects to Google login if not signed in
+  * blocks non-admin users
+* Admin can:
+
+  * create announcements
+  * edit announcements
+  * delete announcements
+  * toggle active
+* More than 5 active announcements is impossible (auto-enforced)
+
+### Public site
+
+* Landing page shows announcements from Dynamo (SSR)
+* Max 5 always
+* If Dynamo not configured → placeholder carousel still works
+
+### Architecture
+
+* No admin UI code in `apps/web`
+* Admin and web fully separated
+* Shared types and tokens reused cleanly
 
 ---
 
-## Acceptance Criteria
+# Deliverables
 
-* `nx dev web` runs without errors
-* Auth flow works locally:
+Expected new files include:
 
-  * click “Sign in with Google” → authenticates → header updates
-  * sign out works
-* `/profile` displays correct signed-in/signed-out content
-* `/admin/*` is protected (redirects when not allowed)
-* No database adapter is added
-* Code is clean, typed, and uses CSS Modules + tokens (no Tailwind/MUI)
+**Admin app**
 
----
+* `apps/admin/app/layout.tsx`
+* `apps/admin/middleware.ts`
+* `apps/admin/app/page.tsx`
+* `apps/admin/app/announcements/page.tsx`
+* `apps/admin/app/announcements/new/page.tsx`
+* `apps/admin/app/announcements/[id]/page.tsx`
+* `apps/admin/lib/ddb.ts`
+* `apps/admin/lib/announcements.ts`
+* admin CSS modules
 
-## Notes
+**Shared**
 
-* Keep auth code isolated and reusable.
-* Prefer placing auth config in a single module and importing it from the route handler and middleware.
-* Do not implement admin UI yet—only protection scaffolding.
+* `packages/types/src/announcement.ts`
 
+**Public**
+
+* `apps/web/lib/announcements.ts`
+* `apps/web/app/page.tsx` updated
+
+**Env**
+
+* `apps/admin/.env.example`
+* `apps/web/.env.example` updated

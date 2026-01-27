@@ -1,0 +1,77 @@
+.page {
+  min-height: 100vh;
+  padding: var(--pm-space-2xl) var(--pm-space-xl);
+  display: grid;
+  gap: var(--pm-space-xl);
+  background:
+    radial-gradient(
+      120% 120% at 20% 20%,
+      color-mix(in srgb, var(--pm-color-electric-blue) 12%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      120% 120% at 80% 10%,
+      color-mix(in srgb, var(--pm-color-arcade-yellow) 10%, transparent),
+      transparent
+    ),
+    var(--pm-color-background);
+}
+
+.header {
+  display: grid;
+  gap: var(--pm-space-xs);
+}
+
+.kicker {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--pm-color-electric-blue);
+  font-size: var(--pm-font-size-sm);
+}
+
+.title {
+  font-size: var(--pm-font-size-hero);
+  line-height: var(--pm-line-height-tight);
+  color: var(--pm-color-text-primary);
+}
+
+.subtitle {
+  color: var(--pm-color-text-secondary);
+  font-size: var(--pm-font-size-lg);
+}
+
+.nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--pm-space-md);
+}
+
+.navCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--pm-space-lg);
+  border-radius: var(--pm-radius-lg);
+  background: color-mix(in srgb, var(--pm-color-surface) 90%, var(--pm-color-background) 10%);
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
+  color: var(--pm-color-text-primary);
+  text-decoration: none;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.navCard:hover,
+.navCard:focus-visible {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--pm-color-electric-blue) 20%, transparent);
+  box-shadow: var(--pm-shadow-card);
+  outline: none;
+}
+
+.navLabel {
+  font-size: var(--pm-font-size-lg);
+}
+
+.chevron {
+  font-size: var(--pm-font-size-xl);
+  color: var(--pm-color-text-secondary);
+}
