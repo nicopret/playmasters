@@ -1,0 +1,28 @@
+
+> nx run web:dev
+
+> next dev
+
+   [1m[38;2;173;127;168m▲ Next.js 16.0.10[39m[22m (Turbopack)
+   - Local:         http://localhost:3000
+   - Network:       http://192.168.50.9:3000
+   - Environments: .env
+
+ [32m[1m✓[22m[39m Starting...
+ [32m[1m✓[22m[39m Ready in 2.7s
+ GET / [32m200[39m in 4.2s[2m (compile: 3.5s, render: 704ms)[22m
+ GET /fonts/burbank-big-condensed-bold.woff2 [33m404[39m in 1535ms[2m (compile: 994ms, render: 541ms)[22m
+ GET /fonts/montserrat-regular.woff2 [33m404[39m in 1521ms[2m (compile: 1162ms, render: 359ms)[22m
+ GET /fonts/poppins-regular.woff2 [33m404[39m in 121ms[2m (compile: 16ms, render: 105ms)[22m
+ GET /api/auth/session [32m200[39m in 2.1s[2m (compile: 2.1s, render: 66ms)[22m
+ GET /api/auth/session [32m200[39m in 34ms[2m (compile: 22ms, render: 12ms)[22m
+ [37m[1m○[22m[39m Compiling /games ...
+ GET /games [32m200[39m in 11.5s[2m (compile: 10.2s, render: 1332ms)[22m
+ GET /games [32m200[39m in 348ms[2m (compile: 147ms, render: 201ms)[22m
+ [37m[1m○[22m[39m Compiling /games/[slug] ...
+ GET /games/astro-defender [32m200[39m in 5.3s[2m (compile: 4.7s, render: 578ms)[22m
+ GET /fonts/burbank-big-condensed-bold.woff2 [33m404[39m in 430ms[2m (compile: 160ms, render: 270ms)[22m
+ GET /fonts/montserrat-regular.woff2 [33m404[39m in 432ms[2m (compile: 241ms, render: 191ms)[22m
+ GET /fonts/poppins-regular.woff2 [33m404[39m in 102ms[2m (compile: 8ms, render: 94ms)[22m
+ GET /api/auth/session [32m200[39m in 38ms[2m (compile: 18ms, render: 20ms)[22m
+ GET /api/auth/session [32m200[39m in 21ms[2m (compile: 7ms, render: 14ms)[22m

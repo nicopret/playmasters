@@ -49,3 +49,4 @@ out
 /**/.env
 
 storybook-static
+test-output
