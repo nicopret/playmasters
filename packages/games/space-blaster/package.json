@@ -1,0 +1,14 @@
+{
+  "name": "@playmasters/space-blaster",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.d.ts",
+  "dependencies": {
+    "@playmasters/game-sdk": "workspace:*",
+    "@playmasters/types": "workspace:*",
+    "phaser": "^3.87.0",
+    "tslib": "^2.3.0"
+  }
+}

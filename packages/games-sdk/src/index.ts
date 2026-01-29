@@ -1,1 +1,2 @@
-export * from './lib/games-sdk';
+export * from './types';
+export * from './sdk';

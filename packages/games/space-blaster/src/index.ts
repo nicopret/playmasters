@@ -1,0 +1,1 @@
+export { spaceBlaster } from './game';

@@ -46,13 +46,19 @@
   ],
   "references": [
     {
+      "path": "../../packages/games/space-blaster"
+    },
+    {
+      "path": "../../packages/games-sdk"
+    },
+    {
+      "path": "../../packages/types"
+    },
+    {
       "path": "../../packages/brand"
     },
     {
       "path": "../../packages/ui"
-    },
-    {
-      "path": "../../packages/types"
     }
   ]
 }
