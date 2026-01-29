@@ -1,407 +1,336 @@
-## Realtime Leaderboards + Sessions + Score Submission + WS Updates + Dynamo Snapshots
+## 🔹 Desktop + Mobile Wrappers with Tauri + Capacitor
 
-**Task:** Implement Step 5: the realtime scoring pipeline and leaderboards.
+**Task:** Implement Step 6 for Playmasters: package the existing web platform into **desktop and mobile applications** using **Tauri (desktop)** and **Capacitor (mobile)**, all inside the existing Nx monorepo.
 
-Create a working end-to-end flow where:
+The goal is:
 
-* a player opens a game page in `apps/web`
-* the page connects to `apps/realtime` via WebSocket
-* server issues a **single-use session token** for a run
-* the client submits a score to `apps/web`
-* `apps/web` validates the run and forwards it to `apps/realtime`
-* `apps/realtime` updates **in-memory** leaderboards and broadcasts updates
-* `apps/realtime` persists snapshots to DynamoDB and restores them on startup
-
-This step should work with placeholder games (no actual game engine required yet).
+* One web codebase
+* Multiple distribution targets
+* No duplicated UI logic
+* Shared auth, realtime, and leaderboard behavior
 
 ---
 
 # Context
 
 * Nx monorepo
-* Apps:
+* Existing apps:
 
-  * `apps/web` (Next.js App Router)
-  * `apps/admin` (announcements CRUD)
-  * `apps/realtime` (Node service; currently minimal)
-* Auth is implemented in `apps/web` (Step 3). Users sign in with Google. Session provides:
+  * `apps/web` → public Next.js site (players)
+  * `apps/admin` → admin site
+  * `apps/realtime` → WebSocket leaderboard service
+* Web app already supports:
 
-  * `session.user.id` (Google sub)
-  * `session.user.email`
-* Games are defined in a code registry from Step 2.
-* Styling is done already. Now we are building realtime backend + API integration.
+  * Google auth
+  * WebSockets
+  * SSR landing page
+  * Game pages
+* Games are web-based (canvas / Phaser later)
+* Styling uses CSS Modules + design tokens
 
-**Constraints**
+This step adds:
 
-* No SQL DB
-* Use DynamoDB for persistence
-* In-memory leaderboards on realtime server
-* WebSockets for pushing updates to clients
-
----
-
-# Part A — Define shared contracts (types)
-
-Create/update in `packages/types`:
-
-## 1) WebSocket event types
-
-Add:
-
-* `packages/types/src/realtime.ts`
-
-Export types:
-
-```ts
-export type LeaderboardScope = 'global' | 'local' | 'personal';
-
-export type LeaderboardEntry = {
-  rank: number;
-  userId: string;
-  displayName: string;
-  countryCode?: string;
-  score: number;
-  achievedAt: string;
-};
-
-export type LeaderboardState = {
-  gameId: string;
-  scope: LeaderboardScope;
-  countryCode?: string;
-  entries: LeaderboardEntry[];
-  updatedAt: string;
-};
-
-export type WsClientMessage =
-  | { type: 'subscribe'; gameId: string; scopes: Array<'global' | 'local' | 'personal'>; countryCode?: string; userId?: string }
-  | { type: 'unsubscribe'; gameId: string }
-  | { type: 'ping' };
-
-export type WsServerMessage =
-  | { type: 'ready' }
-  | { type: 'leaderboard:state'; payload: LeaderboardState }
-  | { type: 'leaderboard:update'; payload: LeaderboardState }
-  | { type: 'error'; message: string };
-```
-
-Re-export from `packages/types/index.ts`.
+* Desktop wrapper (Windows / macOS / Linux)
+* Mobile wrapper (iOS / Android)
 
 ---
 
-# Part B — Realtime service (apps/realtime)
+# Architectural rule (important)
 
-## 2) Add WebSocket server
+* **apps/web remains the source of truth**
+* Desktop and mobile are **thin shells**
+* No business logic duplicated
+* Auth + leaderboards continue to use:
 
-Use a lightweight WS lib (prefer `ws`).
-
-Install at workspace root:
-
-* `ws`
-* `@types/ws` (if TS needs it)
-
-Create a WS server in `apps/realtime`:
-
-* Listen on port from env: `REALTIME_PORT` default `4000`
-* Provide a basic health endpoint (HTTP GET `/health`) returning 200 OK for deployment sanity
-
-**File structure (create if helpful):**
-
-```
-apps/realtime/src/
-  main.ts (or index.ts)
-  server.ts
-  leaderboards/
-    store.ts
-    snapshot.ts
-    restore.ts
-  ddb.ts
-  types.ts (optional local helpers)
-```
-
-## 3) In-memory leaderboard store
-
-Implement an in-memory store that maintains top N lists:
-
-* `TOP_N = 50` (configurable)
-* Structures:
-
-  * `globalTop[gameId] -> LeaderboardEntry[]`
-  * `localTop[gameId][countryCode] -> LeaderboardEntry[]`
-  * `personalBest[gameId][userId] -> LeaderboardEntry` (store best score only)
-
-Provide functions:
-
-* `applyScore({ gameId, userId, displayName, countryCode, score, achievedAt })`
-
-  * update personal best only if score greater
-  * update global top N
-  * update local top N for countryCode if present
-* `getState(gameId, scope, countryCode?, userId?) -> LeaderboardState`
-
-Ranking:
-
-* Higher score wins
-* Tie-breaker: earlier achievedAt wins (or latest; choose one and be consistent)
-
-## 4) WebSocket subscription model
-
-Clients will subscribe per gameId and scopes.
-
-When a client sends:
-
-```json
-{ "type": "subscribe", "gameId": "...", "scopes": ["global","local","personal"], "countryCode":"GB", "userId":"..." }
-```
-
-Server should:
-
-* store subscription (per ws connection)
-* immediately send `leaderboard:state` for requested scopes
-* on updates, broadcast only relevant payloads to subscribed clients
-
-Include `ping/pong` keepalive.
-
-## 5) DynamoDB persistence (snapshots)
-
-Add DynamoDB client (AWS SDK v3) in realtime app.
-
-Env vars:
-
-* `AWS_REGION`
-* `AWS_ACCESS_KEY_ID`
-* `AWS_SECRET_ACCESS_KEY`
-* optional `DDB_ENDPOINT`
-* `DDB_TABLE_LEADERBOARD_SNAPSHOTS`
-* optional `DDB_TABLE_SCORES` (if implementing score history)
-
-Snapshot table model (simple):
-
-* PK: `GAME#<gameId>#SCOPE#GLOBAL` or `GAME#<gameId>#SCOPE#COUNTRY#GB`
-* SK: `SNAPSHOT`
-* Attributes: `entries` (top N), `updatedAt`
-
-Implement:
-
-* restore on startup:
-
-  * for each game in registry OR via scanning snapshot table (MVP okay)
-  * load snapshots into memory
-* periodic flush:
-
-  * every 10 seconds flush changed leaderboards (throttle writes)
-  * flush global and local states that changed
-* do not persist personalBest snapshot for MVP unless easy; it can be derived from Scores later
-
-**Important:** make persistence optional. If env vars not set, run in memory only.
-
-## 6) Receive score updates from web
-
-Realtime service must accept a server-to-server call from `apps/web` to apply scores.
-
-Implement an HTTP endpoint in realtime app:
-
-* `POST /score`
-* Body:
-
-```ts
-{
-  gameId: string;
-  userId: string;
-  displayName: string;
-  countryCode?: string;
-  score: number;
-  achievedAt: string;
-}
-```
-
-This endpoint:
-
-* validates input
-* calls `applyScore`
-* broadcasts updated leaderboard states for:
-
-  * global + local + personal (personal update only to that user’s subscriptions)
-* returns 200
-
-Secure it with a shared secret:
-
-* env: `REALTIME_INGEST_SECRET`
-* web includes header: `x-realtime-secret`
-
-If secret missing in dev, allow localhost only (but prefer secret even in dev).
+  * hosted web app
+  * or local dev server in development
 
 ---
 
-# Part C — Web app changes (apps/web)
+# Part A — Desktop app (Tauri)
 
-## 7) Add Game Sessions API (single-use run tokens)
+## 1) Create desktop app
 
-Implement:
+Generate a new app:
 
-* `POST /api/game-sessions`
-* Auth required
-
-It creates a short-lived session token:
-
-* `token` = random UUID or crypto random string
-* store in an in-memory map in `apps/web` server runtime:
-
-  * `{ token -> { userId, gameId, expiresAt, consumed:false } }`
-* TTL: 10 minutes
-* “single use”: token is consumed when a score is submitted successfully
-
-Note: This is MVP. We’ll move sessions to Dynamo later if needed.
-
-Response:
-
-```json
-{ "token": "...", "expiresAt": "..." }
+```
+apps/desktop
 ```
 
-## 8) Add Score Submission API
+This app will:
 
-Implement:
+* Use **Tauri**
+* Load the Playmasters web app via:
 
-* `POST /api/scores/submit`
-* Auth required
+  * `http://localhost:3000` in dev
+  * `https://playmasters.com` in production
 
-Body:
-
-```ts
-{
-  gameId: string;
-  score: number;
-  runId: string; // client-generated uuid
-  sessionToken: string;
-  durationMs?: number;
-}
-```
-
-Validation:
-
-* session token exists, matches user + game, not expired, not consumed
-* rate limit basic (per user, naive in-memory is fine for MVP)
-* score sanity:
-
-  * must be integer >= 0
-  * apply per-game max if available in registry config (add optional `maxScore` to registry)
-
-On success:
-
-* mark token consumed
-* forward score to realtime service:
-
-  * `POST ${REALTIME_HTTP_URL}/score`
-  * header `x-realtime-secret`
-* return `{ ok: true }`
-
-If realtime is down:
-
-* return `{ ok: false, error: 'realtime_unavailable' }`
-
-Env vars for web:
-
-* `REALTIME_HTTP_URL=http://localhost:4000`
-* `REALTIME_WS_URL=ws://localhost:4000`
-* `REALTIME_INGEST_SECRET=...`
-
-## 9) WebSocket client integration on game page
-
-In the `/games/[slug]` page (Step 2):
-
-* Update `LeaderboardPanel` to connect to `REALTIME_WS_URL` and subscribe.
-
-Client behavior:
-
-* On mount:
-
-  * open WS connection
-  * send `{type:'subscribe', gameId, scopes:['global','local','personal'], countryCode:'GB' (placeholder), userId if signed in}`
-* Maintain local state for:
-
-  * global entries
-  * local entries
-  * personal (best) entry
-* Render table rows from WS state
-* Show “Live” indicator when connected
-
-For now, local countryCode can be:
-
-* `'GB'` hardcoded OR derived from a simple env `DEFAULT_COUNTRY_CODE=GB`
-  (we’ll do IP-based later)
-
-## 10) Add a “Submit test score” button for MVP testing
-
-Since games aren’t wired yet, add a dev-only button on the game page:
-
-* visible when `process.env.NODE_ENV !== 'production'`
-* button: “Submit test score”
-* on click:
-
-  * call `/api/game-sessions` to get token
-  * submit a random score to `/api/scores/submit`
-  * observe leaderboard update via WS
-
-This allows testing end-to-end without building game logic yet.
+Do NOT embed a second copy of the web app unless required.
 
 ---
 
-# Part D — Nx targets / run instructions
+## 2) Initialize Tauri
 
-Ensure these commands work:
+Inside `apps/desktop`:
 
-* `nx dev web` (public site)
-* `nx dev admin` (admin app)
-* `nx serve realtime` (realtime WS + HTTP)
+* Initialize Tauri using:
 
-If `realtime` uses a node executor:
+  * Rust backend
+  * WebView frontend
+* Configure `tauri.conf.json` to:
 
-* ensure build output works: `nx build realtime` and `node dist/apps/realtime/...`
+  * Disable unnecessary APIs
+  * Enable window resizing
+  * Set app name to `Playmasters`
+  * Set window size (e.g. 1280×800)
+
+---
+
+## 3) Desktop routing rules
+
+The desktop app should:
+
+* Load:
+
+  * `process.env.PLAYMASTERS_WEB_URL`
+* Default dev value:
+
+  * `http://localhost:3000`
+* Production value:
+
+  * `https://playmasters.com`
+
+Ensure:
+
+* External links open in system browser
+* Auth redirects work correctly
+* WebSockets are not blocked by the WebView
+
+---
+
+## 4) Desktop build targets
+
+Add Nx targets for desktop:
+
+* `nx run desktop:dev`
+* `nx run desktop:build`
+
+Dev:
+
+* Runs Tauri in dev mode
+* Points to local web server
+
+Build:
+
+* Produces platform installers/bundles
+
+---
+
+# Part B — Mobile app (Capacitor)
+
+## 5) Create mobile app
+
+Generate:
+
+```
+apps/mobile
+```
+
+This app will:
+
+* Use **Capacitor**
+* Wrap the Playmasters web app
+* Target:
+
+  * iOS
+  * Android
+
+---
+
+## 6) Initialize Capacitor
+
+Inside `apps/mobile`:
+
+* Initialize Capacitor project
+* App name: `Playmasters`
+* App ID: `com.playmasters.app`
+
+Configure Capacitor to:
+
+* Use a **remote web URL**
+* Not bundle static web assets initially
+
+---
+
+## 7) Mobile WebView configuration
+
+Mobile app must:
+
+* Load:
+
+  * `process.env.PLAYMASTERS_WEB_URL`
+* Support:
+
+  * Google OAuth redirects
+  * WebSockets
+  * Fullscreen canvas games
+* Disable zoom
+* Enable landscape orientation for games
+
+---
+
+## 8) Platform setup
+
+Add platforms:
+
+* iOS
+* Android
+
+Ensure:
+
+* Correct WebView permissions
+* Network permissions enabled
+* Cleartext traffic allowed for local dev only
+
+---
+
+## 9) Mobile build targets
+
+Add Nx targets:
+
+* `nx run mobile:ios`
+* `nx run mobile:android`
+* `nx run mobile:sync`
+
+These should:
+
+* Sync Capacitor config
+* Open native IDEs (Xcode / Android Studio)
+
+---
+
+# Part C — Shared configuration
+
+## 10) Environment configuration
+
+Standardize these env vars across apps:
+
+```
+PLAYMASTERS_WEB_URL=http://localhost:3000
+REALTIME_WS_URL=ws://localhost:4000
+```
+
+Ensure:
+
+* Desktop and mobile use the same web + realtime URLs
+* No hardcoded localhost values in production
+
+---
+
+## 11) Auth compatibility checks
+
+Verify:
+
+* Google OAuth works inside:
+
+  * Tauri WebView
+  * Capacitor WebView
+* Redirect URIs include:
+
+  * web domain
+  * mobile deep-link scheme if required
+* Session cookies are persisted
+
+If needed:
+
+* Add Capacitor/Tauri user agent hints
+* Adjust OAuth redirect handling
+
+---
+
+# Part D — Developer experience
+
+## 12) Update workspace scripts
+
+Ensure these workflows work:
+
+```bash
+# Web
+nx dev web
+
+# Realtime
+nx serve realtime
+
+# Desktop
+nx run desktop:dev
+
+# Mobile
+nx run mobile:sync
+nx run mobile:ios
+nx run mobile:android
+```
+
+---
+
+## 13) Documentation
+
+Update root `README.md`:
+
+Add a section:
+
+### Desktop & Mobile
+
+Explain:
+
+* Architecture (web-first)
+* How to run desktop
+* How to run mobile
+* Environment variables required
 
 ---
 
 # Acceptance Criteria
 
-1. Start services:
+After Step 6:
 
-* web at `http://localhost:3000`
-* realtime at `http://localhost:4000` (WS + `/health`)
+### Desktop
 
-2. Visit a game detail page `/games/<slug>`
-3. Leaderboard panel shows connected state (or loading)
-4. Click “Submit test score”
-5. Leaderboard updates in real-time without refresh
-6. Restart realtime service:
+* Playmasters runs as a native desktop app
+* Uses the same web UI and realtime service
+* No duplicated UI code
+* Auth + leaderboards work
 
-* it restores snapshots from Dynamo if configured
-* otherwise starts empty
+### Mobile
 
-7. No SQL anywhere; only Dynamo optional
+* Playmasters runs on iOS and Android
+* Games are playable
+* Leaderboards update via WebSockets
+* Auth flow completes successfully
+
+### Architecture
+
+* Web remains the single source of truth
+* Desktop/mobile are thin wrappers
+* Nx monorepo cleanly manages all targets
 
 ---
 
-# Deliverables (files likely added/modified)
+# Deliverables (expected)
 
-**packages/types**
+**apps/desktop**
 
-* `src/realtime.ts`
-* `index.ts` exports
+* Tauri config
+* Nx project.json targets
+* README notes
 
-**apps/realtime**
+**apps/mobile**
 
-* `src/server.ts` (HTTP + WS)
-* `src/leaderboards/store.ts`
-* `src/leaderboards/restore.ts`
-* `src/leaderboards/snapshot.ts`
-* `src/ddb.ts`
-* `src/main.ts` updates
-* env example update (if you keep one)
+* Capacitor config
+* iOS + Android setup
+* Nx targets
 
-**apps/web**
+**Docs**
 
-* `app/api/game-sessions/route.ts`
-* `app/api/scores/submit/route.ts`
-* `components/LeaderboardPanel/LeaderboardPanel.tsx` updated to use WS
-* game detail page updated to include dev test submit button
-* `.env.example` updated with realtime vars
+* Updated root README
+* `.env.example` updated with wrapper URLs
 

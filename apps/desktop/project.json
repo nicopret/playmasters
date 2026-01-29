@@ -1,0 +1,25 @@
+{
+  "name": "desktop",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/desktop",
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm tauri dev --config apps/desktop/src-tauri/tauri.conf.json",
+        "cwd": ".",
+        "envFile": ".env"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm tauri build --config apps/desktop/src-tauri/tauri.conf.json",
+        "cwd": ".",
+        "envFile": ".env"
+      }
+    }
+  },
+  "tags": []
+}

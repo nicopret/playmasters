@@ -157,6 +157,20 @@ nx build web
 nx build realtime
 ```
 
+### Desktop & Mobile (wrappers)
+
+These wrappers reuse the hosted web UI; they don't bundle duplicate frontend code.
+
+* Desktop (Tauri): `nx run desktop:dev` (loads `PLAYMASTERS_WEB_URL`, defaults to `http://localhost:3000`) and `nx run desktop:build` for installers.
+* Mobile (Capacitor): `nx run mobile:sync` then `nx run mobile:ios` / `nx run mobile:android` to open Xcode/Android Studio. The WebView points at `PLAYMASTERS_WEB_URL`.
+
+Required env hints (set in `.env` or shell):
+
+```bash
+PLAYMASTERS_WEB_URL=http://localhost:3000
+REALTIME_WS_URL=ws://localhost:4000
+```
+
 ---
 
 ## Linting & typechecking
