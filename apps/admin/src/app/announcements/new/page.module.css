@@ -1,0 +1,41 @@
+.page {
+  padding: var(--pm-space-xl);
+  display: grid;
+  gap: var(--pm-space-lg);
+}
+
+.form {
+  display: grid;
+  gap: var(--pm-space-md);
+  background: color-mix(in srgb, var(--pm-color-surface) 90%, var(--pm-color-background) 10%);
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
+  border-radius: var(--pm-radius-lg);
+  padding: var(--pm-space-xl);
+  box-shadow: var(--pm-shadow-card);
+}
+
+.field {
+  display: grid;
+  gap: var(--pm-space-2xs);
+}
+
+.label {
+  color: var(--pm-color-text-primary);
+  font-weight: var(--pm-font-weight-medium);
+}
+
+.input,
+.textarea,
+.checkbox,
+.number {
+  padding: var(--pm-space-sm);
+  border-radius: var(--pm-radius-md);
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-secondary) 30%, transparent);
+  background: color-mix(in srgb, var(--pm-color-background) 92%, var(--pm-color-surface) 8%);
+  color: var(--pm-color-text-primary);
+}
+
+.actions {
+  display: flex;
+  gap: var(--pm-space-sm);
+}

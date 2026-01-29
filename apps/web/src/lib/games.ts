@@ -8,6 +8,7 @@ export type Game = {
   tags: string[];
   status: GameStatus;
   thumbnailUrl?: string;
+  maxScore?: number;
 };
 
 const games: Game[] = [
@@ -18,6 +19,7 @@ const games: Game[] = [
     description: 'Synthwave street racing through procedurally lit skylines.',
     tags: ['Racing', 'Arcade'],
     status: 'available',
+    maxScore: 200000,
   },
   {
     id: 'game-astro-defender',
@@ -26,6 +28,7 @@ const games: Game[] = [
     description: 'Defend the last orbital city against pixel-perfect swarms.',
     tags: ['Shooter', 'Retro'],
     status: 'available',
+    maxScore: 150000,
   },
   {
     id: 'game-quantum-clash',
@@ -63,6 +66,9 @@ const games: Game[] = [
 
 export const getGameBySlug = (slug: string): Game | undefined =>
   games.find((game) => game.slug === slug);
+
+export const getGameById = (id: string): Game | undefined =>
+  games.find((game) => game.id === id || game.slug === id);
 
 export const getAllGames = (): Game[] => games;
 

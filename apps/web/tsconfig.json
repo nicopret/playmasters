@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "jsx": "preserve",
 
     "strict": true,
@@ -16,7 +17,14 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "incremental": true,
-    "plugins": [{ "name": "next" }]
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@playmasters/brand": ["../../packages/brand/src/index.ts"],
+      "@playmasters/ui": ["../../packages/ui/src/index.ts"],
+      "@playmasters/types": ["../../packages/types/src/index.ts"],
+      "@playmasters/game-sdk": ["../../packages/games-sdk/src/index.ts"]
+    }
   },
   "include": [
     "**/*.ts",
@@ -38,10 +46,13 @@
   ],
   "references": [
     {
+      "path": "../../packages/brand"
+    },
+    {
       "path": "../../packages/ui"
     },
     {
-      "path": "../../packages/brand"
+      "path": "../../packages/types"
     }
   ]
 }

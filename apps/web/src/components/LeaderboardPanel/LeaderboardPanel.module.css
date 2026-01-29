@@ -6,6 +6,44 @@
   overflow: hidden;
 }
 
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--pm-space-sm) var(--pm-space-md);
+  border-bottom: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pm-space-2xs);
+  color: var(--pm-color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dotOn {
+  background: var(--pm-color-success);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--pm-color-success) 20%, transparent);
+}
+
+.dotOff {
+  background: color-mix(in srgb, var(--pm-color-text-secondary) 30%, transparent);
+}
+
+.message {
+  padding: var(--pm-space-xs) var(--pm-space-md);
+  color: var(--pm-color-text-secondary);
+  font-size: 0.9rem;
+}
+
 .tabs {
   display: flex;
   border-bottom: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);

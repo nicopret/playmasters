@@ -40,7 +40,14 @@ export const GameCard = ({ game }: Props) => {
       <div className={styles.footer}>
         <Link href={href}>Details</Link>
         <div className={styles.cta}>
-          <Button as="a" href={href} variant={isAvailable ? 'primary' : 'secondary'} size="sm" disabled={!isAvailable}>
+          <Button
+            as="a"
+            href={href}
+            variant={isAvailable ? 'primary' : 'secondary'}
+            size="sm"
+            aria-disabled={!isAvailable}
+            tabIndex={!isAvailable ? -1 : undefined}
+          >
             {isAvailable ? 'Play' : 'Coming soon'}
           </Button>
         </div>

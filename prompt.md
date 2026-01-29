@@ -1,580 +1,407 @@
-## 🔹 Separate Admin App + Announcements CRUD + DynamoDB + Public SSR Integration
+## Realtime Leaderboards + Sessions + Score Submission + WS Updates + Dynamo Snapshots
 
-**Task:** Implement Step 4 for Playmasters by creating a **separate admin application** in the Nx monorepo and implementing the first real admin feature: **Announcements CRUD**, backed by **DynamoDB**, with the public website SSR-fetching announcements for the landing page carousel.
+**Task:** Implement Step 5: the realtime scoring pipeline and leaderboards.
 
-This step establishes:
+Create a working end-to-end flow where:
 
-* a security boundary (separate admin app)
-* persistent content management
-* SSR data flow from DynamoDB to the public site
+* a player opens a game page in `apps/web`
+* the page connects to `apps/realtime` via WebSocket
+* server issues a **single-use session token** for a run
+* the client submits a score to `apps/web`
+* `apps/web` validates the run and forwards it to `apps/realtime`
+* `apps/realtime` updates **in-memory** leaderboards and broadcasts updates
+* `apps/realtime` persists snapshots to DynamoDB and restores them on startup
+
+This step should work with placeholder games (no actual game engine required yet).
 
 ---
 
 # Context
 
 * Nx monorepo
-* Existing apps:
+* Apps:
 
-  * `apps/web` → public site (Next.js App Router)
-  * `apps/realtime` → websocket service
-* Step 3 completed:
+  * `apps/web` (Next.js App Router)
+  * `apps/admin` (announcements CRUD)
+  * `apps/realtime` (Node service; currently minimal)
+* Auth is implemented in `apps/web` (Step 3). Users sign in with Google. Session provides:
 
-  * Google auth works
-  * session includes `user.isAdmin` from allowlist
-* Styling:
+  * `session.user.id` (Google sub)
+  * `session.user.email`
+* Games are defined in a code registry from Step 2.
+* Styling is done already. Now we are building realtime backend + API integration.
 
-  * CSS Modules
-  * Design tokens from `@playmasters/brand`
-* No SQL database.
-* DynamoDB is the persistent store.
-* Admin must be a **separate Next.js app**:
+**Constraints**
 
-  * runs on a different port locally (e.g. 3001)
-  * deployable to a different server/domain later
-
----
-
-# High-level goals
-
-By the end of this step:
-
-* `apps/admin` exists as its own Next.js app
-* Only admin users can access it
-* Admin can:
-
-  * list announcements
-  * create announcements
-  * edit announcements
-  * delete announcements
-  * activate/deactivate announcements
-  * control sort order
-* Max **5 active announcements enforced automatically**
-* Public landing page `/` in `apps/web`:
-
-  * SSR-fetches announcements from DynamoDB
-  * shows max 5 active
-  * falls back to placeholders if Dynamo not configured
+* No SQL DB
+* Use DynamoDB for persistence
+* In-memory leaderboards on realtime server
+* WebSockets for pushing updates to clients
 
 ---
 
-# Part 1 — Create the admin app
+# Part A — Define shared contracts (types)
 
-## 1) Generate admin Next.js app
+Create/update in `packages/types`:
 
-Run (via Codex):
+## 1) WebSocket event types
 
-```
-nx g @nx/next:app admin --appDir --style=css --no-interactive
-```
+Add:
 
-This creates:
+* `packages/types/src/realtime.ts`
 
-```
-apps/admin
-```
-
-Requirements:
-
-* App Router enabled
-* CSS Modules only
-* No Tailwind, no MUI
-
----
-
-## 2) Global setup for admin app
-
-### Import brand tokens + fonts
-
-In:
-
-```
-apps/admin/app/layout.tsx
-```
-
-Add at top:
+Export types:
 
 ```ts
-import '@playmasters/brand/tokens.css'
-import '@playmasters/brand/fonts.css'
-```
+export type LeaderboardScope = 'global' | 'local' | 'personal';
 
-Wrap children in your existing `AuthProvider` (or create one for admin if not shared).
+export type LeaderboardEntry = {
+  rank: number;
+  userId: string;
+  displayName: string;
+  countryCode?: string;
+  score: number;
+  achievedAt: string;
+};
 
----
-
-## 3) Auth wiring in admin app
-
-Admin app must reuse the **same Google auth config** as `apps/web`.
-
-### Requirements
-
-* Reuse:
-
-  * same Google OAuth app
-  * same NEXTAUTH_SECRET
-  * same callbacks logic (including `session.user.isAdmin`)
-* Admin must deny access globally unless:
-
-  * signed in
-  * `session.user.isAdmin === true`
-
-### Implementation
-
-Create (or reuse if shared package already exists):
-
-```
-apps/admin/src/auth.ts
-apps/admin/app/api/auth/[...nextauth]/route.ts
-```
-
-This config must:
-
-* match `apps/web` auth config
-* include admin allowlist logic
-* export `auth()` helper if you already use one in web
-
----
-
-## 4) Global admin protection (middleware)
-
-Create:
-
-```
-apps/admin/middleware.ts
-```
-
-Rules:
-
-* Protect **all routes except**:
-
-  * `/api/auth/*`
-* If not signed in → redirect to `/api/auth/signin`
-* If signed in but not admin → redirect to `http://localhost:3000/` (public site) or show 403
-
-Use `withAuth` or `auth()` depending on your current Step 3 setup.
-
-This ensures:
-
-* No admin UI ever loads for non-admins
-* Admin is a true security boundary
-
----
-
-# Part 2 — DynamoDB client (shared)
-
-## 5) Create DynamoDB helper (shared location)
-
-Create a reusable Dynamo client module (prefer shared):
-
-**Preferred location:**
-
-```
-packages/utils/src/ddb.ts
-```
-
-or
-
-```
-apps/admin/lib/ddb.ts
-```
-
-and copy later to web.
-
-It must:
-
-* Create `DynamoDBClient` with:
-
-  * region from `AWS_REGION`
-  * credentials from env
-  * optional `endpoint` override if `DDB_ENDPOINT` is set
-* Export:
-
-  * `ddbClient`
-  * `ddbDocClient` (DocumentClient)
-
----
-
-## 6) Env variables
-
-Update both:
-
-```
-apps/admin/.env.example
-apps/web/.env.example
-```
-
-Include:
-
-```
-AWS_REGION=
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-DDB_ENDPOINT=        # optional, for local Dynamo
-DDB_TABLE_ANNOUNCEMENTS=PlaymastersAnnouncements
-```
-
----
-
-# Part 3 — Announcements data layer (shared contract)
-
-## 7) Define Announcement model
-
-Create:
-
-```
-packages/types/src/announcement.ts
-```
-
-Export:
-
-```ts
-export type Announcement = {
-  id: string;
-  title: string;
-  body: string;
-  imageUrl?: string;
-  ctaLabel?: string;
-  ctaHref?: string;
-
-  isActive: boolean;
-  sortOrder: number;
-
-  createdAt: string;
+export type LeaderboardState = {
+  gameId: string;
+  scope: LeaderboardScope;
+  countryCode?: string;
+  entries: LeaderboardEntry[];
   updatedAt: string;
 };
+
+export type WsClientMessage =
+  | { type: 'subscribe'; gameId: string; scopes: Array<'global' | 'local' | 'personal'>; countryCode?: string; userId?: string }
+  | { type: 'unsubscribe'; gameId: string }
+  | { type: 'ping' };
+
+export type WsServerMessage =
+  | { type: 'ready' }
+  | { type: 'leaderboard:state'; payload: LeaderboardState }
+  | { type: 'leaderboard:update'; payload: LeaderboardState }
+  | { type: 'error'; message: string };
 ```
 
 Re-export from `packages/types/index.ts`.
 
 ---
 
-## 8) Announcements repository module
+# Part B — Realtime service (apps/realtime)
 
-Create in admin:
+## 2) Add WebSocket server
+
+Use a lightweight WS lib (prefer `ws`).
+
+Install at workspace root:
+
+* `ws`
+* `@types/ws` (if TS needs it)
+
+Create a WS server in `apps/realtime`:
+
+* Listen on port from env: `REALTIME_PORT` default `4000`
+* Provide a basic health endpoint (HTTP GET `/health`) returning 200 OK for deployment sanity
+
+**File structure (create if helpful):**
 
 ```
-apps/admin/lib/announcements.ts
+apps/realtime/src/
+  main.ts (or index.ts)
+  server.ts
+  leaderboards/
+    store.ts
+    snapshot.ts
+    restore.ts
+  ddb.ts
+  types.ts (optional local helpers)
 ```
 
-This module is the **only place that touches DynamoDB for announcements**.
+## 3) In-memory leaderboard store
+
+Implement an in-memory store that maintains top N lists:
+
+* `TOP_N = 50` (configurable)
+* Structures:
+
+  * `globalTop[gameId] -> LeaderboardEntry[]`
+  * `localTop[gameId][countryCode] -> LeaderboardEntry[]`
+  * `personalBest[gameId][userId] -> LeaderboardEntry` (store best score only)
+
+Provide functions:
+
+* `applyScore({ gameId, userId, displayName, countryCode, score, achievedAt })`
+
+  * update personal best only if score greater
+  * update global top N
+  * update local top N for countryCode if present
+* `getState(gameId, scope, countryCode?, userId?) -> LeaderboardState`
+
+Ranking:
+
+* Higher score wins
+* Tie-breaker: earlier achievedAt wins (or latest; choose one and be consistent)
+
+## 4) WebSocket subscription model
+
+Clients will subscribe per gameId and scopes.
+
+When a client sends:
+
+```json
+{ "type": "subscribe", "gameId": "...", "scopes": ["global","local","personal"], "countryCode":"GB", "userId":"..." }
+```
+
+Server should:
+
+* store subscription (per ws connection)
+* immediately send `leaderboard:state` for requested scopes
+* on updates, broadcast only relevant payloads to subscribed clients
+
+Include `ping/pong` keepalive.
+
+## 5) DynamoDB persistence (snapshots)
+
+Add DynamoDB client (AWS SDK v3) in realtime app.
+
+Env vars:
+
+* `AWS_REGION`
+* `AWS_ACCESS_KEY_ID`
+* `AWS_SECRET_ACCESS_KEY`
+* optional `DDB_ENDPOINT`
+* `DDB_TABLE_LEADERBOARD_SNAPSHOTS`
+* optional `DDB_TABLE_SCORES` (if implementing score history)
+
+Snapshot table model (simple):
+
+* PK: `GAME#<gameId>#SCOPE#GLOBAL` or `GAME#<gameId>#SCOPE#COUNTRY#GB`
+* SK: `SNAPSHOT`
+* Attributes: `entries` (top N), `updatedAt`
 
 Implement:
 
-* `listAnnouncements(): Promise<Announcement[]>`
-* `getAnnouncement(id: string): Promise<Announcement | null>`
-* `createAnnouncement(input: AnnouncementInput): Promise<Announcement>`
-* `updateAnnouncement(id: string, input: AnnouncementInput): Promise<Announcement>`
-* `deleteAnnouncement(id: string): Promise<void>`
-* `setAnnouncementActive(id: string, isActive: boolean): Promise<void>`
-* `getActiveAnnouncements(max = 5): Promise<Announcement[]>`
+* restore on startup:
 
-Where:
+  * for each game in registry OR via scanning snapshot table (MVP okay)
+  * load snapshots into memory
+* periodic flush:
+
+  * every 10 seconds flush changed leaderboards (throttle writes)
+  * flush global and local states that changed
+* do not persist personalBest snapshot for MVP unless easy; it can be derived from Scores later
+
+**Important:** make persistence optional. If env vars not set, run in memory only.
+
+## 6) Receive score updates from web
+
+Realtime service must accept a server-to-server call from `apps/web` to apply scores.
+
+Implement an HTTP endpoint in realtime app:
+
+* `POST /score`
+* Body:
 
 ```ts
-type AnnouncementInput = {
-  title: string;
-  body: string;
-  imageUrl?: string;
-  ctaLabel?: string;
-  ctaHref?: string;
-  isActive: boolean;
-  sortOrder: number;
-};
+{
+  gameId: string;
+  userId: string;
+  displayName: string;
+  countryCode?: string;
+  score: number;
+  achievedAt: string;
+}
 ```
 
-### Dynamo schema (simple MVP)
+This endpoint:
 
-Use:
+* validates input
+* calls `applyScore`
+* broadcasts updated leaderboard states for:
 
-* PK = `"ANNOUNCEMENTS"`
-* SK = `"ANNOUNCEMENT#<id>"`
+  * global + local + personal (personal update only to that user’s subscriptions)
+* returns 200
 
-Store full announcement in attributes.
+Secure it with a shared secret:
 
-### Enforce “max 5 active” rule
+* env: `REALTIME_INGEST_SECRET`
+* web includes header: `x-realtime-secret`
 
-After any:
-
-* create
-* update
-* activate
-
-Run:
-
-1. Fetch all active announcements
-2. Sort by:
-
-   * sortOrder DESC
-   * updatedAt DESC
-3. If active count > 5:
-
-   * automatically deactivate overflow announcements
-   * persist updates
-
-This guarantees landing page never shows more than 5.
+If secret missing in dev, allow localhost only (but prefer secret even in dev).
 
 ---
 
-# Part 4 — Admin UI (Announcements CRUD)
+# Part C — Web app changes (apps/web)
 
-## 9) Admin routes
+## 7) Add Game Sessions API (single-use run tokens)
 
-Create routes in admin app:
+Implement:
 
-```
-apps/admin/app/page.tsx                    # admin dashboard
-apps/admin/app/announcements/page.tsx     # list
-apps/admin/app/announcements/new/page.tsx
-apps/admin/app/announcements/[id]/page.tsx
+* `POST /api/game-sessions`
+* Auth required
+
+It creates a short-lived session token:
+
+* `token` = random UUID or crypto random string
+* store in an in-memory map in `apps/web` server runtime:
+
+  * `{ token -> { userId, gameId, expiresAt, consumed:false } }`
+* TTL: 10 minutes
+* “single use”: token is consumed when a score is submitted successfully
+
+Note: This is MVP. We’ll move sessions to Dynamo later if needed.
+
+Response:
+
+```json
+{ "token": "...", "expiresAt": "..." }
 ```
 
-All pages must:
+## 8) Add Score Submission API
 
-* Assume middleware already enforced admin access
-* Still optionally verify session server-side
+Implement:
 
----
+* `POST /api/scores/submit`
+* Auth required
 
-## 10) Admin dashboard `/`
-
-Simple page:
-
-* Title: “Playmasters Admin”
-* Links:
-
-  * Announcements
-  * (future) Scores
-  * (future) Games
-
----
-
-## 11) Announcements list `/announcements`
-
-Features:
-
-* Table listing all announcements
-* Sorted:
-
-  * active first
-  * then sortOrder DESC
-  * then updatedAt DESC
-
-Columns:
-
-* Title
-* Active (toggle checkbox/switch)
-* Sort order
-* Updated
-* Actions: Edit / Delete
-
-Buttons:
-
-* “New announcement”
-
-Actions:
-
-* Toggle active:
-
-  * calls server action or handler
-  * enforces max 5 rule
-* Delete:
-
-  * confirm()
-  * remove from Dynamo
-
----
-
-## 12) Create page `/announcements/new`
-
-Form fields:
-
-* Title (required)
-* Body (required, textarea)
-* Image URL (optional)
-* CTA label (optional)
-* CTA href (optional)
-* Sort order (number, default 0)
-* Active (checkbox)
-
-Buttons:
-
-* Save
-* Cancel (back to list)
-
-On submit:
-
-* Create announcement
-* Enforce max-5
-* Redirect to list
-
----
-
-## 13) Edit page `/announcements/[id]`
-
-Same form, prefilled.
-
-Extra buttons:
-
-* Save
-* Cancel
-* Delete
-
----
-
-## 14) Backend wiring style
-
-Use **Server Actions** (preferred):
-
-* Each form uses `action={async (formData) => ...}`
-* Calls repository functions directly
-* After mutations:
-
-  * `revalidatePath('/')`
-  * `revalidatePath('/announcements')`
-
-No REST API required for MVP.
-
----
-
-# Part 5 — Public site integration (apps/web)
-
-## 15) Public announcements reader module
-
-Create:
-
-```
-apps/web/lib/announcements.ts
-```
-
-This must:
-
-* Use same DynamoDB client logic
-* Export:
+Body:
 
 ```ts
-export async function getActiveAnnouncements(max = 5): Promise<Announcement[]>
+{
+  gameId: string;
+  score: number;
+  runId: string; // client-generated uuid
+  sessionToken: string;
+  durationMs?: number;
+}
 ```
 
-Implementation:
+Validation:
 
-* Query Dynamo
-* Filter `isActive === true`
-* Sort by:
+* session token exists, matches user + game, not expired, not consumed
+* rate limit basic (per user, naive in-memory is fine for MVP)
+* score sanity:
 
-  * sortOrder DESC
-  * updatedAt DESC
-* Slice to max 5
-* Catch errors:
+  * must be integer >= 0
+  * apply per-game max if available in registry config (add optional `maxScore` to registry)
 
-  * log server error
-  * return empty array
+On success:
+
+* mark token consumed
+* forward score to realtime service:
+
+  * `POST ${REALTIME_HTTP_URL}/score`
+  * header `x-realtime-secret`
+* return `{ ok: true }`
+
+If realtime is down:
+
+* return `{ ok: false, error: 'realtime_unavailable' }`
+
+Env vars for web:
+
+* `REALTIME_HTTP_URL=http://localhost:4000`
+* `REALTIME_WS_URL=ws://localhost:4000`
+* `REALTIME_INGEST_SECRET=...`
+
+## 9) WebSocket client integration on game page
+
+In the `/games/[slug]` page (Step 2):
+
+* Update `LeaderboardPanel` to connect to `REALTIME_WS_URL` and subscribe.
+
+Client behavior:
+
+* On mount:
+
+  * open WS connection
+  * send `{type:'subscribe', gameId, scopes:['global','local','personal'], countryCode:'GB' (placeholder), userId if signed in}`
+* Maintain local state for:
+
+  * global entries
+  * local entries
+  * personal (best) entry
+* Render table rows from WS state
+* Show “Live” indicator when connected
+
+For now, local countryCode can be:
+
+* `'GB'` hardcoded OR derived from a simple env `DEFAULT_COUNTRY_CODE=GB`
+  (we’ll do IP-based later)
+
+## 10) Add a “Submit test score” button for MVP testing
+
+Since games aren’t wired yet, add a dev-only button on the game page:
+
+* visible when `process.env.NODE_ENV !== 'production'`
+* button: “Submit test score”
+* on click:
+
+  * call `/api/game-sessions` to get token
+  * submit a random score to `/api/scores/submit`
+  * observe leaderboard update via WS
+
+This allows testing end-to-end without building game logic yet.
 
 ---
 
-## 16) Update landing page carousel to use Dynamo SSR
+# Part D — Nx targets / run instructions
 
-In:
+Ensure these commands work:
 
-```
-apps/web/app/page.tsx
-```
+* `nx dev web` (public site)
+* `nx dev admin` (admin app)
+* `nx serve realtime` (realtime WS + HTTP)
 
-Replace placeholder announcements with:
+If `realtime` uses a node executor:
 
-```ts
-const announcements = await getActiveAnnouncements(5);
-```
-
-Behavior:
-
-* If announcements.length > 0 → render carousel from Dynamo
-* If announcements.length === 0 → fallback to existing placeholder announcements
-
-Ensure:
-
-* SSR only
-* No client fetch
-* Max 5 rendered
-
----
-
-# Styling requirements
-
-* All admin UI styled with CSS Modules
-* Use brand tokens (dark surfaces, neon accents)
-* Admin UI must be readable and professional:
-
-  * tables with zebra rows optional
-  * subtle borders
-  * clear form labels
-
-No Tailwind. No MUI.
+* ensure build output works: `nx build realtime` and `node dist/apps/realtime/...`
 
 ---
 
 # Acceptance Criteria
 
-After implementation:
+1. Start services:
 
-### Local dev
+* web at `http://localhost:3000`
+* realtime at `http://localhost:4000` (WS + `/health`)
 
-* `nx dev web` → runs at `http://localhost:3000`
-* `nx dev admin` (or `nx serve admin`) → runs at `http://localhost:3001`
+2. Visit a game detail page `/games/<slug>`
+3. Leaderboard panel shows connected state (or loading)
+4. Click “Submit test score”
+5. Leaderboard updates in real-time without refresh
+6. Restart realtime service:
 
-### Admin app
+* it restores snapshots from Dynamo if configured
+* otherwise starts empty
 
-* Visiting `/` in admin:
-
-  * redirects to Google login if not signed in
-  * blocks non-admin users
-* Admin can:
-
-  * create announcements
-  * edit announcements
-  * delete announcements
-  * toggle active
-* More than 5 active announcements is impossible (auto-enforced)
-
-### Public site
-
-* Landing page shows announcements from Dynamo (SSR)
-* Max 5 always
-* If Dynamo not configured → placeholder carousel still works
-
-### Architecture
-
-* No admin UI code in `apps/web`
-* Admin and web fully separated
-* Shared types and tokens reused cleanly
+7. No SQL anywhere; only Dynamo optional
 
 ---
 
-# Deliverables
+# Deliverables (files likely added/modified)
 
-Expected new files include:
+**packages/types**
 
-**Admin app**
+* `src/realtime.ts`
+* `index.ts` exports
 
-* `apps/admin/app/layout.tsx`
-* `apps/admin/middleware.ts`
-* `apps/admin/app/page.tsx`
-* `apps/admin/app/announcements/page.tsx`
-* `apps/admin/app/announcements/new/page.tsx`
-* `apps/admin/app/announcements/[id]/page.tsx`
-* `apps/admin/lib/ddb.ts`
-* `apps/admin/lib/announcements.ts`
-* admin CSS modules
+**apps/realtime**
 
-**Shared**
+* `src/server.ts` (HTTP + WS)
+* `src/leaderboards/store.ts`
+* `src/leaderboards/restore.ts`
+* `src/leaderboards/snapshot.ts`
+* `src/ddb.ts`
+* `src/main.ts` updates
+* env example update (if you keep one)
 
-* `packages/types/src/announcement.ts`
+**apps/web**
 
-**Public**
+* `app/api/game-sessions/route.ts`
+* `app/api/scores/submit/route.ts`
+* `components/LeaderboardPanel/LeaderboardPanel.tsx` updated to use WS
+* game detail page updated to include dev test submit button
+* `.env.example` updated with realtime vars
 
-* `apps/web/lib/announcements.ts`
-* `apps/web/app/page.tsx` updated
-
-**Env**
-
-* `apps/admin/.env.example`
-* `apps/web/.env.example` updated
