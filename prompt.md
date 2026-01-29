@@ -1,13 +1,8 @@
-## 🔹 Desktop + Mobile Wrappers with Tauri + Capacitor
+## 🔹 Game SDK + First Phaser Game + Score Hooks + Platform Integration
 
-**Task:** Implement Step 6 for Playmasters: package the existing web platform into **desktop and mobile applications** using **Tauri (desktop)** and **Capacitor (mobile)**, all inside the existing Nx monorepo.
+**Task:** Implement Step 7: create a reusable **Game SDK** and ship the first real **Phaser 3** game integrated into the Playmasters platform with real scoring, session handling, and realtime leaderboards.
 
-The goal is:
-
-* One web codebase
-* Multiple distribution targets
-* No duplicated UI logic
-* Shared auth, realtime, and leaderboard behavior
+This step replaces the “Submit test score” button with real in-game score submission using a shared SDK and a consistent embed pattern.
 
 ---
 
@@ -16,321 +11,319 @@ The goal is:
 * Nx monorepo
 * Existing apps:
 
-  * `apps/web` → public Next.js site (players)
-  * `apps/admin` → admin site
-  * `apps/realtime` → WebSocket leaderboard service
-* Web app already supports:
+  * `apps/web` (public Next.js) — game pages, session issuance, score submit endpoint
+  * `apps/realtime` — websocket leaderboard authority
+  * `apps/admin` — announcements
+* Existing packages:
 
-  * Google auth
-  * WebSockets
-  * SSR landing page
-  * Game pages
-* Games are web-based (canvas / Phaser later)
-* Styling uses CSS Modules + design tokens
+  * `@playmasters/brand`, `@playmasters/ui`, `@playmasters/types`
+* Realtime pipeline exists (Step 5):
 
-This step adds:
+  * `/api/game-sessions` + `/api/scores/submit` in web
+  * realtime receives score updates and broadcasts leaderboards over WS
+* Games list is code-defined (registry) and includes some “available” games.
+* CSS Modules + design tokens.
 
-* Desktop wrapper (Windows / macOS / Linux)
-* Mobile wrapper (iOS / Android)
+Goal: add a real game and a real client-side integration contract so new games can be added quickly and safely.
 
 ---
 
-# Architectural rule (important)
+# Part A — Add Phaser and create first game package
 
-* **apps/web remains the source of truth**
-* Desktop and mobile are **thin shells**
-* No business logic duplicated
-* Auth + leaderboards continue to use:
+## 1) Add dependencies
 
-  * hosted web app
-  * or local dev server in development
+Install at workspace root:
+
+* `phaser`
+
+No other game engine dependencies.
 
 ---
 
-# Part A — Desktop app (Tauri)
+## 2) Create first game package
 
-## 1) Create desktop app
+Create an Nx lib under `packages/games`:
 
-Generate a new app:
+* `packages/games/space-blaster` (or pick a slug that already exists as `available` in your registry)
 
+Use Nx generator if available, otherwise create manually.
+
+Export from `packages/games/space-blaster/src/index.ts` a function or class that can be mounted in a DOM element.
+
+---
+
+# Part B — Define the Game SDK (`@playmasters/game-sdk`)
+
+## 3) Create/implement Game SDK types and APIs
+
+In `packages/game-sdk/src/`, implement:
+
+### 3.1) Core types
+
+Create `types.ts`:
+
+```ts
+export type GameContext = {
+  gameId: string;
+  user?: {
+    id: string;
+    displayName: string;
+  };
+  countryCode?: string;
+  realtimeWsUrl: string;
+  apiBaseUrl?: string; // default ''
+};
+
+export type GameRun = {
+  runId: string;
+  startedAt: string;
+};
+
+export type ScoreSubmission = {
+  gameId: string;
+  sessionToken: string;
+  runId: string;
+  score: number;
+  durationMs?: number;
+};
+
+export type GameSdk = {
+  startRun(): Promise<{ run: GameRun; sessionToken: string }>;
+  submitScore(payload: Omit<ScoreSubmission, 'sessionToken' | 'runId' | 'gameId'> & { score: number; durationMs?: number }): Promise<void>;
+};
 ```
-apps/desktop
+
+### 3.2) SDK implementation
+
+Create `sdk.ts` exporting:
+
+```ts
+export function createGameSdk(ctx: GameContext): GameSdk
 ```
 
-This app will:
+Behavior:
 
-* Use **Tauri**
-* Load the Playmasters web app via:
+* `startRun()`:
 
-  * `http://localhost:3000` in dev
-  * `https://playmasters.com` in production
+  * `POST /api/game-sessions` (relative to ctx.apiBaseUrl)
+  * generate `runId` (crypto.randomUUID)
+  * store `sessionToken` + `runId` in closure
+  * return both
+* `submitScore({score, durationMs})`:
 
-Do NOT embed a second copy of the web app unless required.
+  * `POST /api/scores/submit` with:
 
----
-
-## 2) Initialize Tauri
-
-Inside `apps/desktop`:
-
-* Initialize Tauri using:
-
-  * Rust backend
-  * WebView frontend
-* Configure `tauri.conf.json` to:
-
-  * Disable unnecessary APIs
-  * Enable window resizing
-  * Set app name to `Playmasters`
-  * Set window size (e.g. 1280×800)
-
----
-
-## 3) Desktop routing rules
-
-The desktop app should:
-
-* Load:
-
-  * `process.env.PLAYMASTERS_WEB_URL`
-* Default dev value:
-
-  * `http://localhost:3000`
-* Production value:
-
-  * `https://playmasters.com`
+    * gameId
+    * score
+    * runId
+    * sessionToken
+    * durationMs
+  * throw on non-200
 
 Ensure:
 
-* External links open in system browser
-* Auth redirects work correctly
-* WebSockets are not blocked by the WebView
+* SDK is browser-safe
+* Uses `fetch`
+* Has minimal error handling (surface errors to caller)
+* Does NOT import any Node-only modules.
+
+Export from `packages/game-sdk/src/index.ts`.
 
 ---
 
-## 4) Desktop build targets
+# Part C — Define the “Game Contract” for all games
 
-Add Nx targets for desktop:
+## 4) Standard game interface
 
-* `nx run desktop:dev`
-* `nx run desktop:build`
+In `packages/types` add `game.ts`:
 
-Dev:
-
-* Runs Tauri in dev mode
-* Points to local web server
-
-Build:
-
-* Produces platform installers/bundles
-
----
-
-# Part B — Mobile app (Capacitor)
-
-## 5) Create mobile app
-
-Generate:
-
-```
-apps/mobile
+```ts
+export type EmbeddedGame = {
+  mount: (opts: {
+    el: HTMLElement;
+    sdk: import('@playmasters/game-sdk').GameSdk;
+    onReady?: () => void;
+    onGameOver?: (finalScore: number) => void;
+  }) => { destroy: () => void };
+};
 ```
 
-This app will:
+(Or keep this type in `game-sdk`, whichever is cleaner — but it must be shared.)
 
-* Use **Capacitor**
-* Wrap the Playmasters web app
-* Target:
-
-  * iOS
-  * Android
+All games must export an object implementing this contract.
 
 ---
 
-## 6) Initialize Capacitor
+# Part D — Implement the first Phaser game (Space Blaster)
 
-Inside `apps/mobile`:
+## 5) Game design (simple arcade loop, real scoring)
 
-* Initialize Capacitor project
-* App name: `Playmasters`
-* App ID: `com.playmasters.app`
+Implement a simple but complete game:
 
-Configure Capacitor to:
+* 800x450 canvas (scales responsively)
+* Player ship moves left/right
+* Auto-shoot or press space to shoot
+* Enemies spawn and move downward
+* When a bullet hits an enemy:
 
-* Use a **remote web URL**
-* Not bundle static web assets initially
+  * score += 10
+* If enemy collides with player or reaches bottom:
 
----
+  * game over
+* On game over:
 
-## 7) Mobile WebView configuration
+  * call `sdk.submitScore({ score, durationMs })`
 
-Mobile app must:
+The game must:
 
-* Load:
+* call `sdk.startRun()` when starting gameplay (beginning of run)
+* track start time
+* submit on game over once
+* show “Submitting…” state and then “Submitted” or “Error”
+* include a “Play again” button
 
-  * `process.env.PLAYMASTERS_WEB_URL`
-* Support:
-
-  * Google OAuth redirects
-  * WebSockets
-  * Fullscreen canvas games
-* Disable zoom
-* Enable landscape orientation for games
-
----
-
-## 8) Platform setup
-
-Add platforms:
-
-* iOS
-* Android
-
-Ensure:
-
-* Correct WebView permissions
-* Network permissions enabled
-* Cleartext traffic allowed for local dev only
+No assets required; use Phaser graphics primitives (rectangles/circles) so it is self-contained.
 
 ---
 
-## 9) Mobile build targets
+# Part E — Integrate game into `apps/web` game page
 
-Add Nx targets:
+## 6) Add a Game Host component in the web app
 
-* `nx run mobile:ios`
-* `nx run mobile:android`
-* `nx run mobile:sync`
-
-These should:
-
-* Sync Capacitor config
-* Open native IDEs (Xcode / Android Studio)
-
----
-
-# Part C — Shared configuration
-
-## 10) Environment configuration
-
-Standardize these env vars across apps:
+Create a client component:
 
 ```
-PLAYMASTERS_WEB_URL=http://localhost:3000
-REALTIME_WS_URL=ws://localhost:4000
+apps/web/components/GameHost/GameHost.tsx
+apps/web/components/GameHost/GameHost.module.css
 ```
 
-Ensure:
+Props:
 
-* Desktop and mobile use the same web + realtime URLs
-* No hardcoded localhost values in production
+* `gameId` (slug)
+* `gameTitle`
+* `realtimeWsUrl` (from env)
+* `apiBaseUrl` (usually '')
+* `user` (from session; optional)
 
----
+Behavior:
 
-## 11) Auth compatibility checks
+* Creates SDK via `createGameSdk`
+* Looks up the game module based on gameId:
 
-Verify:
+  * import from `@playmasters/<game-package>` or a local mapping
+* Mounts the game into a div ref
+* Handles cleanup on unmount
+* Shows a thin HUD:
 
-* Google OAuth works inside:
-
-  * Tauri WebView
-  * Capacitor WebView
-* Redirect URIs include:
-
-  * web domain
-  * mobile deep-link scheme if required
-* Session cookies are persisted
-
-If needed:
-
-* Add Capacitor/Tauri user agent hints
-* Adjust OAuth redirect handling
+  * connection/auth status
+  * small instructions
+  * errors
 
 ---
 
-# Part D — Developer experience
+## 7) Update `/games/[slug]` page to embed real game when available
 
-## 12) Update workspace scripts
+* If game status is `available` and a matching game package exists:
 
-Ensure these workflows work:
+  * render `<GameHost ... />` in place of placeholder box
+* If `coming-soon`, keep placeholder
 
-```bash
-# Web
-nx dev web
-
-# Realtime
-nx serve realtime
-
-# Desktop
-nx run desktop:dev
-
-# Mobile
-nx run mobile:sync
-nx run mobile:ios
-nx run mobile:android
-```
+Remove (or keep only in dev) the old “Submit test score” button from Step 5.
 
 ---
 
-## 13) Documentation
+## 8) Ensure leaderboards update live
 
-Update root `README.md`:
+When the score is submitted:
 
-Add a section:
+* `apps/web` forwards to realtime
+* realtime updates state
+* `LeaderboardPanel` already connected via WS should update automatically
 
-### Desktop & Mobile
+Add a small UX improvement:
 
-Explain:
+* after submitting score, `GameHost` can request updated leaderboard state by sending WS subscribe again or rely on broadcast.
 
-* Architecture (web-first)
-* How to run desktop
-* How to run mobile
-* Environment variables required
+---
+
+# Part F — Registry updates
+
+## 9) Update games registry
+
+Mark the first Phaser game as:
+
+* `status: 'available'`
+* Ensure slug matches the package name and route
+
+Add optional config in registry:
+
+* `maxScore` (optional) for future validation
+* `description` and tags
+
+---
+
+# Part G — Developer experience & checks
+
+## 10) Add basic tests / lint
+
+No heavy testing required, but:
+
+* Typecheck passes
+* `nx build` for web and game package passes
+* Ensure Phaser imports are client-only (GameHost is client component)
+* Avoid importing Phaser in server components
 
 ---
 
 # Acceptance Criteria
 
-After Step 6:
+1. Run:
 
-### Desktop
+* `nx dev web`
+* `nx serve realtime`
 
-* Playmasters runs as a native desktop app
-* Uses the same web UI and realtime service
-* No duplicated UI code
-* Auth + leaderboards work
+2. Visit `/games/<space-blaster-slug>`
 
-### Mobile
+* The Phaser game loads and is playable
+* On game over, score is submitted through SDK
+* Leaderboard updates live in the leaderboard panel without refresh
 
-* Playmasters runs on iOS and Android
-* Games are playable
-* Leaderboards update via WebSockets
-* Auth flow completes successfully
+3. Signed-out users:
 
-### Architecture
+* Can play
+* But score submission requires auth:
 
-* Web remains the single source of truth
-* Desktop/mobile are thin wrappers
-* Nx monorepo cleanly manages all targets
+  * If not signed in, show “Sign in to submit score”
+  * Do not call `/api/game-sessions` unless authenticated
+
+4. No hardcoded colors; use tokens for overlays and buttons.
 
 ---
 
-# Deliverables (expected)
+# Deliverables
 
-**apps/desktop**
+Expected new/updated files include:
 
-* Tauri config
-* Nx project.json targets
-* README notes
+**packages/game-sdk**
 
-**apps/mobile**
+* `src/types.ts`
+* `src/sdk.ts`
+* `src/index.ts`
 
-* Capacitor config
-* iOS + Android setup
-* Nx targets
+**packages/types**
 
-**Docs**
+* `src/game.ts` (if used)
+* `index.ts` export
 
-* Updated root README
-* `.env.example` updated with wrapper URLs
+**packages/games/space-blaster**
+
+* `src/index.ts`
+* `src/game.ts` (Phaser implementation)
+
+**apps/web**
+
+* `components/GameHost/GameHost.tsx`
+* `components/GameHost/GameHost.module.css`
+* `/games/[slug]` page updated to render GameHost when available
+* registry updated to include/enable the game
 

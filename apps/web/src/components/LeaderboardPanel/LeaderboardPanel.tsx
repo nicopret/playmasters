@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Badge, Button } from '@playmasters/ui';
 import type {
@@ -49,7 +49,7 @@ const Table = ({ entries }: { entries: LeaderboardEntry[] }) => {
               <td>{entry.rank}</td>
               <td>{entry.displayName}</td>
               <td>{entry.score.toLocaleString()}</td>
-              <td>{entry.countryCode ?? '—'}</td>
+              <td>{entry.countryCode ?? '--'}</td>
               <td>{new Date(entry.achievedAt).toLocaleDateString()}</td>
             </tr>
           ))}
@@ -63,13 +63,12 @@ export const LeaderboardPanel = ({ game }: Props) => {
   const { data: session } = useSession();
   const [scope, setScope] = useState<LeaderboardScope>('global');
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
-  const [message, setMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [data, setData] = useState<LeaderboardData>({
     global: [],
     local: [],
     personal: [],
   });
+  const wsRef = useRef<WebSocket | null>(null);
 
   const countryCode = useMemo(
     () => process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? 'GB',
@@ -99,6 +98,7 @@ export const LeaderboardPanel = ({ game }: Props) => {
     setStatus('connecting');
 
     const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
     ws.onopen = () => {
       if (!alive) return;
       setStatus('connected');
@@ -144,53 +144,33 @@ export const LeaderboardPanel = ({ game }: Props) => {
       alive = false;
       clearInterval(heartbeat);
       ws.close();
+      wsRef.current = null;
     };
   }, [game.id, wsUrl, countryCode, scopes, session?.user?.id]);
 
-  const handleSubmitTestScore = async () => {
-    if (!session?.user) {
-      setMessage('Sign in to submit a test score.');
-      return;
-    }
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ gameId?: string }>).detail;
+      if (detail?.gameId && detail.gameId !== game.id) return;
+      const ws = wsRef.current;
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({
+            type: 'subscribe',
+            gameId: game.id,
+            scopes,
+            countryCode,
+            userId: session?.user?.id,
+          })
+        );
+      }
+    };
 
-    setIsSubmitting(true);
-    setMessage(null);
-
-    try {
-      const sessionRes = await fetch('/api/game-sessions', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ gameId: game.id }),
-      });
-      const sessionJson = await sessionRes.json();
-      if (!sessionRes.ok) throw new Error(sessionJson.error ?? 'session_failed');
-
-      const randomScore = Math.max(
-        0,
-        Math.floor(Math.random() * (game.maxScore ?? 150_000))
-      );
-
-      const submitRes = await fetch('/api/scores/submit', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          gameId: game.id,
-          score: randomScore,
-          runId: crypto.randomUUID(),
-          sessionToken: sessionJson.token,
-        }),
-      });
-
-      const submitJson = await submitRes.json();
-      if (!submitRes.ok || !submitJson.ok) throw new Error(submitJson.error ?? 'submit_failed');
-
-      setMessage('Test score submitted — watch the leaderboard update live.');
-    } catch (err) {
-      setMessage((err as Error).message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    window.addEventListener('playmasters:refresh-leaderboard', handler as EventListener);
+    return () => {
+      window.removeEventListener('playmasters:refresh-leaderboard', handler as EventListener);
+    };
+  }, [game.id, scopes, countryCode, session?.user?.id]);
 
   const renderContent = () => {
     if (scope === 'personal') {
@@ -216,7 +196,7 @@ export const LeaderboardPanel = ({ game }: Props) => {
   };
 
   const statusLabel =
-    status === 'connected' ? 'Live' : status === 'connecting' ? 'Connecting…' : 'Offline';
+    status === 'connected' ? 'Live' : status === 'connecting' ? 'Connecting...' : 'Offline';
 
   return (
     <div className={styles.panel}>
@@ -228,19 +208,7 @@ export const LeaderboardPanel = ({ game }: Props) => {
           />
           <span>{statusLabel}</span>
         </div>
-        {process.env.NODE_ENV !== 'production' ? (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handleSubmitTestScore}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Submitting…' : 'Submit test score'}
-          </Button>
-        ) : null}
       </div>
-
-      {message ? <div className={styles.message}>{message}</div> : null}
 
       <div className={styles.tabs} role="tablist" aria-label="Leaderboard scopes">
         {(['global', 'local', 'personal'] as LeaderboardScope[]).map((key) => (

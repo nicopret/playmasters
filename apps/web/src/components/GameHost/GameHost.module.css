@@ -1,0 +1,131 @@
+.host {
+  display: grid;
+  gap: var(--pm-space-md);
+  background:
+    radial-gradient(
+      120% 120% at 20% 20%,
+      color-mix(in srgb, var(--pm-color-electric-blue) 16%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      120% 120% at 80% 10%,
+      color-mix(in srgb, var(--pm-color-arcade-yellow) 12%, transparent),
+      transparent
+    ),
+    color-mix(in srgb, var(--pm-color-surface) 90%, var(--pm-color-background) 10%);
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 12%, transparent);
+  border-radius: var(--pm-radius-lg);
+  box-shadow: var(--pm-shadow-card);
+}
+
+.hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pm-space-sm);
+  flex-wrap: wrap;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pm-space-xs);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--pm-space-2xs) var(--pm-space-sm);
+  border-radius: var(--pm-radius-pill);
+  font-size: var(--pm-font-size-sm);
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-secondary) 30%, transparent);
+  background: color-mix(in srgb, var(--pm-color-surface) 80%, var(--pm-color-background) 20%);
+  color: var(--pm-color-text-secondary);
+}
+
+.status {
+  background: color-mix(in srgb, var(--pm-color-electric-blue) 14%, var(--pm-color-surface) 86%);
+  border-color: color-mix(in srgb, var(--pm-color-electric-blue) 30%, transparent);
+  color: var(--pm-color-text-primary);
+}
+
+.pillOn {
+  border-color: color-mix(in srgb, var(--pm-color-electric-blue) 24%, transparent);
+  color: var(--pm-color-text-primary);
+}
+
+.pillOff {
+  border-color: color-mix(in srgb, var(--pm-color-text-secondary) 18%, transparent);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--pm-color-text-secondary) 60%, transparent);
+}
+
+.dotOn {
+  background: var(--pm-color-electric-blue);
+  box-shadow: var(--pm-shadow-neon-blue);
+}
+
+.dotOff {
+  background: color-mix(in srgb, var(--pm-color-text-secondary) 60%, transparent);
+}
+
+.instructions {
+  color: var(--pm-color-text-secondary);
+  font-size: var(--pm-font-size-sm);
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.stage {
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 14%, transparent);
+  border-radius: var(--pm-radius-md);
+  padding: var(--pm-space-2xs);
+  background: color-mix(in srgb, var(--pm-color-surface) 85%, var(--pm-color-background) 15%);
+}
+
+.canvas {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--pm-radius-md);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--pm-color-background) 86%, var(--pm-color-surface) 14%);
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-secondary) 16%, transparent);
+  box-shadow: var(--pm-shadow-card);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pm-space-sm);
+  flex-wrap: wrap;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--pm-space-sm);
+  flex-wrap: wrap;
+}
+
+.score {
+  color: var(--pm-color-text-primary);
+  font-weight: var(--pm-font-weight-medium);
+}
+
+.message {
+  border: 1px solid color-mix(in srgb, var(--pm-color-electric-blue) 16%, transparent);
+  background: color-mix(in srgb, var(--pm-color-surface) 90%, var(--pm-color-background) 10%);
+  border-radius: var(--pm-radius-md);
+  padding: var(--pm-space-sm);
+  font-size: var(--pm-font-size-sm);
+  color: var(--pm-color-text-secondary);
+  box-shadow: var(--pm-shadow-card);
+}

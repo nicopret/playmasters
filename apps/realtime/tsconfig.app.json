@@ -5,7 +5,7 @@
     "module": "commonjs",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "../../packages/types/src/**/*.ts"],
+  "include": ["src/**/*.ts", "../../packages/types/src/**/*.ts", "../../packages/games-sdk/src/**/*.ts"],
   "exclude": [
     "jest.config.ts",
     "jest.config.cts",
