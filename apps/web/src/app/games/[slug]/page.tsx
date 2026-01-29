@@ -1,7 +1,6 @@
 import { Badge, Container } from '@playmasters/ui';
 import { notFound } from 'next/navigation';
 import { getGameBySlug } from '../../../lib/games';
-import { getMockLeaderboardsForGame } from '../../../lib/mockLeaderboards';
 import { LeaderboardPanel } from '../../../components/LeaderboardPanel/LeaderboardPanel';
 import styles from './page.module.css';
 
@@ -22,8 +21,6 @@ const GameDetailPage = async ({ params }: PageProps) => {
   if (!game) {
     return notFound();
   }
-
-  const leaderboardData = getMockLeaderboardsForGame(game);
 
   return (
     <div className={styles.page}>
@@ -49,7 +46,7 @@ const GameDetailPage = async ({ params }: PageProps) => {
             </div>
           </div>
 
-          <LeaderboardPanel game={game} data={leaderboardData} />
+          <LeaderboardPanel game={game} />
         </div>
       </Container>
     </div>

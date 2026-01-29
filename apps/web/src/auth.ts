@@ -30,7 +30,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 export const authConfig = {
   callbacks: {
-    authorized({ auth }) {
+    authorized({ auth }: { auth: any }) {
       return !!auth?.user;
     },
   },

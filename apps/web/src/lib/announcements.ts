@@ -1,0 +1,55 @@
+import { QueryCommand } from '@aws-sdk/lib-dynamodb';
+import type { Announcement } from '@playmasters/types';
+import { ddbDocClient } from './ddb';
+
+const TABLE = process.env.DDB_TABLE_ANNOUNCEMENTS || 'PlaymastersAnnouncements';
+const PK_VALUE = 'ANNOUNCEMENTS';
+const PK_ATTR = process.env.DDB_PK_NAME || 'PK';
+const SK_ATTR = process.env.DDB_SK_NAME || 'SK';
+
+const toAnnouncement = (item: Record<string, any> | undefined): Announcement | null => {
+  if (!item) return null;
+  return {
+    id: item.id,
+    title: item.title,
+    body: item.body,
+    imageUrl: item.imageUrl,
+    ctaLabel: item.ctaLabel,
+    ctaHref: item.ctaHref,
+    isActive: item.isActive,
+    sortOrder: item.sortOrder ?? 0,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
+};
+
+export async function getActiveAnnouncements(max = 5): Promise<Announcement[]> {
+  try {
+    const res = await ddbDocClient.send(
+      new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: `${PK_ATTR} = :pk AND begins_with(${SK_ATTR}, :sk)`,
+        ExpressionAttributeValues: {
+          ':pk': PK_VALUE,
+          ':sk': 'ANNOUNCEMENT#',
+        },
+      })
+    );
+
+    const items = res.Items ?? [];
+    return items
+      .map((i) => toAnnouncement(i))
+      .filter((a): a is Announcement => Boolean(a && a.isActive))
+      .sort((a, b) => {
+        if (b.sortOrder !== a.sortOrder) return b.sortOrder - a.sortOrder;
+        return b.updatedAt.localeCompare(a.updatedAt);
+      })
+      .slice(0, max);
+  } catch (err) {
+    // Dynamo may be unreachable during local dev; fail soft and avoid noisy source-map warnings
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Announcements fallback (Dynamo unavailable or schema mismatch)');
+    }
+    return [];
+  }
+}

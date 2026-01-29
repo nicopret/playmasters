@@ -46,6 +46,9 @@
   "references": [
     {
       "path": "../../packages/brand"
+    },
+    {
+      "path": "../../packages/types"
     }
   ]
 }
