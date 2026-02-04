@@ -59,6 +59,8 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.645.0",
     "@aws-sdk/lib-dynamodb": "^3.645.0",
+    "@aws-sdk/client-s3": "^3.645.0",
+    "image-size": "^1.0.2",
     "@playmasters/brand": "workspace:*",
     "@playmasters/ui": "workspace:*",
     "axios": "^1.6.0",

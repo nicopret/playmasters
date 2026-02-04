@@ -1,0 +1,102 @@
+.page {
+  display: grid;
+  gap: var(--pm-space-lg);
+}
+
+.header {
+  display: grid;
+  gap: var(--pm-space-2xs);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pm-space-sm);
+  flex-wrap: wrap;
+}
+
+.filters {
+  display: flex;
+  gap: var(--pm-space-sm);
+  flex-wrap: wrap;
+}
+
+.chip {
+  padding: 6px 10px;
+  border-radius: var(--pm-radius-pill);
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-secondary) 26%, transparent);
+  background: color-mix(in srgb, var(--pm-color-background) 85%, var(--pm-color-surface) 15%);
+  color: var(--pm-color-text-secondary);
+  cursor: pointer;
+  font-size: var(--pm-font-size-sm);
+}
+
+.chipActive {
+  border-color: color-mix(in srgb, var(--pm-color-electric-blue) 35%, transparent);
+  color: var(--pm-color-text-primary);
+  box-shadow: var(--pm-shadow-neon-blue);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 12%, transparent);
+  background: color-mix(in srgb, var(--pm-color-surface) 90%, var(--pm-color-background) 10%);
+  box-shadow: var(--pm-shadow-card);
+  border-radius: var(--pm-radius-lg);
+  overflow: hidden;
+}
+
+.table thead {
+  background: color-mix(in srgb, var(--pm-color-text-primary) 6%, transparent);
+  color: var(--pm-color-text-secondary);
+}
+
+.table th,
+.table td {
+  padding: var(--pm-space-sm) var(--pm-space-md);
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
+}
+
+.table tbody tr {
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--pm-color-electric-blue) 8%, transparent);
+  transform: translateY(-1px);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--pm-radius-pill);
+  font-size: var(--pm-font-size-sm);
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-secondary) 30%, transparent);
+}
+
+.badgeDraft {
+  color: var(--pm-color-text-secondary);
+  border-color: color-mix(in srgb, var(--pm-color-electric-blue) 30%, transparent);
+}
+
+.badgePublished {
+  color: var(--pm-color-text-primary);
+  border-color: color-mix(in srgb, var(--pm-color-arcade-yellow) 30%, transparent);
+}
+
+.badgeBoth {
+  color: var(--pm-color-text-primary);
+  border-color: color-mix(in srgb, var(--pm-color-neon-pink) 40%, transparent);
+  box-shadow: var(--pm-shadow-neon-pink);
+}
+
+.empty {
+  padding: var(--pm-space-lg);
+  color: var(--pm-color-text-secondary);
+}

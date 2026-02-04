@@ -1,0 +1,11 @@
+.wrap {
+  position: relative;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 12%, transparent);
+  background: var(--pm-color-background);
+}
+
+.viewCanvas {
+  display: block;
+  image-rendering: pixelated;
+}
