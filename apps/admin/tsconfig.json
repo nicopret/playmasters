@@ -18,10 +18,15 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@playmasters/brand": ["packages/brand/src/index.ts"],
+      "@playmasters/ui": ["packages/ui/src/index.ts"],
+      "@playmasters/types": ["packages/types/src/index.ts"],
+      "@playmasters/game-sdk": ["packages/games-sdk/src/index.ts"],
+      "@playmasters/space-blaster": ["packages/games/space-blaster/src/index.ts"]
     },
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": "../..",
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
   "include": [
@@ -29,6 +34,12 @@
     "src/**/*.tsx",
     "src/**/*.js",
     "src/**/*.jsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
+    "../../packages/types/src/**/*.ts",
+    "../../packages/games-sdk/src/**/*.ts",
     "./.next/types/**/*.ts",
     "../../dist/apps/admin/.next/types/**/*.ts",
     "next-env.d.ts"
@@ -43,12 +54,5 @@
     "src/**/*.test.ts",
     ".next"
   ],
-  "references": [
-    {
-      "path": "../../packages/brand"
-    },
-    {
-      "path": "../../packages/types"
-    }
-  ]
+  "references": []
 }

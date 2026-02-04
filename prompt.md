@@ -1,329 +1,279 @@
-## 🔹 Game SDK + First Phaser Game + Score Hooks + Platform Integration
+## Codex Prompt — Image Editor Phase 5: Publish, Rollback & Catalog Integration (Week 7–8)
 
-**Task:** Implement Step 7: create a reusable **Game SDK** and ship the first real **Phaser 3** game integrated into the Playmasters platform with real scoring, session handling, and realtime leaderboards.
+**Task:** Implement Phase 5 of the Playmasters Image Editor: make edited images usable across the platform by enforcing asset types, integrating published backgrounds into level configuration selection, and adding usage indicators + safety checks to prevent breaking live content.
 
-This step replaces the “Submit test score” button with real in-game score submission using a shared SDK and a consistent embed pattern.
+This phase assumes Phases 0–4 are completed:
+
+* Asset library + versioning + publish/rollback exist
+* Pixel editor exists (draft editing)
+* Selection/mask exists
+* OpenAI preview→accept creates new draft versions
+* Publishing promotes to public bucket and sets `currentPublishedVersionId`
 
 ---
 
-# Context
+# Context / Repo assumptions
 
 * Nx monorepo
-* Existing apps:
-
-  * `apps/web` (public Next.js) — game pages, session issuance, score submit endpoint
-  * `apps/realtime` — websocket leaderboard authority
-  * `apps/admin` — announcements
-* Existing packages:
-
-  * `@playmasters/brand`, `@playmasters/ui`, `@playmasters/types`
-* Realtime pipeline exists (Step 5):
-
-  * `/api/game-sessions` + `/api/scores/submit` in web
-  * realtime receives score updates and broadcasts leaderboards over WS
-* Games list is code-defined (registry) and includes some “available” games.
-* CSS Modules + design tokens.
-
-Goal: add a real game and a real client-side integration contract so new games can be added quickly and safely.
+* `apps/admin` is separate admin site
+* There is some form of Level/Game config system underway or stubbed (even if basic). If level config isn’t implemented yet, create minimal **LevelConfig placeholder** model and endpoints sufficient to demonstrate background selection + usage tracking.
+* S3 + Dynamo exist.
+* Assets have `type` field: background | sprite | splash | ui
+* Published assets have immutable URLs via `ASSETS_PUBLIC_BASE_URL`
 
 ---
 
-# Part A — Add Phaser and create first game package
+# Goal
 
-## 1) Add dependencies
-
-Install at workspace root:
-
-* `phaser`
-
-No other game engine dependencies.
+1. Enforce asset types so that backgrounds/splashes/UI are correctly handled and validated.
+2. Provide a **Background Catalog** API to consume published background assets.
+3. Update the game/level config admin UI so **published backgrounds are selectable** without redeploy.
+4. Add usage indicators (“used by X levels”) and prevent deletion/unsafe actions for assets in use.
+5. Ensure rollback fixes regressions instantly (pointer swap).
 
 ---
 
-## 2) Create first game package
+# Part 1 — Asset Type Enforcement
 
-Create an Nx lib under `packages/games`:
+## 1) Enforce allowed types at the data layer and API
 
-* `packages/games/space-blaster` (or pick a slug that already exists as `available` in your registry)
+* Ensure all asset create/update endpoints validate:
 
-Use Nx generator if available, otherwise create manually.
+  * `type` is one of: `background | sprite | splash | ui`
+* Make type immutable once created (recommended for safety). If currently editable, lock it down.
+* Extend metadata validation rules per type:
 
-Export from `packages/games/space-blaster/src/index.ts` a function or class that can be mounted in a DOM element.
+  * `background`: allow large dimensions, requires published URL when used
+  * `splash`: enforce aspect ratio constraints if desired (optional)
+  * `ui`: allow flexible
+  * `sprite`: future; but still allow creation now
+
+Add server-side validation on publish:
+
+* If `asset.type === 'background'`, require:
+
+  * PNG/WebP/JPG ok
+  * max dimensions within configured bounds (e.g. 4096x4096)
+* If `sprite`, require PNG with alpha (optional for now)
 
 ---
 
-# Part B — Define the Game SDK (`@playmasters/game-sdk`)
+# Part 2 — Background Catalog (Read APIs)
 
-## 3) Create/implement Game SDK types and APIs
+## 2) Implement Catalog Read API in `apps/admin`
 
-In `packages/game-sdk/src/`, implement:
+Create admin route handler:
 
-### 3.1) Core types
-
-Create `types.ts`:
-
-```ts
-export type GameContext = {
-  gameId: string;
-  user?: {
-    id: string;
-    displayName: string;
-  };
-  countryCode?: string;
-  realtimeWsUrl: string;
-  apiBaseUrl?: string; // default ''
-};
-
-export type GameRun = {
-  runId: string;
-  startedAt: string;
-};
-
-export type ScoreSubmission = {
-  gameId: string;
-  sessionToken: string;
-  runId: string;
-  score: number;
-  durationMs?: number;
-};
-
-export type GameSdk = {
-  startRun(): Promise<{ run: GameRun; sessionToken: string }>;
-  submitScore(payload: Omit<ScoreSubmission, 'sessionToken' | 'runId' | 'gameId'> & { score: number; durationMs?: number }): Promise<void>;
-};
-```
-
-### 3.2) SDK implementation
-
-Create `sdk.ts` exporting:
-
-```ts
-export function createGameSdk(ctx: GameContext): GameSdk
-```
+* `GET /api/catalog/backgrounds`
 
 Behavior:
 
-* `startRun()`:
+* Return only **published** assets where `type === 'background'`
+* Include:
 
-  * `POST /api/game-sessions` (relative to ctx.apiBaseUrl)
-  * generate `runId` (crypto.randomUUID)
-  * store `sessionToken` + `runId` in closure
-  * return both
-* `submitScore({score, durationMs})`:
+  * `assetId`, `title`, `tags`, `width`, `height`
+  * `publishedVersionId`
+  * `publishedUrl` (derived from `ASSETS_PUBLIC_BASE_URL`)
+  * `updatedAt`
+* Add caching headers for this list (short TTL is fine in admin)
 
-  * `POST /api/scores/submit` with:
+## 3) Implement public Content API in `apps/web`
 
-    * gameId
-    * score
-    * runId
-    * sessionToken
-    * durationMs
-  * throw on non-200
+To make backgrounds usable in the actual game runtime without redeploy, add in `apps/web`:
 
-Ensure:
+* `GET /api/catalog/backgrounds`
 
-* SDK is browser-safe
-* Uses `fetch`
-* Has minimal error handling (surface errors to caller)
-* Does NOT import any Node-only modules.
+Same behavior as admin catalog, but:
 
-Export from `packages/game-sdk/src/index.ts`.
+* public-safe fields only (no private bucket keys)
+* cached (ETag or `Cache-Control`)
+
+This enables games to fetch the background list/config at runtime.
 
 ---
 
-# Part C — Define the “Game Contract” for all games
+# Part 3 — Level Config Integration (Background Picker)
 
-## 4) Standard game interface
+## 4) Add background selection to Level Config admin UI
 
-In `packages/types` add `game.ts`:
+If a Level Config editor already exists:
 
-```ts
-export type EmbeddedGame = {
-  mount: (opts: {
-    el: HTMLElement;
-    sdk: import('@playmasters/game-sdk').GameSdk;
-    onReady?: () => void;
-    onGameOver?: (finalScore: number) => void;
-  }) => { destroy: () => void };
-};
-```
+* Add a field `backgroundAssetId` (and optionally `backgroundVersionId`)
+* UI: dropdown/search picker that uses `/api/catalog/backgrounds`
 
-(Or keep this type in `game-sdk`, whichever is cleaner — but it must be shared.)
+If Level Config editor does NOT exist yet:
 
-All games must export an object implementing this contract.
+* Implement a minimal Level Config admin area just enough for this phase:
 
----
+  * `apps/admin/app/games/[gameId]/levels/[levelId]/page.tsx` (or similar)
+  * Store a minimal `LevelConfig` record in Dynamo that includes:
 
-# Part D — Implement the first Phaser game (Space Blaster)
+    * `gameId`, `levelId`
+    * `backgroundAssetId`
+    * `backgroundVersionId` (optional; recommended to point to published version at time of selection)
+* Include a “Save” button.
 
-## 5) Game design (simple arcade loop, real scoring)
+### Best practice choice: pin version or follow latest?
 
-Implement a simple but complete game:
+Implement BOTH modes (simple):
 
-* 800x450 canvas (scales responsively)
-* Player ship moves left/right
-* Auto-shoot or press space to shoot
-* Enemies spawn and move downward
-* When a bullet hits an enemy:
+* Default: **follow latest published background** by storing only `backgroundAssetId`
+* Optional toggle “Pin to version”:
 
-  * score += 10
-* If enemy collides with player or reaches bottom:
+  * store `backgroundVersionId`
 
-  * game over
-* On game over:
-
-  * call `sdk.submitScore({ score, durationMs })`
-
-The game must:
-
-* call `sdk.startRun()` when starting gameplay (beginning of run)
-* track start time
-* submit on game over once
-* show “Submitting…” state and then “Submitted” or “Error”
-* include a “Play again” button
-
-No assets required; use Phaser graphics primitives (rectangles/circles) so it is self-contained.
+This mirrors how studios handle art changes safely.
 
 ---
 
-# Part E — Integrate game into `apps/web` game page
+# Part 4 — Usage Tracking (“Used by X levels”)
 
-## 6) Add a Game Host component in the web app
+## 5) Implement usage tracking model
 
-Create a client component:
+Add an `AssetUsage` table/entity in Dynamo (or item type in single-table design):
 
-```
-apps/web/components/GameHost/GameHost.tsx
-apps/web/components/GameHost/GameHost.module.css
-```
+Fields:
 
-Props:
+* `assetId`
+* `usageType`: `level-background` | `game-splash` | `game-logo` | etc.
+* `refId`: e.g. `GAME#{gameId}#LEVEL#{levelId}`
+* `createdAt`
 
-* `gameId` (slug)
-* `gameTitle`
-* `realtimeWsUrl` (from env)
-* `apiBaseUrl` (usually '')
-* `user` (from session; optional)
+Update Level Config save logic so that when a background is set:
 
-Behavior:
+* Upsert usage record for that level referencing the asset
+* If background changed, remove the previous usage record
 
-* Creates SDK via `createGameSdk`
-* Looks up the game module based on gameId:
+Provide helper functions:
 
-  * import from `@playmasters/<game-package>` or a local mapping
-* Mounts the game into a div ref
-* Handles cleanup on unmount
-* Shows a thin HUD:
-
-  * connection/auth status
-  * small instructions
-  * errors
+* `countAssetUsage(assetId): number`
+* `listAssetUsage(assetId): Usage[]`
 
 ---
 
-## 7) Update `/games/[slug]` page to embed real game when available
+## 6) Show usage indicator in admin UI
 
-* If game status is `available` and a matching game package exists:
+On:
 
-  * render `<GameHost ... />` in place of placeholder box
-* If `coming-soon`, keep placeholder
+* Asset list view
+* Asset detail page
 
-Remove (or keep only in dev) the old “Submit test score” button from Step 5.
+Show:
 
----
-
-## 8) Ensure leaderboards update live
-
-When the score is submitted:
-
-* `apps/web` forwards to realtime
-* realtime updates state
-* `LeaderboardPanel` already connected via WS should update automatically
-
-Add a small UX improvement:
-
-* after submitting score, `GameHost` can request updated leaderboard state by sending WS subscribe again or rely on broadcast.
+* “Used by X levels”
+* If clicked, show breakdown list (gameId/levelId) (optional; nice but not required)
 
 ---
 
-# Part F — Registry updates
+# Part 5 — Safety: Prevent destructive actions for assets in use
 
-## 9) Update games registry
+## 7) Prevent deleting published assets in use
 
-Mark the first Phaser game as:
+If you have delete endpoints for assets/versions:
 
-* `status: 'available'`
-* Ensure slug matches the package name and route
+* Disallow deleting:
 
-Add optional config in registry:
+  * Any `currentPublishedVersionId`
+  * Any published version referenced by any usage record (if pinning is supported)
+  * Any asset with usage count > 0
 
-* `maxScore` (optional) for future validation
-* `description` and tags
+Instead:
 
----
+* Provide “Archive” only
+* For assets in use, “Archive” is disabled or warns “remove from levels first”
 
-# Part G — Developer experience & checks
+If you do not have delete endpoints yet:
 
-## 10) Add basic tests / lint
-
-No heavy testing required, but:
-
-* Typecheck passes
-* `nx build` for web and game package passes
-* Ensure Phaser imports are client-only (GameHost is client component)
-* Avoid importing Phaser in server components
+* Add safety checks now anyway for future-proofing.
 
 ---
 
-# Acceptance Criteria
+# Part 6 — Validation on Publish (Breaking Live Levels Prevention)
 
-1. Run:
+## 8) Publish validation hooks
 
-* `nx dev web`
-* `nx serve realtime`
+When publishing a background asset version:
 
-2. Visit `/games/<space-blaster-slug>`
+* Validate:
 
-* The Phaser game loads and is playable
-* On game over, score is submitted through SDK
-* Leaderboard updates live in the leaderboard panel without refresh
+  * file exists in draft bucket
+  * content-type is allowed
+  * dimensions within bounds
+* If asset is currently used by levels and the background is pinned by version:
 
-3. Signed-out users:
+  * publishing a new version does not affect those pinned usages
+* If usage follows latest:
 
-* Can play
-* But score submission requires auth:
-
-  * If not signed in, show “Sign in to submit score”
-  * Do not call `/api/game-sessions` unless authenticated
-
-4. No hardcoded colors; use tokens for overlays and buttons.
+  * publishing will immediately affect runtime; that’s OK but must be intentional
+  * require a “change notes” field (already likely exists)
 
 ---
 
-# Deliverables
+# Part 7 — Ensure rollback fixes regressions instantly
 
-Expected new/updated files include:
+## 9) Make rollback update effect immediate
 
-**packages/game-sdk**
+Rollback already repoints `currentPublishedVersionId`. Ensure:
 
-* `src/types.ts`
-* `src/sdk.ts`
-* `src/index.ts`
+* Public Content API resolves URL based on currentPublishedVersionId
+* CDN URL includes versionId so rollback switches URL, avoiding stale cache
+* Add `revalidatePath` / cache invalidation for any cached homepage/config endpoints if you use Next caching.
 
-**packages/types**
+---
 
-* `src/game.ts` (if used)
-* `index.ts` export
+# Acceptance Criteria (Exit Criteria)
 
-**packages/games/space-blaster**
+✅ Published backgrounds selectable in level config without redeploy
+✅ Runtime can fetch backgrounds catalog/config via `apps/web` API
+✅ Asset list/detail shows “used by X levels”
+✅ Cannot delete/unsafe-archive assets in use
+✅ Publishing validates type and dimensions
+✅ Rollback repoints published version and fixes regressions instantly (URL changes due to versioned path)
 
-* `src/index.ts`
-* `src/game.ts` (Phaser implementation)
+---
+
+# Explicit Non-Goals (Do NOT implement)
+
+❌ Full visual level editor
+❌ Sprite sheet slicing / hitboxes
+❌ Advanced dependency graphs
+❌ Automated CDN invalidations (versioned URLs are enough)
+
+---
+
+# Expected File/Area Changes
+
+**apps/admin**
+
+* `app/editor/images/*` UI updates for usage indicators
+* `app/api/catalog/backgrounds/route.ts`
+* Level config editor background picker changes
+* Dynamo usage repository `lib/assetUsage.ts`
 
 **apps/web**
 
-* `components/GameHost/GameHost.tsx`
-* `components/GameHost/GameHost.module.css`
-* `/games/[slug]` page updated to render GameHost when available
-* registry updated to include/enable the game
+* `app/api/catalog/backgrounds/route.ts`
+* Ensure any config/level endpoints can reference background assets
 
+**shared**
+
+* `packages/types` may need:
+
+  * `BackgroundCatalogItem`
+  * `AssetUsage` types
+
+---
+
+# Implementation Notes (important)
+
+* Keep it minimal but correct.
+* If Level Config is not yet fully implemented, create the smallest viable config model that demonstrates:
+
+  * selecting a background
+  * saving it
+  * usage counting works
+* Prefer “follow latest published” as default to reduce data churn, but allow “pin version” as a future-safe option.
+
+---
+
+Implement Phase 5 cleanly and aligned with existing repo conventions.

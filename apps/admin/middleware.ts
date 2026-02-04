@@ -4,6 +4,11 @@ import { auth } from './src/auth';
 export default auth((req) => {
   const { nextUrl } = req;
 
+  // In development, allow access without redirect to simplify local testing.
+  if (process.env.NODE_ENV === 'development') {
+    return NextResponse.next();
+  }
+
   if (!req.auth) {
     const signInUrl = new URL('/api/auth/signin', nextUrl.origin);
     signInUrl.searchParams.set('callbackUrl', nextUrl.href);
