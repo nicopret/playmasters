@@ -1,0 +1,51 @@
+.wrapper {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.dropzone {
+  position: relative;
+  border: 2px solid #2d2d2d;
+  border-radius: 2px;
+  min-height: 160px;
+  background: #ffffff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.dropzone:hover {
+  background: #f7f7f7;
+}
+
+.dropzoneActive {
+  border-color: #0b6b2b;
+  background: #eef7f0;
+}
+
+.placeholder {
+  color: #4b5563;
+  font-size: 15px;
+}
+
+.preview {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.hiddenInput {
+  display: none;
+}

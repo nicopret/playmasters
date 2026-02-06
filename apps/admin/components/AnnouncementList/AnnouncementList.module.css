@@ -1,0 +1,33 @@
+.list {
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 12px 6px;
+  gap: 8px;
+}
+
+.addBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 2px solid #2d2d2d;
+  background: #fff;
+  color: #1f1f1f;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  min-width: 44px;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.addBtn:hover {
+  background: #f3f3f3;
+}
+
+.addBtn:active {
+  transform: translateY(1px);
+}

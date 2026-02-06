@@ -4,7 +4,7 @@ import styles from './InfoBlock.module.css';
 export type InfoBlockProps = {
   title: string;
   value: string | number;
-  data: number[];
+  data?: number[];
   fontColor: string;
   titleBgColor: string;
   valueBgColor: string;
@@ -20,9 +20,10 @@ const InfoBlock: React.FC<InfoBlockProps> = ({
   valueBgColor,
   footerBgColor,
 }) => {
-  const safeData = data && data.length ? data : [0];
-  const maxValue = Math.max(...safeData, 1);
-console.log({maxValue})
+  const hasData = Array.isArray(data) && data.length > 0;
+  const safeData = hasData ? data : [];
+  const maxValue = hasData ? Math.max(...safeData, 1) : 1;
+
   return (
     <div className={styles.block}>
       <div
@@ -34,16 +35,19 @@ console.log({maxValue})
 
       <div
         className={styles.value}
-        style={{ backgroundColor: valueBgColor, color: fontColor }}
+        style={{
+          backgroundColor: valueBgColor,
+          color: fontColor,
+        }}
       >
         {value}
       </div>
 
       <div
         className={styles.footer}
-        style={{ backgroundColor: footerBgColor }}
+        style={{ backgroundColor: hasData ? footerBgColor : valueBgColor }}
       >
-        <div className={styles.baseline} />
+        {hasData && <div className={styles.baseline} />}
         <div className={styles.barWrap}>
           {safeData.map((point, idx) => {
             const heightPercent = (point / maxValue) * 100;

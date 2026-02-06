@@ -18,9 +18,9 @@ const SK_ATTR = process.env.DDB_SK_NAME || 'SK';
 type AnnouncementInput = {
   title: string;
   body: string;
-  imageUrl?: string;
-  ctaLabel?: string;
-  ctaHref?: string;
+  imageUrl?: string | null;
+  ctaLabel?: string | null;
+  ctaHref?: string | null;
   isActive: boolean;
   sortOrder: number;
 };
@@ -124,9 +124,9 @@ export async function updateAnnouncement(
       ExpressionAttributeValues: {
         ':title': input.title,
         ':body': input.body,
-        ':imageUrl': input.imageUrl,
-        ':ctaLabel': input.ctaLabel,
-        ':ctaHref': input.ctaHref,
+        ':imageUrl': input.imageUrl ?? null,
+        ':ctaLabel': input.ctaLabel ?? null,
+        ':ctaHref': input.ctaHref ?? null,
         ':isActive': input.isActive,
         ':sortOrder': input.sortOrder,
         ':updatedAt': timestamp,

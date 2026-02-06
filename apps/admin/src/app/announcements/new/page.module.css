@@ -1,41 +1,68 @@
 .page {
-  padding: var(--pm-space-xl);
+  padding: 24px 28px 40px;
+  background: #ffffff;
+}
+
+.formShell {
+  max-width: 1100px;
   display: grid;
-  gap: var(--pm-space-lg);
+  gap: 18px;
 }
 
 .form {
+  max-width: 760px;
   display: grid;
-  gap: var(--pm-space-md);
-  background: color-mix(in srgb, var(--pm-color-surface) 90%, var(--pm-color-background) 10%);
-  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
-  border-radius: var(--pm-radius-lg);
-  padding: var(--pm-space-xl);
-  box-shadow: var(--pm-shadow-card);
+  gap: 16px;
 }
 
 .field {
-  display: grid;
-  gap: var(--pm-space-2xs);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .label {
-  color: var(--pm-color-text-primary);
-  font-weight: var(--pm-font-weight-medium);
+  font-weight: 600;
+  color: #1f1f1f;
 }
 
 .input,
 .textarea,
-.checkbox,
 .number {
-  padding: var(--pm-space-sm);
-  border-radius: var(--pm-radius-md);
-  border: 1px solid color-mix(in srgb, var(--pm-color-text-secondary) 30%, transparent);
-  background: color-mix(in srgb, var(--pm-color-background) 92%, var(--pm-color-surface) 8%);
-  color: var(--pm-color-text-primary);
+  padding: 10px 12px;
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  font-size: 16px;
+  color: #1f1f1f;
+  background: #fff;
+}
+
+.textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
 }
 
 .actions {
   display: flex;
-  gap: var(--pm-space-sm);
+  gap: 12px;
+}
+
+.btn {
+  min-width: 86px;
+  padding: 6px 12px;
+  background: #ffffff;
+  border: 2px solid #3b3b3b;
+  color: #1f1f1f;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #f3f3f3;
 }

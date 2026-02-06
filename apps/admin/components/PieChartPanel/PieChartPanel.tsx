@@ -27,11 +27,13 @@ const PALETTE = [
 const radius = 90;
 const center = 100;
 
+const round = (n: number) => Number(n.toFixed(4));
+
 function polarToCartesian(angle: number, r = radius) {
   const rad = (angle - 90) * (Math.PI / 180);
   return {
-    x: center + r * Math.cos(rad),
-    y: center + r * Math.sin(rad),
+    x: round(center + r * Math.cos(rad)),
+    y: round(center + r * Math.sin(rad)),
   };
 }
 

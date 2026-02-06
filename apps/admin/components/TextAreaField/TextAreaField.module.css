@@ -1,0 +1,28 @@
+.wrapper {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.input {
+  width: 100%;
+  min-height: 120px;
+  border: 2px solid #2d2d2d;
+  border-radius: 2px;
+  padding: 10px 12px;
+  font-size: 16px;
+  color: #111827;
+  background: #ffffff;
+  resize: vertical;
+}
+
+.input:focus {
+  outline: 2px solid #111;
+  outline-offset: 1px;
+}

@@ -1,10 +1,10 @@
 'use client';
 
-import { Button, Carousel, Container, GameTile, Badge } from '@playmasters/ui';
+import { Button, Carousel, Container, Badge } from '@playmasters/ui';
 import type { Announcement } from '@playmasters/types';
+import type { Game } from '../../lib/games';
+import { GameCard } from '../GameCard/GameCard';
 import styles from '../../app/page.module.css';
-
-type Game = { title: string; tags: string[] };
 
 type Props = {
   announcements: Announcement[];
@@ -65,18 +65,11 @@ export function LandingClient({ announcements, fallbackAnnouncements, games }: P
         <Container>
           <div className={styles.sectionHeader}>
             <p className={styles.kicker}>Games</p>
-            <h2 className={styles.heading}>Coming soon to the arena</h2>
+            <h2 className={styles.heading}>Play now or see what&apos;s coming</h2>
           </div>
           <div className={styles.gameGrid}>
             {games.map((game) => (
-              <GameTile
-                key={game.title}
-                title={game.title}
-                href="#"
-                tags={game.tags}
-                status="coming-soon"
-                imageUrl={undefined}
-              />
+              <GameCard key={game.id} game={game} />
             ))}
           </div>
         </Container>

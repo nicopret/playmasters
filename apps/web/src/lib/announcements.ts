@@ -6,6 +6,13 @@ const TABLE = process.env.DDB_TABLE_ANNOUNCEMENTS || 'PlaymastersAnnouncements';
 const PK_VALUE = 'ANNOUNCEMENTS';
 const PK_ATTR = process.env.DDB_PK_NAME || 'PK';
 const SK_ATTR = process.env.DDB_SK_NAME || 'SK';
+const IMAGE_BASE = 'https://playmasters-announcement-images.s3.eu-west-2.amazonaws.com';
+
+const formatImageUrl = (value?: string) => {
+  if (!value) return value;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `${IMAGE_BASE}/${value.replace(/^\//, '')}`;
+};
 
 const toAnnouncement = (item: Record<string, any> | undefined): Announcement | null => {
   if (!item) return null;
@@ -13,7 +20,7 @@ const toAnnouncement = (item: Record<string, any> | undefined): Announcement | n
     id: item.id,
     title: item.title,
     body: item.body,
-    imageUrl: item.imageUrl,
+    imageUrl: formatImageUrl(item.imageUrl) as Announcement['imageUrl'],
     ctaLabel: item.ctaLabel,
     ctaHref: item.ctaHref,
     isActive: item.isActive,

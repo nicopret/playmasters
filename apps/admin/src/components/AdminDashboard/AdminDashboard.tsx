@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import InfoBlock from '../../../components/InfoBlock/InfoBlock';
 import PieChartPanel from '../../../components/PieChartPanel/PieChartPanel';
 import WorldMapPanel from '../../../components/WorldMapPanel/WorldMapPanel';
@@ -138,13 +139,19 @@ export default function AdminDashboard() {
           />
         </div>
         <nav className={styles.menu}>
-          {['Home', 'Announcements', 'Games', 'Assets'].map((item) => (
-            <div
-              key={item}
-              className={`${styles.menuItem} ${item === 'Home' ? styles.menuActive : ''}`}
+          {[
+            { label: 'Home', href: '/' },
+            { label: 'Announcements', href: '/announcements' },
+            { label: 'Games', href: '/games' },
+            { label: 'Assets', href: '/assets' },
+          ].map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={`${styles.menuItem} ${item.label === 'Home' ? styles.menuActive : ''}`}
             >
-              {item}
-            </div>
+              {item.label}
+            </Link>
           ))}
         </nav>
       </aside>
