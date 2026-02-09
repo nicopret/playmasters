@@ -1,181 +1,183 @@
-# Space Blaster Cross-Reference Rules
+# Space Blaster Versioning, Version Pointers, and Rollback Semantics
 
-*(IDs + Referential Integrity — Publish Blocking)*
+## 1. Purpose
 
-## 1) Purpose
+Space Blaster content is authored and published through the Playmasters Admin system. The platform must support frequent tuning without rebuilding the game, while preserving:
 
-Space Blaster is built around a data-driven configuration model. Many config artifacts reference entries in other artifacts by ID (e.g., a Level references a FormationLayout). These links must be valid at publish time to guarantee:
+* deterministic gameplay per run
+* safe publishes and rollbacks
+* leaderboard fairness and comparability
 
-* Runtime receives a fully-resolved, self-contained config bundle
-* No mid-run failures due to missing content
-* Deterministic behavior and safe rollback
-
-**Hard rule:** **No dangling references are allowed in any Published version**.
+This document defines the **published version model**, the **version pointer** behavior, how the runtime resolves a version, and how rollbacks work.
 
 ---
 
-## 2) ID Types
+## 2. Definitions
 
-These are the canonical identifier types used across Space Blaster config domains:
+### Published Artifact
 
-* `levelId` — identifies a LevelConfig
-* `layoutId` — identifies a FormationLayout
-* `enemyId` — identifies an EnemyCatalog entry
-* `heroId` — identifies a HeroCatalog entry (player unit)
-* `ammoId` — identifies an AmmoCatalog entry
-* `scoreKey` / `enemyId` (scoring map key) — keys used by ScoreConfig to map base scores to enemy entries
+An immutable, validated config document of a given domain, e.g.:
 
-**ID constraints (recommended validation):**
+* `GameConfig`
+* `LevelConfig[]`
+* `HeroCatalog`, `EnemyCatalog`, `AmmoCatalog`
+* `FormationLayouts`
+* `ScoreConfig`
 
-* IDs are non-empty strings
-* IDs are unique within their domain
-* IDs are stable (changing an ID is effectively breaking content)
+Once published, an artifact must never change.
 
----
+### Published Bundle (Space Blaster Config Bundle)
 
-## 3) Cross-Reference Rules (Authoritative)
+A published “release” of Space Blaster content consisting of a consistent set of domain artifacts that are meant to be used together.
 
-### 3.1 LevelConfig → FormationLayouts
+### Version Pointer
 
-**Rule:** Every LevelConfig must reference an existing FormationLayout by `layoutId`.
+A small mutable record that tells the runtime **which published bundle** is “current”. Rollback is performed by repointing this pointer.
 
-* **Reference:** `LevelConfig.layoutId`
-* **Target:** `FormationLayouts[layoutId]`
+### configHash / versionHash
 
-**Publish-blocking validation:**
+A stable identifier for the published bundle contents. If any artifact in the bundle changes, the hash must change.
 
-* Fail publish if `layoutId` is missing
-* Fail publish if `layoutId` does not exist in FormationLayouts
-
-**Error example:**
-
-* `LevelConfig(levelId=...) references missing layoutId "layout_alpha"`
+(Throughout this doc, `configHash` and `versionHash` are treated as equivalent; choose one naming convention in code.)
 
 ---
 
-### 3.2 LevelConfig → EnemyCatalog
+## 3. Version Model (Bundle-Based)
 
-**Rule:** Every enemy referenced by any wave in LevelConfig must exist in EnemyCatalog.
+Space Blaster versioning is **bundle-based**, not per-domain at runtime. The platform publishes a bundle (or a consistent set of domain artifacts) and computes a stable `configHash`.
 
-* **References (examples—apply to whatever structures exist):**
+### Bundle contents (minimum)
 
-  * `LevelConfig.waves[].enemies[].enemyId`
-  * `LevelConfig.waves[].spawnGroups[].enemyId`
-  * Any “boss” reference, if boss is represented by an EnemyCatalog entry
-* **Target:** `EnemyCatalog[enemyId]`
+A Space Blaster published bundle includes:
 
-**Publish-blocking validation:**
-
-* Fail publish if any referenced `enemyId` does not exist
-* Fail publish if a wave references an enemy with invalid structure (e.g., missing enemyId)
-
-**Error example:**
-
-* `Wave[2] references unknown enemyId "enemy_striker_02"`
+* GameConfig
+* LevelConfigs (all levels included in that release)
+* HeroCatalog
+* EnemyCatalog
+* AmmoCatalog
+* FormationLayouts
+* ScoreConfig
+* Bundle metadata: `configHash`, `publishedAt`, optional `bundleId`
 
 ---
 
-### 3.3 HeroCatalog → AmmoCatalog
+## 4. How Runtime Selects the Published Version
 
-**Rule:** Every hero must reference an existing ammo entry.
+Runtime must resolve the published version in a deterministic sequence:
 
-* **Reference:** `HeroCatalog.entries[].defaultAmmoId` (or equivalent)
-* **Target:** `AmmoCatalog[ammoId]`
+### Step list (runtime resolution)
 
-**Publish-blocking validation:**
+1. **Read Version Pointer** for Space Blaster
 
-* Fail publish if hero references missing `ammoId`
+   * Example: `space-blaster/current` → `bundleId` (or direct artifact ids)
 
-**Error example:**
+2. **Load Published Bundle** referenced by the pointer
 
-* `Hero(heroId="pilot") references missing ammoId "laser_basic"`
+   * This can be a single bundle object, or a manifest containing references to each artifact.
 
----
+3. **Build ResolvedGameConfig**
 
-### 3.4 ScoreConfig → EnemyCatalog (Base Score Mapping)
+   * Resolve all references so runtime receives a **self-contained** object:
 
-**Rule:** If ScoreConfig contains base scores keyed by enemy id, every key must exist in EnemyCatalog.
+     * levels embed the layout and enemy entries they require (or provide complete catalogs + layouts so runtime never fetches elsewhere)
+   * Attach `configHash`
 
-* **Reference:** `ScoreConfig.baseScoresByEnemyId` (or equivalent map)
-* **Target:** `EnemyCatalog[enemyId]`
+4. **Return ResolvedGameConfig to the game at mount/run start**
 
-**Publish-blocking validation:**
-
-* Fail publish if ScoreConfig contains a score key for an unknown enemyId
-
-**Error example:**
-
-* `ScoreConfig defines base score for unknown enemyId "enemy_ghost"`
-
-**Recommended additional consistency rule (optional but useful):**
-
-* If an enemy is used in any LevelConfig wave, ScoreConfig should define a base score for it (either required or defaulted). If required, it becomes publish-blocking; if defaulted, log a warning.
+   * Game boots using only `sdk + resolvedConfig`
 
 ---
 
-### 3.5 LevelConfig → HeroCatalog (If Explicitly Referenced)
+## 5. configHash / versionHash Semantics
 
-Only applies if LevelConfig selects a hero by ID (some games do).
+### What the hash represents
 
-* **Reference:** `LevelConfig.heroId` (if present)
-* **Target:** `HeroCatalog[heroId]`
+`configHash` is a stable identifier for the *exact content* of a published bundle.
 
-**Publish-blocking validation:**
+* If any field in any included artifact changes → hash changes
+* If order-only changes occur (e.g. JSON field order) → hash must remain stable (hash should be computed from a canonical representation)
 
-* Fail publish if LevelConfig specifies heroId that doesn’t exist
+### Hash generation (recommended)
 
----
+At publish time:
 
-### 3.6 Any Domain → Asset Keys (If Required by Runtime Preload)
+* canonicalize the bundle manifest and artifact payloads (stable ordering)
+* compute hash (e.g. SHA-256)
+* store hash alongside the bundle
 
-If your catalogs/configs include `spriteKey`, `sfxKey`, `musicKey`, etc., you should treat these as references to an Asset Registry.
+### Where the hash is used
 
-This can be either:
+* **Runtime / RunContext**
 
-* Publish-blocking (strict), or
-* Warning-only (if assets may be delivered separately)
+  * stored when the run starts
+  * never changes during the run
+* **Score submission**
 
-**Recommended approach for Space Blaster:**
+  * included in the submission payload so scores can be compared under the same config version
+* **Operational debugging**
 
-* **Publish-blocking for core gameplay assets** (player, grunt, bullet, explosion)
-* Warning-only for optional audio/music keys
-
----
-
-## 4) “No Dangling References” Rule
-
-A config publish must be rejected if:
-
-* Any referenced ID does not exist in its target domain
-* Any required ID field is missing
-* Any referenced entry exists but violates required shape constraints needed by runtime (e.g., missing `hp` for enemy)
-
-This ensures the runtime `ResolvedGameConfig` can be built without gaps.
+  * enables reproducing player reports by reloading the exact config bundle
 
 ---
 
-## 5) Output of Validation (Error Shape)
+## 6. Frozen-Per-Run Guarantee
 
-Validation should return a structured list of errors suitable for Admin UI:
+A run captures and freezes the resolved bundle:
 
-Each error should include:
+* The run stores `configHash`
+* All gameplay tuning during that run is derived from that frozen config
+* Publishing a new version while the run is in progress does **not** affect the run
 
-* `domain`: e.g. `LevelConfig`
-* `sourceId`: e.g. `levelId`
-* `path`: JSON-path-like pointer to the field, e.g. `waves[2].enemies[0].enemyId`
-* `message`: human readable
-* `severity`: `error` (publish-blocking) or `warning`
+**Effect:** changes apply **next run only**.
 
 ---
 
-## 6) Mapping to Future Validators (How This Becomes Code)
+## 7. Rollback Semantics
 
-These rules map directly to validator modules:
+Rollback is implemented by repointing the version pointer to a previous published bundle.
 
-* `validateLevelLayoutRefs(LevelConfig, FormationLayouts)`
-* `validateLevelEnemyRefs(LevelConfig, EnemyCatalog)`
-* `validateHeroAmmoRefs(HeroCatalog, AmmoCatalog)`
-* `validateScoreEnemyRefs(ScoreConfig, EnemyCatalog)`
-* `validateAssetKeys(Catalogs/Configs, AssetRegistry)` (optional)
+### Rollback rules
+
+* Rollback does not delete content
+* Rollback does not mutate published artifacts
+* Rollback only changes what *new runs* receive
+* Active runs remain unaffected (they keep their captured `configHash`)
+
+### Step list (rollback)
+
+1. Admin selects a previous published bundle (by `configHash` / publish date / bundleId)
+2. Platform updates the **version pointer** to the selected bundle
+3. New sessions resolve the pointer and receive the old bundle
+4. Existing sessions continue unchanged
+
+### Safety guarantees
+
+* Pointer update must be atomic
+* If pointer update fails, the previous pointer remains intact
+* Audit trail must record:
+
+  * who rolled back
+  * when
+  * from → to bundle id/hash
+
+---
+
+## 8. Diagram (Conceptual)
+
+```
+Admin publishes bundle ──► Published Bundle Store (immutable)
+        │                          │
+        │                          └── bundleId + configHash stored
+        │
+        └──► Version Pointer: "space-blaster/current" = bundleId
+                                   │
+Runtime start (new run) ───────────┘
+  1) read pointer
+  2) fetch bundle
+  3) build ResolvedGameConfig (includes configHash)
+  4) freeze configHash in RunContext
+```
+
+Rollback simply changes `space-blaster/current` to an earlier bundleId.
 
 ---
