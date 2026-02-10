@@ -1,0 +1,26 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://playmasters.dev/schemas/space-blaster/game-config.schema.json",
+    "title": "SpaceBlasterGameConfig",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [ "defaultLives", "timing" ],
+    "properties": {
+        "defaultLives": {
+            "maximum": 9,
+            "minimum": 1,
+            "type": "integer"
+        },
+        "timing": {
+            "additionalProperties": false,
+            "properties": {
+                "comboWindowMs": {
+                    "minimum": 100,
+                    "type": "integer"
+                }
+            },
+            "required": [ "comboWindowMs" ],
+            "type": "object"
+        }
+    }
+}
