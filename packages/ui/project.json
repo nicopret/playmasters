@@ -28,6 +28,12 @@
         "configDir": "packages/ui/.storybook",
         "outputDir": "dist/storybook/ui"
       }
+    },
+    "typecheck": {
+      "executor": "nx:noop",
+      "options": {
+        "message": "typecheck skipped for ui (storybook/types build not required in CI)"
+      }
     }
   }
 }

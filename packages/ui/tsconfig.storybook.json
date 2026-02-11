@@ -2,7 +2,10 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "emitDecoratorMetadata": true,
-    "outDir": ""
+    "experimentalDecorators": true,
+    "outDir": "",
+    "jsx": "react-jsx",
+    "moduleResolution": "node16"
   },
   "exclude": [
     "src/**/*.spec.ts",
@@ -21,11 +24,7 @@
     "src/**/*.stories.tsx",
     "src/**/*.stories.mdx",
     ".storybook/*.js",
-    ".storybook/*.ts"
-  ],
-  "files": [
-    "../../node_modules/@nx/react/typings/styled-jsx.d.ts",
-    "../../node_modules/@nx/react/typings/cssmodule.d.ts",
-    "../../node_modules/@nx/react/typings/image.d.ts"
+    ".storybook/*.ts",
+    ".storybook/*.tsx"
   ]
 }
