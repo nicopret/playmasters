@@ -1,6 +1,8 @@
-import { ValidationIssue } from "../schemas/validateSchema";
+import { ValidationIssue } from '../schemas/validateSchema';
 
-const { validateLevelConfigReferentialIntegrity } =  require('./level-cross-ref');
+const {
+  validateLevelConfigReferentialIntegrity,
+} = require('./level-cross-ref');
 const formationLayouts = require('../samples/v1/formation-layouts.v1.json');
 const enemyCatalog = require('../samples/v1/enemy-catalog.v1.json');
 const heroCatalog = require('../samples/v1/hero-catalog.v1.json');
@@ -14,7 +16,7 @@ describe('validateLevelConfigReferentialIntegrity', () => {
       formationLayouts,
       enemyCatalog,
       heroCatalog,
-      ammoCatalog
+      ammoCatalog,
     });
     expect(issues).toHaveLength(0);
   });
@@ -25,9 +27,11 @@ describe('validateLevelConfigReferentialIntegrity', () => {
       formationLayouts,
       enemyCatalog,
       heroCatalog,
-      ammoCatalog
+      ammoCatalog,
     });
-    expect(issues.some((i: ValidationIssue) => i.path === 'layoutId')).toBe(true);
+    expect(issues.some((i: ValidationIssue) => i.path === 'layoutId')).toBe(
+      true,
+    );
   });
 
   it('fails when wave enemyId not in enemy catalog', () => {
@@ -35,14 +39,16 @@ describe('validateLevelConfigReferentialIntegrity', () => {
       level: {
         ...level1,
         levelId: 'bad-enemy',
-        waves: [{ enemyId: 'unknown_enemy', count: 1, spawnDelayMs: 0 }]
+        waves: [{ enemyId: 'unknown_enemy', count: 1, spawnDelayMs: 0 }],
       },
       formationLayouts,
       enemyCatalog,
       heroCatalog,
-      ammoCatalog
+      ammoCatalog,
     });
-    expect(issues.some((i: ValidationIssue) => i.path === 'waves[0].enemyId')).toBe(true);
+    expect(
+      issues.some((i: ValidationIssue) => i.path === 'waves[0].enemyId'),
+    ).toBe(true);
   });
 
   it('fails when heroId missing', () => {
@@ -51,7 +57,7 @@ describe('validateLevelConfigReferentialIntegrity', () => {
       formationLayouts,
       enemyCatalog,
       heroCatalog,
-      ammoCatalog
+      ammoCatalog,
     });
     expect(issues.some((i: ValidationIssue) => i.path === 'heroId')).toBe(true);
   });
@@ -61,22 +67,23 @@ describe('validateLevelConfigReferentialIntegrity', () => {
       entries: [
         {
           ...heroCatalog.entries[0],
-          defaultAmmoId: 'missing_ammo'
-        }
-      ]
+          defaultAmmoId: 'missing_ammo',
+        },
+      ],
     };
     const issues = validateLevelConfigReferentialIntegrity({
       level: { ...level1, levelId: 'bad-ammo' },
       formationLayouts,
       enemyCatalog,
       heroCatalog: badHeroCatalog,
-      ammoCatalog
+      ammoCatalog,
     });
     expect(
       issues.some(
         (i: ValidationIssue) =>
-          i.path === `heroCatalog(${badHeroCatalog.entries[0].heroId}).defaultAmmoId`
-      )
+          i.path ===
+          `heroCatalog(${badHeroCatalog.entries[0].heroId}).defaultAmmoId`,
+      ),
     ).toBe(true);
   });
 });

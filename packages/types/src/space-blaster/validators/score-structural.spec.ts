@@ -16,11 +16,13 @@ describe('validateScoreConfigTiers', () => {
         ...validScore.combo,
         tiers: [
           { minCount: 2, multiplier: 1.2, name: 'double' },
-          { minCount: 1, multiplier: 1.5, name: 'oops' }
-        ]
-      }
+          { minCount: 1, multiplier: 1.5, name: 'oops' },
+        ],
+      },
     });
-    expect(issues.some((i: ValidationIssue) => i.path === 'combo.tiers[1].minCount')).toBe(true);
+    expect(
+      issues.some((i: ValidationIssue) => i.path === 'combo.tiers[1].minCount'),
+    ).toBe(true);
   });
 
   it('fails when tiers contain duplicate minCount', () => {
@@ -30,11 +32,13 @@ describe('validateScoreConfigTiers', () => {
         ...validScore.combo,
         tiers: [
           { minCount: 2, multiplier: 1.2, name: 'double' },
-          { minCount: 2, multiplier: 1.4, name: 'duplicate' }
-        ]
-      }
+          { minCount: 2, multiplier: 1.4, name: 'duplicate' },
+        ],
+      },
     });
-    expect(issues.some((i: ValidationIssue) => i.message.includes('duplicate'))).toBe(true);
+    expect(
+      issues.some((i: ValidationIssue) => i.message.includes('duplicate')),
+    ).toBe(true);
   });
 
   it('fails when multiplier is below 1.0', () => {
@@ -42,10 +46,14 @@ describe('validateScoreConfigTiers', () => {
       ...validScore,
       combo: {
         ...validScore.combo,
-        tiers: [{ minCount: 2, multiplier: 0.9, name: 'low' }]
-      }
+        tiers: [{ minCount: 2, multiplier: 0.9, name: 'low' }],
+      },
     });
-    expect(issues.some((i: ValidationIssue) => i.path === 'combo.tiers[0].multiplier')).toBe(true);
+    expect(
+      issues.some(
+        (i: ValidationIssue) => i.path === 'combo.tiers[0].multiplier',
+      ),
+    ).toBe(true);
   });
 
   it('fails when tierBonus is negative', () => {
@@ -53,10 +61,16 @@ describe('validateScoreConfigTiers', () => {
       ...validScore,
       combo: {
         ...validScore.combo,
-        tiers: [{ minCount: 2, multiplier: 1.1, tierBonus: -5, name: 'badbonus' }]
-      }
+        tiers: [
+          { minCount: 2, multiplier: 1.1, tierBonus: -5, name: 'badbonus' },
+        ],
+      },
     });
-    expect(issues.some((i: ValidationIssue) => i.path === 'combo.tiers[0].tierBonus')).toBe(true);
+    expect(
+      issues.some(
+        (i: ValidationIssue) => i.path === 'combo.tiers[0].tierBonus',
+      ),
+    ).toBe(true);
   });
 
   it('passes boundary values multiplier=1.0 tierBonus=0', () => {
@@ -64,8 +78,8 @@ describe('validateScoreConfigTiers', () => {
       ...validScore,
       combo: {
         ...validScore.combo,
-        tiers: [{ minCount: 1, multiplier: 1.0, tierBonus: 0, name: 'base' }]
-      }
+        tiers: [{ minCount: 1, multiplier: 1.0, tierBonus: 0, name: 'base' }],
+      },
     });
     expect(issues).toHaveLength(0);
   });

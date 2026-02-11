@@ -16,28 +16,49 @@ describe('validator fixtures (cross-reference, structural, fairness, score tiers
       const ctx = clone(base);
       ctx.level.layoutId = 'missing_layout';
       const issues = validateLevelConfigReferentialIntegrity(ctx);
-      expect(issues.some((i: ValidationIssue) => i.path === 'layoutId' && i.message.includes('missing layoutId'))).toBe(true);
+      expect(
+        issues.some(
+          (i: ValidationIssue) =>
+            i.path === 'layoutId' && i.message.includes('missing layoutId'),
+        ),
+      ).toBe(true);
     });
 
     it('fails when wave enemyId is missing in EnemyCatalog', () => {
       const ctx = clone(base);
       ctx.level.waves[0].enemyId = 'ghost';
       const issues = validateLevelConfigReferentialIntegrity(ctx);
-      expect(issues.some((i: ValidationIssue) => i.path === 'waves[0].enemyId' && i.message.includes('enemyId'))).toBe(true);
+      expect(
+        issues.some(
+          (i: ValidationIssue) =>
+            i.path === 'waves[0].enemyId' && i.message.includes('enemyId'),
+        ),
+      ).toBe(true);
     });
 
     it('fails when heroId is missing in HeroCatalog', () => {
       const ctx = clone(base);
       ctx.level.heroId = 'unknown-hero';
       const issues = validateLevelConfigReferentialIntegrity(ctx);
-      expect(issues.some((i: ValidationIssue) => i.path === 'heroId' && i.message.includes('missing heroId'))).toBe(true);
+      expect(
+        issues.some(
+          (i: ValidationIssue) =>
+            i.path === 'heroId' && i.message.includes('missing heroId'),
+        ),
+      ).toBe(true);
     });
 
     it('fails when hero default ammoId missing in AmmoCatalog', () => {
       const ctx = clone(base);
       ctx.heroCatalog.entries[0].defaultAmmoId = 'ammo_missing';
       const issues = validateLevelConfigReferentialIntegrity(ctx);
-      expect(issues.some((i: ValidationIssue) => i.path.includes('defaultAmmoId') && i.message.includes('missing ammoId'))).toBe(true);
+      expect(
+        issues.some(
+          (i: ValidationIssue) =>
+            i.path.includes('defaultAmmoId') &&
+            i.message.includes('missing ammoId'),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -45,16 +66,35 @@ describe('validator fixtures (cross-reference, structural, fairness, score tiers
     it('fails when waves array is empty', () => {
       const lvl = { ...clone(base).level, waves: [] };
       const issues = validateLevelStructure(lvl);
-      expect(issues.some((i: ValidationIssue) => i.path === 'waves' && i.message.includes('at least 1 wave'))).toBe(true);
+      expect(
+        issues.some(
+          (i: ValidationIssue) =>
+            i.path === 'waves' && i.message.includes('at least 1 wave'),
+        ),
+      ).toBe(true);
     });
   });
 
   describe('fairness ranges', () => {
     it('fails when probability is out of range and caps are negative', () => {
-      const lvl = { ...clone(base).level, diveProbability: 1.5, maxConcurrentDivers: -1 };
+      const lvl = {
+        ...clone(base).level,
+        diveProbability: 1.5,
+        maxConcurrentDivers: -1,
+      };
       const issues = validateLevelFairness(lvl);
-      expect(issues.some((i: ValidationIssue) => i.path === 'diveProbability' && i.message.includes('[0..1]'))).toBe(true);
-      expect(issues.some((i: ValidationIssue) => i.path === 'maxConcurrentDivers' && i.message.includes('>= 0'))).toBe(true);
+      expect(
+        issues.some(
+          (i: ValidationIssue) =>
+            i.path === 'diveProbability' && i.message.includes('[0..1]'),
+        ),
+      ).toBe(true);
+      expect(
+        issues.some(
+          (i: ValidationIssue) =>
+            i.path === 'maxConcurrentDivers' && i.message.includes('>= 0'),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -64,13 +104,29 @@ describe('validator fixtures (cross-reference, structural, fairness, score tiers
       cfg.combo.tiers = [
         { minCount: 2, multiplier: 1.2, name: 'two' },
         { minCount: 2, multiplier: 0.9, name: 'dup-low', tierBonus: -1 },
-        { minCount: 1, multiplier: 1.1, name: 'unsorted' }
+        { minCount: 1, multiplier: 1.1, name: 'unsorted' },
       ];
       const issues = validateScoreConfigTiers(cfg);
-      expect(issues.some((i: ValidationIssue) => i.message.includes('duplicate minCount'))).toBe(true);
-      expect(issues.some((i: ValidationIssue) => i.message.includes('sorted by minCount'))).toBe(true);
-      expect(issues.some((i: ValidationIssue) => i.path === 'combo.tiers[1].multiplier')).toBe(true);
-      expect(issues.some((i: ValidationIssue) => i.path === 'combo.tiers[1].tierBonus')).toBe(true);
+      expect(
+        issues.some((i: ValidationIssue) =>
+          i.message.includes('duplicate minCount'),
+        ),
+      ).toBe(true);
+      expect(
+        issues.some((i: ValidationIssue) =>
+          i.message.includes('sorted by minCount'),
+        ),
+      ).toBe(true);
+      expect(
+        issues.some(
+          (i: ValidationIssue) => i.path === 'combo.tiers[1].multiplier',
+        ),
+      ).toBe(true);
+      expect(
+        issues.some(
+          (i: ValidationIssue) => i.path === 'combo.tiers[1].tierBonus',
+        ),
+      ).toBe(true);
     });
   });
 });

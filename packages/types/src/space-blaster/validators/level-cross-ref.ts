@@ -8,9 +8,14 @@ type LevelConfig = {
   heroId?: string;
 };
 
-type CatalogEntry<T extends string> = { [K in T]?: string } & Record<string, unknown>;
+type CatalogEntry<T extends string> = { [K in T]?: string } & Record<
+  string,
+  unknown
+>;
 type Catalog<T extends string> = { entries: Array<CatalogEntry<T>> };
-type HeroCatalog = { entries: Array<{ heroId?: string; defaultAmmoId?: string }> };
+type HeroCatalog = {
+  entries: Array<{ heroId?: string; defaultAmmoId?: string }>;
+};
 
 type Context = {
   level: LevelConfig;
@@ -23,22 +28,30 @@ type Context = {
 const err = (
   levelId: string | undefined,
   path: string,
-  message: string
+  message: string,
 ): ValidationIssue => ({
   severity: 'error',
   stage: 'cross-reference',
   domain: 'LevelConfig',
   sourceId: levelId,
   path,
-  message
+  message,
 });
 
-function toSet<T extends string>(catalog: { entries: Array<CatalogEntry<T>> }, key: T): Set<string> {
-  return new Set((catalog.entries || []).map((e) => e[key]).filter(Boolean) as string[]);
+function toSet<T extends string>(
+  catalog: { entries: Array<CatalogEntry<T>> },
+  key: T,
+): Set<string> {
+  return new Set(
+    (catalog.entries || []).map((e) => e[key]).filter(Boolean) as string[],
+  );
 }
 
-export function validateLevelConfigReferentialIntegrity(ctx: Context): ValidationIssue[] {
-  const { level, formationLayouts, enemyCatalog, heroCatalog, ammoCatalog } = ctx;
+export function validateLevelConfigReferentialIntegrity(
+  ctx: Context,
+): ValidationIssue[] {
+  const { level, formationLayouts, enemyCatalog, heroCatalog, ammoCatalog } =
+    ctx;
   const issues: ValidationIssue[] = [];
   const levelId = level.levelId;
 
@@ -50,8 +63,8 @@ export function validateLevelConfigReferentialIntegrity(ctx: Context): Validatio
         err(
           levelId,
           'layoutId',
-          `LevelConfig(levelId=${levelId ?? 'unknown'}) references missing layoutId '${level.layoutId}'.`
-        )
+          `LevelConfig(levelId=${levelId ?? 'unknown'}) references missing layoutId '${level.layoutId}'.`,
+        ),
       );
     }
   }
@@ -65,8 +78,8 @@ export function validateLevelConfigReferentialIntegrity(ctx: Context): Validatio
         err(
           levelId,
           `waves[${i}].enemyId`,
-          `LevelConfig(levelId=${levelId ?? 'unknown'}) references unknown enemyId '${w.enemyId}' at waves[${i}].enemyId.`
-        )
+          `LevelConfig(levelId=${levelId ?? 'unknown'}) references unknown enemyId '${w.enemyId}' at waves[${i}].enemyId.`,
+        ),
       );
     }
   });
@@ -78,8 +91,8 @@ export function validateLevelConfigReferentialIntegrity(ctx: Context): Validatio
         err(
           levelId,
           `enemyTypes[${i}]`,
-          `LevelConfig(levelId=${levelId ?? 'unknown'}) references unknown enemyId '${eId}' at enemyTypes[${i}].`
-        )
+          `LevelConfig(levelId=${levelId ?? 'unknown'}) references unknown enemyId '${eId}' at enemyTypes[${i}].`,
+        ),
       );
     }
   });
@@ -93,12 +106,15 @@ export function validateLevelConfigReferentialIntegrity(ctx: Context): Validatio
         err(
           levelId,
           'heroId',
-          `LevelConfig(levelId=${levelId ?? 'unknown'}) references missing heroId '${heroId}'.`
-        )
+          `LevelConfig(levelId=${levelId ?? 'unknown'}) references missing heroId '${heroId}'.`,
+        ),
       );
       heroId = undefined; // avoid ammo lookup on missing hero
     }
-  } else if (heroCatalog.entries.length === 1 && heroCatalog.entries[0].heroId) {
+  } else if (
+    heroCatalog.entries.length === 1 &&
+    heroCatalog.entries[0].heroId
+  ) {
     heroId = heroCatalog.entries[0].heroId as string;
   }
 
@@ -113,8 +129,8 @@ export function validateLevelConfigReferentialIntegrity(ctx: Context): Validatio
           err(
             levelId,
             `heroCatalog(${heroId}).defaultAmmoId`,
-            `HeroCatalog(heroId=${heroId}) references missing ammoId '${ammoId}'.`
-          )
+            `HeroCatalog(heroId=${heroId}) references missing ammoId '${ammoId}'.`,
+          ),
         );
       }
     }

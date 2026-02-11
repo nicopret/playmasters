@@ -12,16 +12,22 @@ type ScoreConfig = {
   scoreConfigId?: string;
 };
 
-const issue = (path: string, message: string, sourceId?: string): ValidationIssue => ({
+const issue = (
+  path: string,
+  message: string,
+  sourceId?: string,
+): ValidationIssue => ({
   severity: 'error',
   stage: 'structural',
   domain: 'ScoreConfig',
   sourceId,
   path,
-  message
+  message,
 });
 
-export function validateScoreConfigTiers(scoreConfig: ScoreConfig): ValidationIssue[] {
+export function validateScoreConfigTiers(
+  scoreConfig: ScoreConfig,
+): ValidationIssue[] {
   const sourceId = scoreConfig.scoreConfigId;
   const issues: ValidationIssue[] = [];
   const tiers = scoreConfig.combo?.tiers;
@@ -41,8 +47,8 @@ export function validateScoreConfigTiers(scoreConfig: ScoreConfig): ValidationIs
           issue(
             `combo.tiers[${i}].minCount`,
             `ScoreConfig tiers must not contain duplicate minCount values (duplicate: ${minCount}).`,
-            sourceId
-          )
+            sourceId,
+          ),
         );
       }
       seenMin.add(minCount);
@@ -54,16 +60,16 @@ export function validateScoreConfigTiers(scoreConfig: ScoreConfig): ValidationIs
           issue(
             `combo.tiers[${i}].multiplier`,
             `ScoreConfig tier multiplier must be a finite number (tier index ${i}, got ${String(multiplier)}).`,
-            sourceId
-          )
+            sourceId,
+          ),
         );
       } else if (multiplier < 1) {
         issues.push(
           issue(
             `combo.tiers[${i}].multiplier`,
             `ScoreConfig tier multiplier must be >= 1.0 (tier index ${i}, got ${multiplier}).`,
-            sourceId
-          )
+            sourceId,
+          ),
         );
       }
     }
@@ -74,16 +80,16 @@ export function validateScoreConfigTiers(scoreConfig: ScoreConfig): ValidationIs
           issue(
             `combo.tiers[${i}].tierBonus`,
             `ScoreConfig tierBonus must be a finite number (tier index ${i}, got ${String(tierBonus)}).`,
-            sourceId
-          )
+            sourceId,
+          ),
         );
       } else if (tierBonus < 0) {
         issues.push(
           issue(
             `combo.tiers[${i}].tierBonus`,
             `ScoreConfig tierBonus must be >= 0 (tier index ${i}, got ${tierBonus}).`,
-            sourceId
-          )
+            sourceId,
+          ),
         );
       }
     }
@@ -98,8 +104,8 @@ export function validateScoreConfigTiers(scoreConfig: ScoreConfig): ValidationIs
         issue(
           `combo.tiers[${i}].minCount`,
           `ScoreConfig tiers must be sorted by minCount ascending (tier index ${i} has ${curr} after ${prev}).`,
-          sourceId
-        )
+          sourceId,
+        ),
       );
     }
   }

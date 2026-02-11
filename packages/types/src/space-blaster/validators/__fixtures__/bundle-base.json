@@ -3,14 +3,14 @@
     "levelId": "level-valid",
     "layoutId": "layout_A",
     "heroId": "hero_1",
-    "waves": [
-      { "enemyId": "enemy_grunt", "count": 3 }
-    ]
+    "waves": [{ "enemyId": "enemy_grunt", "count": 3 }]
   },
-  "formationLayouts": { "entries": [ { "layoutId": "layout_A" } ] },
-  "enemyCatalog": { "entries": [ { "enemyId": "enemy_grunt" } ] },
-  "heroCatalog": { "entries": [ { "heroId": "hero_1", "defaultAmmoId": "ammo_basic" } ] },
-  "ammoCatalog": { "entries": [ { "ammoId": "ammo_basic" } ] },
+  "formationLayouts": { "entries": [{ "layoutId": "layout_A" }] },
+  "enemyCatalog": { "entries": [{ "enemyId": "enemy_grunt" }] },
+  "heroCatalog": {
+    "entries": [{ "heroId": "hero_1", "defaultAmmoId": "ammo_basic" }]
+  },
+  "ammoCatalog": { "entries": [{ "ammoId": "ammo_basic" }] },
   "scoreConfig": {
     "combo": {
       "tiers": [

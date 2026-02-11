@@ -14,14 +14,14 @@ type LevelConfig = {
 const issue = (
   levelId: string | undefined,
   path: string,
-  message: string
+  message: string,
 ): ValidationIssue => ({
   severity: 'error',
   stage: 'structural',
   domain: 'LevelConfig',
   sourceId: levelId,
   path,
-  message
+  message,
 });
 
 export function validateLevelStructure(level: LevelConfig): ValidationIssue[] {
@@ -36,8 +36,8 @@ export function validateLevelStructure(level: LevelConfig): ValidationIssue[] {
       issue(
         levelId,
         'waves',
-        `LevelConfig(levelId=${levelId ?? 'unknown'}) must contain at least 1 wave.`
-      )
+        `LevelConfig(levelId=${levelId ?? 'unknown'}) must contain at least 1 wave.`,
+      ),
     );
     return issues; // further checks depend on waves
   }
@@ -49,8 +49,8 @@ export function validateLevelStructure(level: LevelConfig): ValidationIssue[] {
         issue(
           `waves[${wi}]`,
           `waves[${wi}].enemyId`,
-          `Wave[${wi}] must specify enemyId.`
-        )
+          `Wave[${wi}] must specify enemyId.`,
+        ),
       );
     }
 
@@ -58,19 +58,19 @@ export function validateLevelStructure(level: LevelConfig): ValidationIssue[] {
     const count = w.count;
     if (count === undefined) {
       issues.push(
-        issue(
-          levelId,
-          `waves[${wi}].count`,
-          `Wave[${wi}] must specify count.`
-        )
+        issue(levelId, `waves[${wi}].count`, `Wave[${wi}] must specify count.`),
       );
-    } else if (!Number.isFinite(count) || !Number.isInteger(count) || count < 0) {
+    } else if (
+      !Number.isFinite(count) ||
+      !Number.isInteger(count) ||
+      count < 0
+    ) {
       issues.push(
         issue(
           levelId,
           `waves[${wi}].count`,
-          `Wave[${wi}] enemy composition count must be an integer >= 0 (got ${count}).`
-        )
+          `Wave[${wi}] enemy composition count must be an integer >= 0 (got ${count}).`,
+        ),
       );
     }
   });
@@ -83,8 +83,8 @@ export function validateLevelStructure(level: LevelConfig): ValidationIssue[] {
         issue(
           levelId,
           `waves[${wi}].count`,
-          `Wave[${wi}] total enemy count must be > 0 (got ${count}).`
-        )
+          `Wave[${wi}] total enemy count must be > 0 (got ${count}).`,
+        ),
       );
     }
   });
@@ -101,8 +101,8 @@ export function validateLevelStructure(level: LevelConfig): ValidationIssue[] {
         issue(
           levelId,
           'boss',
-          `LevelConfig(levelId=${levelId ?? 'unknown'}) boss is enabled but missing: ${missing.join(', ')}.`
-        )
+          `LevelConfig(levelId=${levelId ?? 'unknown'}) boss is enabled but missing: ${missing.join(', ')}.`,
+        ),
       );
     } else if (
       typeof boss.bossWaveIndex !== 'number' ||
@@ -114,8 +114,8 @@ export function validateLevelStructure(level: LevelConfig): ValidationIssue[] {
         issue(
           levelId,
           'boss.bossWaveIndex',
-          `LevelConfig(levelId=${levelId ?? 'unknown'}) bossWaveIndex must be within [0..${waves.length - 1}] (got ${boss.bossWaveIndex}).`
-        )
+          `LevelConfig(levelId=${levelId ?? 'unknown'}) bossWaveIndex must be within [0..${waves.length - 1}] (got ${boss.bossWaveIndex}).`,
+        ),
       );
     }
   }

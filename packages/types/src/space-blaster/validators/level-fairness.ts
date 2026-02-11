@@ -31,14 +31,14 @@ const MAX_TURN_RATE = 6; // conservative cap to prevent perfect tracking; adjust
 const issue = (
   levelId: string | undefined,
   path: string,
-  message: string
+  message: string,
 ): ValidationIssue => ({
   severity: 'error',
   stage: 'structural',
   domain: 'LevelConfig',
   sourceId: levelId,
   path,
-  message
+  message,
 });
 
 function collectProbabilities(level: LevelConfig): NumericPath[] {
@@ -49,7 +49,8 @@ function collectProbabilities(level: LevelConfig): NumericPath[] {
       value: level.diveProbability,
       description: 'diveProbability',
       check: (n) => n >= 0 && n <= 1,
-      message: (n) => `Probability diveProbability must be within [0..1] (got ${n}).`
+      message: (n) =>
+        `Probability diveProbability must be within [0..1] (got ${n}).`,
     });
   }
   if (level.shootProbability !== undefined) {
@@ -58,7 +59,8 @@ function collectProbabilities(level: LevelConfig): NumericPath[] {
       value: level.shootProbability,
       description: 'shootProbability',
       check: (n) => n >= 0 && n <= 1,
-      message: (n) => `Probability shootProbability must be within [0..1] (got ${n}).`
+      message: (n) =>
+        `Probability shootProbability must be within [0..1] (got ${n}).`,
     });
   }
   (level.waves || []).forEach((w, wi) => {
@@ -69,7 +71,7 @@ function collectProbabilities(level: LevelConfig): NumericPath[] {
         description: `waves[${wi}].diveProbability`,
         check: (n) => n >= 0 && n <= 1,
         message: (n) =>
-          `Probability waves[${wi}].diveProbability must be within [0..1] (got ${n}).`
+          `Probability waves[${wi}].diveProbability must be within [0..1] (got ${n}).`,
       });
     }
     if (w.shootProbability !== undefined) {
@@ -79,7 +81,7 @@ function collectProbabilities(level: LevelConfig): NumericPath[] {
         description: `waves[${wi}].shootProbability`,
         check: (n) => n >= 0 && n <= 1,
         message: (n) =>
-          `Probability waves[${wi}].shootProbability must be within [0..1] (got ${n}).`
+          `Probability waves[${wi}].shootProbability must be within [0..1] (got ${n}).`,
       });
     }
   });
@@ -94,7 +96,7 @@ function collectCaps(level: LevelConfig): NumericPath[] {
       value: level.maxConcurrentDivers,
       description: 'maxConcurrentDivers',
       check: (n) => n >= 0,
-      message: (n) => `Cap maxConcurrentDivers must be >= 0 (got ${n}).`
+      message: (n) => `Cap maxConcurrentDivers must be >= 0 (got ${n}).`,
     });
   }
   if (level.maxConcurrentShots !== undefined) {
@@ -103,7 +105,7 @@ function collectCaps(level: LevelConfig): NumericPath[] {
       value: level.maxConcurrentShots,
       description: 'maxConcurrentShots',
       check: (n) => n >= 0,
-      message: (n) => `Cap maxConcurrentShots must be >= 0 (got ${n}).`
+      message: (n) => `Cap maxConcurrentShots must be >= 0 (got ${n}).`,
     });
   }
   return caps;
@@ -135,7 +137,7 @@ function collectTurnRates(level: LevelConfig): NumericPath[] {
       description: turnRate.path,
       check: (n) => n >= 0 && n <= MAX_TURN_RATE,
       message: (n) =>
-        `turnRate ${turnRate.path} must be within [0..${MAX_TURN_RATE}] to prevent perfect tracking (got ${n}).`
+        `turnRate ${turnRate.path} must be within [0..${MAX_TURN_RATE}] to prevent perfect tracking (got ${n}).`,
     });
   }
 
@@ -149,13 +151,17 @@ export function validateLevelFairness(level: LevelConfig): ValidationIssue[] {
   const numericChecks = [
     ...collectProbabilities(level),
     ...collectCaps(level),
-    ...collectTurnRates(level)
+    ...collectTurnRates(level),
   ];
 
   numericChecks.forEach(({ path, value, check, message }) => {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
       issues.push(
-        issue(levelId, path, `${path} must be a finite number (got ${String(value)}).`)
+        issue(
+          levelId,
+          path,
+          `${path} must be a finite number (got ${String(value)}).`,
+        ),
       );
       return;
     }
