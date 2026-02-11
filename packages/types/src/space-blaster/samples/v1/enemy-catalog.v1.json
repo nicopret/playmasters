@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "enemyId": "enemy_grunt",
+      "hp": 3,
+      "spriteKey": "sprite.enemy.grunt.v1",
+      "speed": 1,
+      "baseScore": 100,
+      "projectileCooldownMs": 1200,
+      "fireSfxKey": "sfx.enemy.fire.grunt.v1"
+    },
+    {
+      "enemyId": "enemy_elite",
+      "hp": 5,
+      "spriteKey": "sprite.enemy.elite.v1",
+      "speed": 1.5,
+      "baseScore": 200,
+      "diveTelegraphSfxKey": "sfx.enemy.dive.elite.v1"
+    },
+    {
+      "enemyId": "enemy_striker",
+      "hp": 4,
+      "spriteKey": "sprite.enemy.striker.v1",
+      "speed": 2,
+      "baseScore": 150,
+      "canDive": true,
+      "canShoot": true,
+      "diveCooldownMs": 1500
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "defaultLives": 3,
+  "timing": {
+    "comboWindowMs": 500
+  }
+}
