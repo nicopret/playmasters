@@ -30,7 +30,8 @@ export async function POST(req: Request) {
   const prompt = (form.get('prompt') as string | null)?.trim() || '';
   const style = (form.get('style') as string | null) ?? 'pixel';
   const assetId = (form.get('assetId') as string | null) ?? '';
-  const derivedFromVersionId = (form.get('derivedFromVersionId') as string | null) ?? '';
+  const derivedFromVersionId =
+    (form.get('derivedFromVersionId') as string | null) ?? '';
 
   if (!image) return bad('image_required');
   if (!prompt) return bad('prompt_required');

@@ -1,8 +1,4 @@
-import {
-  PutCommand,
-  DeleteCommand,
-  QueryCommand,
-} from '@aws-sdk/lib-dynamodb';
+import { PutCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from './ddb';
 
 export type AssetUsage = {
@@ -12,9 +8,12 @@ export type AssetUsage = {
   createdAt: string;
 };
 
-const USAGE_TABLE = process.env.DDB_TABLE_ASSET_USAGE ?? 'PlaymastersAssetUsage';
-const PK_ATTR = process.env.DDB_PK_NAME_USAGE || process.env.DDB_PK_NAME || 'PK';
-const SK_ATTR = process.env.DDB_SK_NAME_USAGE || process.env.DDB_SK_NAME || 'SK';
+const USAGE_TABLE =
+  process.env.DDB_TABLE_ASSET_USAGE ?? 'PlaymastersAssetUsage';
+const PK_ATTR =
+  process.env.DDB_PK_NAME_USAGE || process.env.DDB_PK_NAME || 'PK';
+const SK_ATTR =
+  process.env.DDB_SK_NAME_USAGE || process.env.DDB_SK_NAME || 'SK';
 
 const usageKey = (assetId: string, refId: string) => ({
   [PK_ATTR]: `ASSET#${assetId}`,
@@ -24,7 +23,7 @@ const usageKey = (assetId: string, refId: string) => ({
 export async function upsertUsage(
   assetId: string,
   refId: string,
-  usageType: AssetUsage['usageType']
+  usageType: AssetUsage['usageType'],
 ) {
   const now = new Date().toISOString();
   await ddbDocClient.send(
@@ -37,7 +36,7 @@ export async function upsertUsage(
         usageType,
         createdAt: now,
       },
-    })
+    }),
   );
 }
 
@@ -46,7 +45,7 @@ export async function removeUsage(assetId: string, refId: string) {
     new DeleteCommand({
       TableName: USAGE_TABLE,
       Key: usageKey(assetId, refId),
-    })
+    }),
   );
 }
 
@@ -56,7 +55,7 @@ export async function listAssetUsage(assetId: string): Promise<AssetUsage[]> {
       TableName: USAGE_TABLE,
       KeyConditionExpression: `${PK_ATTR} = :pk`,
       ExpressionAttributeValues: { ':pk': `ASSET#${assetId}` },
-    })
+    }),
   );
   const items = (res.Items ?? []) as AssetUsage[];
   return items.map((i) => ({
@@ -74,7 +73,7 @@ export async function countAssetUsage(assetId: string): Promise<number> {
       KeyConditionExpression: `${PK_ATTR} = :pk`,
       ExpressionAttributeValues: { ':pk': `ASSET#${assetId}` },
       Select: 'COUNT',
-    })
+    }),
   );
   return res.Count ?? 0;
 }

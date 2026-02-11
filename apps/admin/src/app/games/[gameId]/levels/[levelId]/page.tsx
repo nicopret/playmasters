@@ -1,8 +1,8 @@
-"use client";
+'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useMemo, useState } from "react";
-import styles from "./page.module.css";
+import { useEffect, useMemo, useState } from 'react';
+import styles from './page.module.css';
 
 type BackgroundItem = {
   assetId: string;
@@ -49,8 +49,8 @@ export default function LevelConfigPage({
           fetch(`/api/games/${gameId}/levels/${levelId}`),
           fetch(`/api/catalog/backgrounds`),
         ]);
-        if (!cfgRes.ok) throw new Error("Failed to load level");
-        if (!bgRes.ok) throw new Error("Failed to load backgrounds");
+        if (!cfgRes.ok) throw new Error('Failed to load level');
+        if (!bgRes.ok) throw new Error('Failed to load backgrounds');
         const cfgJson = await cfgRes.json();
         const bgJson = await bgRes.json();
         if (!cancelled) {
@@ -58,7 +58,7 @@ export default function LevelConfigPage({
           setBackgrounds(bgJson.backgrounds ?? []);
         }
       } catch (err: any) {
-        if (!cancelled) setError(err?.message ?? "Load failed");
+        if (!cancelled) setError(err?.message ?? 'Load failed');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -71,7 +71,7 @@ export default function LevelConfigPage({
 
   const selectedBg = useMemo(
     () => backgrounds.find((b) => b.assetId === config.backgroundAssetId),
-    [backgrounds, config.backgroundAssetId]
+    [backgrounds, config.backgroundAssetId],
   );
 
   const pinnedVersionId =
@@ -84,25 +84,25 @@ export default function LevelConfigPage({
     setSaving(true);
     try {
       const res = await fetch(`/api/games/${gameId}/levels/${levelId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           backgroundAssetId: config.backgroundAssetId,
           backgroundVersionId: config.pinnedToVersion
-            ? config.backgroundVersionId ?? selectedBg?.publishedVersionId
+            ? (config.backgroundVersionId ?? selectedBg?.publishedVersionId)
             : undefined,
           pinToVersion: config.pinnedToVersion,
         }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j.error || "Save failed");
+        throw new Error(j.error || 'Save failed');
       }
       const j = await res.json();
       setConfig(j.config);
       setSavedAt(new Date().toLocaleTimeString());
     } catch (err: any) {
-      setError(err?.message ?? "Save failed");
+      setError(err?.message ?? 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -125,7 +125,7 @@ export default function LevelConfigPage({
           onClick={onSave}
           disabled={saving || loading}
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? 'Saving…' : 'Save'}
         </button>
       </header>
 
@@ -142,7 +142,7 @@ export default function LevelConfigPage({
               Choose published background
               <select
                 className={styles.select}
-                value={config.backgroundAssetId ?? ""}
+                value={config.backgroundAssetId ?? ''}
                 onChange={(e) =>
                   setConfig((c) => ({
                     ...c,

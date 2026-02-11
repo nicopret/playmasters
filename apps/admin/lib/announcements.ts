@@ -28,7 +28,9 @@ type AnnouncementInput = {
 
 const now = () => new Date().toISOString();
 
-const toAnnouncement = (item: Record<string, any> | undefined): Announcement | null => {
+const toAnnouncement = (
+  item: Record<string, any> | undefined,
+): Announcement | null => {
   if (!item) return null;
   return {
     id: item.id,
@@ -54,7 +56,7 @@ export async function listAnnouncements(): Promise<Announcement[]> {
           ':pk': PK_VALUE,
           ':sk': 'ANNOUNCEMENT#',
         },
-      })
+      }),
     );
     const items = res.Items ?? [];
     return items
@@ -67,23 +69,29 @@ export async function listAnnouncements(): Promise<Announcement[]> {
       });
   } catch (err) {
     if (process.env.NODE_ENV === 'development') {
-      console.debug('Announcements list fallback (Dynamo unavailable or schema mismatch)');
+      console.debug(
+        'Announcements list fallback (Dynamo unavailable or schema mismatch)',
+      );
     }
     return [];
   }
 }
 
-export async function getAnnouncement(id: string): Promise<Announcement | null> {
+export async function getAnnouncement(
+  id: string,
+): Promise<Announcement | null> {
   const res = await ddbDocClient.send(
     new GetCommand({
       TableName: TABLE,
       Key: { [PK_ATTR]: PK_VALUE, [SK_ATTR]: `ANNOUNCEMENT#${id}` },
-    })
+    }),
   );
   return toAnnouncement(res.Item);
 }
 
-export async function createAnnouncement(input: AnnouncementInput): Promise<Announcement> {
+export async function createAnnouncement(
+  input: AnnouncementInput,
+): Promise<Announcement> {
   const id = randomUUID();
   const timestamp = now();
   const item: Announcement = {
@@ -101,7 +109,7 @@ export async function createAnnouncement(input: AnnouncementInput): Promise<Anno
         [SK_ATTR]: `ANNOUNCEMENT#${id}`,
         ...item,
       },
-    })
+    }),
   );
 
   if (item.isActive) {
@@ -113,7 +121,7 @@ export async function createAnnouncement(input: AnnouncementInput): Promise<Anno
 
 export async function updateAnnouncement(
   id: string,
-  input: AnnouncementInput
+  input: AnnouncementInput,
 ): Promise<Announcement> {
   const timestamp = now();
   await ddbDocClient.send(
@@ -132,7 +140,7 @@ export async function updateAnnouncement(
         ':sortOrder': input.sortOrder,
         ':updatedAt': timestamp,
       },
-    })
+    }),
   );
 
   if (input.isActive) {
@@ -149,11 +157,14 @@ export async function deleteAnnouncement(id: string): Promise<void> {
     new DeleteCommand({
       TableName: TABLE,
       Key: { [PK_ATTR]: PK_VALUE, [SK_ATTR]: `ANNOUNCEMENT#${id}` },
-    })
+    }),
   );
 }
 
-export async function setAnnouncementActive(id: string, isActive: boolean): Promise<void> {
+export async function setAnnouncementActive(
+  id: string,
+  isActive: boolean,
+): Promise<void> {
   await ddbDocClient.send(
     new UpdateCommand({
       TableName: TABLE,
@@ -163,7 +174,7 @@ export async function setAnnouncementActive(id: string, isActive: boolean): Prom
         ':isActive': isActive,
         ':updatedAt': now(),
       },
-    })
+    }),
   );
 
   if (isActive) {
@@ -171,7 +182,9 @@ export async function setAnnouncementActive(id: string, isActive: boolean): Prom
   }
 }
 
-export async function getActiveAnnouncements(max = MAX_ACTIVE): Promise<Announcement[]> {
+export async function getActiveAnnouncements(
+  max = MAX_ACTIVE,
+): Promise<Announcement[]> {
   const all = await listAnnouncements();
   return all
     .filter((a) => a.isActive)
@@ -197,7 +210,7 @@ async function enforceActiveLimit() {
           ':inactive': false,
           ':updatedAt': now(),
         },
-      })
+      }),
     );
   }
 }

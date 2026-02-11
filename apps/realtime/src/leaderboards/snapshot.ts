@@ -9,7 +9,9 @@ export function startSnapshotLoop(store: LeaderboardStore) {
   }
 
   const timer = setInterval(async () => {
-    const dirty = store.consumeDirtySnapshots().filter((s) => s.scope !== 'personal');
+    const dirty = store
+      .consumeDirtySnapshots()
+      .filter((s) => s.scope !== 'personal');
     if (!dirty.length) return;
 
     try {

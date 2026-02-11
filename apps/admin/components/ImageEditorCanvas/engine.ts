@@ -29,9 +29,7 @@ export async function loadImageDataFromUrl(url: string): Promise<ImageData> {
   return ctx.getImageData(0, 0, img.width, img.height);
 }
 
-export function initEditor(
-  viewCanvas: HTMLCanvasElement
-): ImageEditorState {
+export function initEditor(viewCanvas: HTMLCanvasElement): ImageEditorState {
   const sourceCanvas = document.createElement('canvas');
   const state: ImageEditorState = {
     source: null,
@@ -41,10 +39,7 @@ export function initEditor(
   return state;
 }
 
-export function setSource(
-  state: ImageEditorState,
-  data: ImageData
-) {
+export function setSource(state: ImageEditorState, data: ImageData) {
   state.source = data;
   state.sourceCanvas.width = data.width;
   state.sourceCanvas.height = data.height;
@@ -53,10 +48,7 @@ export function setSource(
   sctx.putImageData(data, 0, 0);
 }
 
-export function drawView(
-  state: ImageEditorState,
-  viewState: ViewState
-) {
+export function drawView(state: ImageEditorState, viewState: ViewState) {
   if (!state.source) return;
   const vctx = state.view.getContext('2d');
   if (!vctx) return;
@@ -85,7 +77,7 @@ function drawGrid(
   w: number,
   h: number,
   zoom: number,
-  pan: Point
+  pan: Point,
 ) {
   ctx.save();
   ctx.translate(pan.x, pan.y);
@@ -111,7 +103,7 @@ export function applyToolAtPoint(
   tool: ToolId,
   point: Point,
   color: string,
-  onPick?: (hex: string) => void
+  onPick?: (hex: string) => void,
 ) {
   if (!state.source) return;
   const source = state.source;

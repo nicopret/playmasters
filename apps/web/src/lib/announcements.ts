@@ -6,7 +6,8 @@ const TABLE = process.env.DDB_TABLE_ANNOUNCEMENTS || 'PlaymastersAnnouncements';
 const PK_VALUE = 'ANNOUNCEMENTS';
 const PK_ATTR = process.env.DDB_PK_NAME || 'PK';
 const SK_ATTR = process.env.DDB_SK_NAME || 'SK';
-const IMAGE_BASE = 'https://playmasters-announcement-images.s3.eu-west-2.amazonaws.com';
+const IMAGE_BASE =
+  'https://playmasters-announcement-images.s3.eu-west-2.amazonaws.com';
 
 const formatImageUrl = (value?: string) => {
   if (!value) return value;
@@ -27,9 +28,18 @@ type AnnouncementRecord = {
   updatedAt?: string;
 };
 
-const toAnnouncement = (item: AnnouncementRecord | undefined): Announcement | null => {
+const toAnnouncement = (
+  item: AnnouncementRecord | undefined,
+): Announcement | null => {
   if (!item) return null;
-  if (!item.id || !item.title || !item.body || !item.createdAt || !item.updatedAt) return null;
+  if (
+    !item.id ||
+    !item.title ||
+    !item.body ||
+    !item.createdAt ||
+    !item.updatedAt
+  )
+    return null;
   return {
     id: item.id,
     title: item.title,
@@ -54,7 +64,7 @@ export async function getActiveAnnouncements(max = 5): Promise<Announcement[]> {
           ':pk': PK_VALUE,
           ':sk': 'ANNOUNCEMENT#',
         },
-      })
+      }),
     );
 
     const items = res.Items ?? [];
@@ -69,7 +79,10 @@ export async function getActiveAnnouncements(max = 5): Promise<Announcement[]> {
   } catch (err) {
     // Dynamo may be unreachable during local dev; fail soft and avoid noisy source-map warnings
     if (process.env.NODE_ENV === 'development') {
-      console.debug('Announcements fallback (Dynamo unavailable or schema mismatch)', err);
+      console.debug(
+        'Announcements fallback (Dynamo unavailable or schema mismatch)',
+        err,
+      );
     }
     return [];
   }

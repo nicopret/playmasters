@@ -105,7 +105,7 @@ export async function POST(request: Request) {
           ContentLength: buffer.byteLength,
           // Prevent overwrite if the same key somehow exists
           IfNoneMatch: '*',
-        })
+        }),
       );
     } else if (process.env.NODE_ENV !== 'development') {
       return bad('draft_bucket_not_configured', 500);

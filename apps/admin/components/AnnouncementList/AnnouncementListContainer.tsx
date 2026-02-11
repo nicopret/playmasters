@@ -21,9 +21,13 @@ const AnnouncementListContainer: React.FC<Props> = ({ initialItems }) => {
 
   const handleToggle = (id: string, next: boolean) => {
     startTransition(async () => {
-      setOptimisticItems((prev) => prev.map((i) => (i.id === id ? { ...i, isVisible: next } : i)));
+      setOptimisticItems((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, isVisible: next } : i)),
+      );
       await toggleAnnouncementVisible(id, next);
-      setOptimisticItems((prev) => prev.map((i) => (i.id === id ? { ...i, isVisible: next } : i)));
+      setOptimisticItems((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, isVisible: next } : i)),
+      );
       router.refresh();
     });
   };
