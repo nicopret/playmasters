@@ -1,0 +1,102 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://playmasters.dev/schemas/space-blaster/score-config.schema.json",
+    "title": "SpaceBlasterScoreConfig",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["baseEnemyScores", "combo", "levelScoreMultiplier", "waveClearBonus"],
+    "properties": {
+        "accuracyBonus": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["thresholds"],
+            "properties": {
+                "scaleByLevelMultiplier": { "type": "boolean", "default": false },
+                "thresholds": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/accuracyThreshold" }
+                }
+            }
+        },
+        "baseEnemyScores": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/enemyScore" },
+            "minItems": 1
+        },
+        "combo": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["enabled", "tiers", "minWindowMs", "resetOnPlayerHit", "windowMs"],
+            "properties": {
+                "enabled": { "type": "boolean", "default": false },
+                "minWindowMs": { "type": "number", "minimum": 0 },
+                "resetOnPlayerHit": { "type": "boolean", "default": true },
+                "tiers": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/comboTier" },
+                    "minItems": 1
+                },
+                "windowDecayPerLevelMs": { "type": "number", "minimum": 0 },
+                "windowMs": { "type": "number", "minimum": 0 }
+            }
+        },
+        "levelScoreMultiplier": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["base", "max", "perLevel"],
+            "properties": {
+                "base": { "type": "number", "minimum": 0 },
+                "max": { "type": "number", "minimum": 0 },
+                "perLevel": { "type": "number", "minimum": 0 }
+            }
+        },
+        "survivalBonus": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "bonus": { "type": "number", "minimum": 0 },
+                "perSeconds": { "type": "number", "minimum": 0 }
+            }
+        },
+        "waveClearBonus": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["base", "perLifeBonus"],
+            "properties": {
+                "base": { "type": "number", "minimum": 0 },
+                "perLifeBonus": { "type": "number", "minimum": 0 }
+            }
+        }
+    },
+    "$defs": {
+        "enemyScore": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["enemyId", "score"],
+            "properties": {
+                "enemyId": { "type": "string", "minLength": 1 },
+                "score": { "type": "number", "minimum": 0 }
+            }
+        },
+        "comboTier": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["minCount", "multiplier", "name"],
+            "properties": {
+                "minCount": { "type": "number", "minimum": 1 },
+                "multiplier": { "type": "number", "minimum": 1 },
+                "name": { "type": "string", "minLength": 1 },
+                "tierBonus": { "type": "number", "minimum": 0 }
+            }
+        },
+        "accuracyThreshold": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["bonus", "minAccuracy"],
+            "properties": {
+                "bonus": { "type": "number", "minimum": 0 },
+                "minAccuracy": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+        }
+    }
+}

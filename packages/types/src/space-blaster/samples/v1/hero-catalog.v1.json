@@ -1,0 +1,14 @@
+{
+  "entries": [
+    {
+      "heroId": "hero_basic",
+      "spriteKey": "sprite.hero.basic.v1",
+      "defaultAmmoId": "ammo_laser_basic",
+      "moveSpeed": 6,
+      "maxLives": 3,
+      "hitbox": { "width": 32, "height": 32 },
+      "fireSfxKey": "sfx.hero.fire.v1",
+      "hitSfxKey": "sfx.hero.hit.v1"
+    }
+  ]
+}

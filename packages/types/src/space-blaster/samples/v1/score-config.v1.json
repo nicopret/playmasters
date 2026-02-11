@@ -1,0 +1,26 @@
+{
+  "baseEnemyScores": [
+    { "enemyId": "enemy_grunt", "score": 100 },
+    { "enemyId": "enemy_elite", "score": 200 },
+    { "enemyId": "enemy_striker", "score": 150 }
+  ],
+  "combo": {
+    "enabled": true,
+    "tiers": [
+      { "minCount": 2, "multiplier": 1.2, "name": "double" },
+      { "minCount": 4, "multiplier": 1.5, "name": "quad" }
+    ],
+    "minWindowMs": 500,
+    "resetOnPlayerHit": true,
+    "windowMs": 2000
+  },
+  "levelScoreMultiplier": { "base": 1, "max": 5, "perLevel": 0.5 },
+  "waveClearBonus": { "base": 50, "perLifeBonus": 10 },
+  "accuracyBonus": {
+    "scaleByLevelMultiplier": false,
+    "thresholds": [
+      { "bonus": 20, "minAccuracy": 0.8 },
+      { "bonus": 40, "minAccuracy": 0.9 }
+    ]
+  }
+}

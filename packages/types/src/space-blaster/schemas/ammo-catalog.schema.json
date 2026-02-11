@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://playmasters.dev/schemas/space-blaster/ammo-catalog.schema.json",
+  "title": "SpaceBlasterAmmoCatalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entries"],
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ammoEntry" }
+    }
+  },
+  "$defs": {
+    "assetKey": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ammoEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ammoId", "spriteKey", "projectileSpeed", "fireCooldownMs"],
+      "properties": {
+        "ammoId": { "type": "string", "minLength": 1 },
+        "spriteKey": { "$ref": "#/$defs/assetKey" },
+        "fireSfxKey": { "$ref": "#/$defs/assetKey" },
+        "impactFxKey": { "$ref": "#/$defs/assetKey" },
+        "damage": { "type": "number", "minimum": 0 },
+        "projectileSpeed": { "type": "number", "minimum": 0 },
+        "fireCooldownMs": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

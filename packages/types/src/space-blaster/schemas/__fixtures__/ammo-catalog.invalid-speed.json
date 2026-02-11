@@ -1,0 +1,10 @@
+{
+  "entries": [
+    {
+      "ammoId": "ammo_basic",
+      "spriteKey": "sprite.ammo.laser.v1",
+      "projectileSpeed": -5,
+      "fireCooldownMs": 200
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "heroId": "hero_basic",
+      "spriteKey": 123,
+      "defaultAmmoId": "ammo_basic",
+      "moveSpeed": 6,
+      "maxLives": 3,
+      "hitbox": { "width": 32, "height": 32 }
+    }
+  ]
+}

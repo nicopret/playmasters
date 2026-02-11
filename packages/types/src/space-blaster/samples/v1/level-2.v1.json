@@ -1,0 +1,12 @@
+{
+  "layoutId": "layout_12x6",
+  "enemyTypes": ["enemy_grunt", "enemy_elite", "enemy_striker"],
+  "dive": 20,
+  "shooting": 25,
+  "speed": 18,
+  "scoreMultiplier": 1.2,
+  "waves": [
+    { "enemyId": "enemy_grunt", "count": 10, "spawnDelayMs": 0 },
+    { "enemyId": "enemy_striker", "count": 4, "spawnDelayMs": 3000 }
+  ]
+}

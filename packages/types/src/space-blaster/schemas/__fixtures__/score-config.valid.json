@@ -1,0 +1,22 @@
+{
+  "baseEnemyScores": [
+    { "enemyId": "grunt", "score": 100 }
+  ],
+  "combo": {
+    "enabled": true,
+    "tiers": [
+      { "minCount": 2, "multiplier": 1.5, "name": "double" }
+    ],
+    "minWindowMs": 500,
+    "resetOnPlayerHit": true,
+    "windowMs": 1500
+  },
+  "levelScoreMultiplier": { "base": 1, "max": 5, "perLevel": 0.2 },
+  "waveClearBonus": { "base": 50, "perLifeBonus": 10 },
+  "accuracyBonus": {
+    "scaleByLevelMultiplier": false,
+    "thresholds": [
+      { "bonus": 20, "minAccuracy": 0.8 }
+    ]
+  }
+}

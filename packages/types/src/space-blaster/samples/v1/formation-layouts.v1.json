@@ -1,0 +1,20 @@
+{
+  "entries": [
+    {
+      "layoutId": "layout_10x5",
+      "rows": 5,
+      "columns": 10,
+      "spacing": { "x": 12, "y": 10 },
+      "offset": { "x": 0, "y": 0 },
+      "compact": true
+    },
+    {
+      "layoutId": "layout_12x6",
+      "rows": 6,
+      "columns": 12,
+      "spacing": { "x": 10, "y": 9 },
+      "offset": { "x": 0, "y": 0 },
+      "compact": false
+    }
+  ]
+}

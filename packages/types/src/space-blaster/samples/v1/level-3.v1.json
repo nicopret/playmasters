@@ -1,0 +1,13 @@
+{
+  "layoutId": "layout_12x6",
+  "boss": true,
+  "enemyTypes": ["enemy_elite", "enemy_striker"],
+  "dive": 25,
+  "shooting": 30,
+  "speed": 22,
+  "scoreMultiplier": 1.5,
+  "waves": [
+    { "enemyId": "enemy_elite", "count": 6, "spawnDelayMs": 0 },
+    { "enemyId": "enemy_striker", "count": 6, "spawnDelayMs": 4000 }
+  ]
+}

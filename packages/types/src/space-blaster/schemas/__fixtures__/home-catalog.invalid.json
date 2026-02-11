@@ -1,0 +1,15 @@
+{
+  "entries": [
+    {
+      "ammo": {
+        "ammoId": "ammo_basic",
+        "damage": 1,
+        "projectileSpeed": 500,
+        "fireCooldownMs": 200
+      },
+      "hitbox": { "height": 32, "width": 32 },
+      "maxLives": 3,
+      "moveSpeed": 6
+    }
+  ]
+}
