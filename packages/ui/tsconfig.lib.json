@@ -5,7 +5,8 @@
     "declaration": true,
     "types": ["node"],
     "jsx": "react-jsx",
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+    "tsBuildInfoFile": "../../dist/out-tsc/ui.tsbuildinfo"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
   "exclude": [

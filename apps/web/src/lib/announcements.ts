@@ -14,8 +14,22 @@ const formatImageUrl = (value?: string) => {
   return `${IMAGE_BASE}/${value.replace(/^\//, '')}`;
 };
 
-const toAnnouncement = (item: Record<string, any> | undefined): Announcement | null => {
+type AnnouncementRecord = {
+  id?: string;
+  title?: string;
+  body?: string;
+  imageUrl?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+const toAnnouncement = (item: AnnouncementRecord | undefined): Announcement | null => {
   if (!item) return null;
+  if (!item.id || !item.title || !item.body || !item.createdAt || !item.updatedAt) return null;
   return {
     id: item.id,
     title: item.title,
@@ -23,7 +37,7 @@ const toAnnouncement = (item: Record<string, any> | undefined): Announcement | n
     imageUrl: formatImageUrl(item.imageUrl) as Announcement['imageUrl'],
     ctaLabel: item.ctaLabel,
     ctaHref: item.ctaHref,
-    isActive: item.isActive,
+    isActive: Boolean(item.isActive),
     sortOrder: item.sortOrder ?? 0,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -55,7 +69,7 @@ export async function getActiveAnnouncements(max = 5): Promise<Announcement[]> {
   } catch (err) {
     // Dynamo may be unreachable during local dev; fail soft and avoid noisy source-map warnings
     if (process.env.NODE_ENV === 'development') {
-      console.debug('Announcements fallback (Dynamo unavailable or schema mismatch)');
+      console.debug('Announcements fallback (Dynamo unavailable or schema mismatch)', err);
     }
     return [];
   }

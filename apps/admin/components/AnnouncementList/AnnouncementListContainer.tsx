@@ -16,7 +16,7 @@ type Props = {
 
 const AnnouncementListContainer: React.FC<Props> = ({ initialItems }) => {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [optimisticItems, setOptimisticItems] = useOptimistic(initialItems);
 
   const handleToggle = (id: string, next: boolean) => {

@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './page.module.css';

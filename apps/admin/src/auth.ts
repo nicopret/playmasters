@@ -7,11 +7,17 @@ const adminEmails = (process.env.PLAYMASTERS_ADMIN_EMAILS ?? '')
   .filter(Boolean);
 const allowAllWhenUnset = adminEmails.length === 0;
 
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+if (!googleClientId || !googleClientSecret) {
+  throw new Error('Missing Google OAuth environment variables');
+}
+
 const nextAuth = NextAuth({
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
     }),
   ],
   session: { strategy: 'jwt' },
@@ -31,7 +37,7 @@ const nextAuth = NextAuth({
   },
 });
 
-export const { handlers, auth, signIn, signOut } = nextAuth as any;
+export const { handlers, auth, signIn, signOut } = nextAuth;
 
 export const authConfig = {
   callbacks: {

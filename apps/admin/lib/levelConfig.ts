@@ -27,6 +27,8 @@ export async function getLevelConfig(
   );
   if (!res.Item) return null;
   const { [LEVEL_PK_ATTR]: _pk, [LEVEL_SK_ATTR]: _sk, ...rest } = res.Item;
+  void _pk;
+  void _sk;
   return rest as LevelConfig;
 }
 

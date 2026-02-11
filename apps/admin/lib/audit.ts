@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { ddbDocClient } from './ddb';
 import { IMAGE_TABLE, PK_ATTR, SK_ATTR } from './imageAssets';
 

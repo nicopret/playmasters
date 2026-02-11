@@ -3,7 +3,8 @@
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "declaration": true,
-    "lib": ["DOM", "ES2022"]
+    "lib": ["DOM", "ES2022"],
+    "tsBuildInfoFile": "../../dist/out-tsc/brand.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
   "exclude": [

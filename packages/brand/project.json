@@ -4,6 +4,64 @@
   "sourceRoot": "packages/brand/src",
   "projectType": "library",
   "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/brand",
+        "command": "tsc --build --emitDeclarationOnly"
+      },
+      "dependsOn": ["build", "^typecheck"],
+      "inputs": ["production", "^production"],
+      "outputs": [
+        "{projectRoot}/**/*.js",
+        "{projectRoot}/**/*.cjs",
+        "{projectRoot}/**/*.mjs",
+        "{projectRoot}/**/*.jsx",
+        "{projectRoot}/**/*.js.map",
+        "{projectRoot}/**/*.jsx.map",
+        "{projectRoot}/**/*.d.ts",
+        "{projectRoot}/**/*.d.cts",
+        "{projectRoot}/**/*.d.mts",
+        "{projectRoot}/**/*.d.ts.map",
+        "{projectRoot}/**/*.d.cts.map",
+        "{projectRoot}/**/*.d.mts.map",
+        "{projectRoot}/tsconfig.tsbuildinfo",
+        "{workspaceRoot}/dist/out-tsc/**/*.d.ts",
+        "{workspaceRoot}/dist/out-tsc/tsconfig.tsbuildinfo"
+      ]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/brand",
+        "env": {
+          "TS_NODE_COMPILER_OPTIONS": "{\"moduleResolution\":\"node10\",\"module\":\"commonjs\",\"customConditions\":null}"
+        },
+        "command": "jest --passWithNoTests"
+      },
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/jest.preset.js",
+        { "externalDependencies": ["jest"] }
+      ],
+      "outputs": ["{workspaceRoot}/coverage/brand"]
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/brand",
+        "command": "eslint ."
+      },
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/eslint.config.mjs",
+        "{workspaceRoot}/tools/eslint-rules/**/*",
+        { "externalDependencies": ["eslint"] }
+      ],
+      "outputs": ["{options.outputFile}"]
+    },
     "build": {
       "executor": "@nx/js:tsc",
       "outputs": ["{options.outputPath}"],

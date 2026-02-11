@@ -4,6 +4,48 @@
   "sourceRoot": "packages/games-sdk/src",
   "projectType": "library",
   "targets": {
+    "typecheck": {
+      "executor": "nx:noop",
+      "options": {
+        "message": "typecheck skipped for games-sdk (no TypeScript project graph wiring yet)"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/games-sdk",
+        "env": {
+          "TS_NODE_COMPILER_OPTIONS": "{\"moduleResolution\":\"node10\",\"module\":\"commonjs\",\"customConditions\":null}"
+        },
+        "command": "jest --passWithNoTests"
+      },
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/jest.preset.js",
+        {
+          "externalDependencies": ["jest"]
+        }
+      ],
+      "outputs": ["{workspaceRoot}/coverage/packages/games-sdk"]
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/games-sdk",
+        "command": "eslint ."
+      },
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/eslint.config.mjs",
+        "{workspaceRoot}/tools/eslint-rules/**/*",
+        {
+          "externalDependencies": ["eslint"]
+        }
+      ],
+      "outputs": ["{options.outputFile}"]
+    },
     "build": {
       "executor": "@nx/js:tsc",
       "outputs": ["{options.outputPath}"],

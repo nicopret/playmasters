@@ -4,13 +4,18 @@
     "outDir": "../../dist/out-tsc",
     "module": "commonjs",
     "moduleResolution": "node10",
-    "types": ["jest", "node"]
+    "types": ["jest", "node"],
+    "rootDir": "../.."
   },
   "include": [
+    "src/**/*.ts",
+    "src/**/*.json",
+    "../games-sdk/src/**/*.ts",
     "jest.config.ts",
     "jest.config.cts",
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
-    "src/**/*.d.ts"
+    "src/**/*.d.ts",
+    "src/space-blaster/validators/**/*.ts"
   ]
 }

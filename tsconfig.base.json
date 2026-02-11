@@ -23,7 +23,9 @@
       "@playmasters/ui": ["packages/ui/src/index.ts"],
       "@playmasters/types": ["packages/types/src/index.ts"],
       "@playmasters/game-sdk": ["packages/games-sdk/src/index.ts"],
-      "@playmasters/space-blaster": ["packages/games/space-blaster/src/index.ts"]
+      "@playmasters/space-blaster": [
+        "packages/games/space-blaster/src/index.ts"
+      ]
     }
   }
 }

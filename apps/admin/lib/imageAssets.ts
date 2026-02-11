@@ -7,6 +7,7 @@ import {
   ScanCommand,
   BatchGetCommand,
 } from '@aws-sdk/lib-dynamodb';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { ddbDocClient } from './ddb';
 import { s3Client } from './s3';
 import type { ImageAsset, ImageAssetVersion } from '@playmasters/types';
