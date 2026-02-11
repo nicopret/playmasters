@@ -13,6 +13,8 @@ const ammoValid = require('./__fixtures__/ammo-catalog.valid.json');
 const ammoBadCooldown = require('./__fixtures__/ammo-catalog.invalid-cooldown.json');
 const ammoBadSpeed = require('./__fixtures__/ammo-catalog.invalid-speed.json');
 
+type Issue = { message: string; path: string };
+
 describe('SpaceBlaster catalog schemas', () => {
   it('accepts valid hero catalog', () => {
     const result = validateSchema('HeroCatalog', SpaceBlasterSchema.heroCatalog, heroValid);
@@ -23,13 +25,13 @@ describe('SpaceBlaster catalog schemas', () => {
   it('rejects hero catalog missing heroId', () => {
     const result = validateSchema('HeroCatalog', SpaceBlasterSchema.heroCatalog, heroMissingId);
     expect(result.valid).toBe(false);
-    expect(result.issues.some((i) => i.message.includes('heroId'))).toBe(true);
+    expect(result.issues.some((i: Issue) => i.message.includes('heroId'))).toBe(true);
   });
 
   it('rejects hero catalog with non-string spriteKey', () => {
     const result = validateSchema('HeroCatalog', SpaceBlasterSchema.heroCatalog, heroSpriteType);
     expect(result.valid).toBe(false);
-    expect(result.issues.some((i) => i.path.includes('entries.0.spriteKey'))).toBe(true);
+    expect(result.issues.some((i: Issue) => i.path.includes('entries.0.spriteKey'))).toBe(true);
   });
 
   it('accepts valid enemy catalog', () => {
@@ -41,13 +43,13 @@ describe('SpaceBlaster catalog schemas', () => {
   it('rejects enemy catalog missing enemyId', () => {
     const result = validateSchema('EnemyCatalog', SpaceBlasterSchema.enemyCatalog, enemyMissingId);
     expect(result.valid).toBe(false);
-    expect(result.issues.some((i) => i.message.includes('enemyId'))).toBe(true);
+    expect(result.issues.some((i: Issue) => i.message.includes('enemyId'))).toBe(true);
   });
 
   it('rejects enemy catalog with hp <= 0', () => {
     const result = validateSchema('EnemyCatalog', SpaceBlasterSchema.enemyCatalog, enemyHpZero);
     expect(result.valid).toBe(false);
-    expect(result.issues.some((i) => i.path.includes('entries.0.hp'))).toBe(true);
+    expect(result.issues.some((i: Issue) => i.path.includes('entries.0.hp'))).toBe(true);
   });
 
   it('accepts valid ammo catalog', () => {
@@ -59,12 +61,12 @@ describe('SpaceBlaster catalog schemas', () => {
   it('rejects ammo catalog with negative cooldown', () => {
     const result = validateSchema('AmmoCatalog', SpaceBlasterSchema.ammoCatalog, ammoBadCooldown);
     expect(result.valid).toBe(false);
-    expect(result.issues.some((i) => i.path.includes('entries.0.fireCooldownMs'))).toBe(true);
+    expect(result.issues.some((i: Issue) => i.path.includes('entries.0.fireCooldownMs'))).toBe(true);
   });
 
   it('rejects ammo catalog with negative speed', () => {
     const result = validateSchema('AmmoCatalog', SpaceBlasterSchema.ammoCatalog, ammoBadSpeed);
     expect(result.valid).toBe(false);
-    expect(result.issues.some((i) => i.path.includes('entries.0.projectileSpeed'))).toBe(true);
+    expect(result.issues.some((i: Issue) => i.path.includes('entries.0.projectileSpeed'))).toBe(true);
   });
 });

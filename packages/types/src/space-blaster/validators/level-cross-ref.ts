@@ -8,13 +8,15 @@ type LevelConfig = {
   heroId?: string;
 };
 
-type Catalog<T extends string> = { entries: { [K in T]?: string }[] };
+type CatalogEntry<T extends string> = { [K in T]?: string } & Record<string, unknown>;
+type Catalog<T extends string> = { entries: Array<CatalogEntry<T>> };
+type HeroCatalog = { entries: Array<{ heroId?: string; defaultAmmoId?: string }> };
 
 type Context = {
   level: LevelConfig;
   formationLayouts: Catalog<'layoutId'>;
   enemyCatalog: Catalog<'enemyId'>;
-  heroCatalog: (Catalog<'heroId'> & { entries: { defaultAmmoId?: string; heroId?: string }[] });
+  heroCatalog: HeroCatalog;
   ammoCatalog: Catalog<'ammoId'>;
 };
 
@@ -31,7 +33,7 @@ const err = (
   message
 });
 
-function toSet<T extends string>(catalog: Catalog<T>, key: T): Set<string> {
+function toSet<T extends string>(catalog: { entries: Array<CatalogEntry<T>> }, key: T): Set<string> {
   return new Set((catalog.entries || []).map((e) => e[key]).filter(Boolean) as string[]);
 }
 
