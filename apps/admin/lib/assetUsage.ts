@@ -58,7 +58,7 @@ export async function listAssetUsage(assetId: string): Promise<AssetUsage[]> {
       ExpressionAttributeValues: { ':pk': `ASSET#${assetId}` },
     })
   );
-  const items = (res.Items ?? []) as any[];
+  const items = (res.Items ?? []) as AssetUsage[];
   return items.map((i) => ({
     assetId: i.assetId,
     refId: i.refId,

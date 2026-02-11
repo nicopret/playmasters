@@ -3,16 +3,27 @@
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "module": "commonjs",
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": "../../",
+    "paths": {
+      "@playmasters/types": ["dist/packages/types/src/index"],
+      "@playmasters/types/*": ["dist/packages/types/src/*"],
+      "@playmasters/game-sdk": ["dist/packages/games-sdk/src/index"],
+      "@playmasters/game-sdk/*": ["dist/packages/games-sdk/src/*"]
+    }
   },
-  "include": ["src/**/*.ts", "../../packages/types/src/**/*.ts", "../../packages/games-sdk/src/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": [
     "jest.config.ts",
     "jest.config.cts",
     "src/**/*.spec.ts",
     "src/**/*.test.ts",
     "../../packages/types/src/**/*.spec.ts",
-    "../../packages/types/src/**/*.test.ts"
+    "../../packages/types/src/**/*.test.ts",
+    "../../packages/types/src/**/*.spec.tsx",
+    "../../packages/types/src/**/*.test.tsx",
+    "../../packages/games-sdk/src/**/*.spec.ts",
+    "../../packages/games-sdk/src/**/*.test.ts"
   ],
   "references": [
     {

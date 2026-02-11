@@ -114,22 +114,23 @@ export function applyToolAtPoint(
   onPick?: (hex: string) => void
 ) {
   if (!state.source) return;
+  const source = state.source;
   const handler = toolFor(tool);
   if (!handler) return;
 
   const ctx: import('./tools').ToolContext = {
-    width: state.source.width,
-    height: state.source.height,
+    width: source.width,
+    height: source.height,
     brushSize: 1,
     color: hexToRgba(color),
     getPixel: (x, y) => {
-      const idx = (y * state.source!.width + x) * 4;
-      const d = state.source!.data;
+      const idx = (y * source.width + x) * 4;
+      const d = source.data;
       return [d[idx], d[idx + 1], d[idx + 2], d[idx + 3]];
     },
     setPixel: (x, y, rgba) => {
-      const idx = (y * state.source!.width + x) * 4;
-      const d = state.source!.data;
+      const idx = (y * source.width + x) * 4;
+      const d = source.data;
       d[idx] = rgba[0];
       d[idx + 1] = rgba[1];
       d[idx + 2] = rgba[2];
@@ -138,13 +139,21 @@ export function applyToolAtPoint(
   };
 
   handler.onPointerDown(point.x, point.y, ctx);
+  if (tool === 'picker' && onPick) {
+    onPick(rgbaToHex(ctx.color));
+  }
   const sctx = state.sourceCanvas.getContext('2d');
   if (!sctx) return;
-  sctx.putImageData(state.source, 0, 0);
+  sctx.putImageData(source, 0, 0);
 }
 
 function hexToRgba(hex: string): [number, number, number, number] {
   const h = hex.replace('#', '');
   const int = parseInt(h, 16);
   return [(int >> 16) & 255, (int >> 8) & 255, int & 255, 255];
+}
+
+function rgbaToHex([r, g, b, a]: [number, number, number, number]) {
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}${toHex(a)}`;
 }

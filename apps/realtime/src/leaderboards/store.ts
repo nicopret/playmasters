@@ -179,23 +179,24 @@ export class LeaderboardStore {
   }
 
   private ensureGlobalList(gameId: string) {
-    if (!this.globalTop.has(gameId)) {
-      this.globalTop.set(gameId, []);
-      this.globalUpdatedAt.set(gameId, new Date(0).toISOString());
-    }
-    return this.globalTop.get(gameId)!;
+    const existing = this.globalTop.get(gameId);
+    if (existing) return existing;
+    const list: LeaderboardEntry[] = [];
+    this.globalTop.set(gameId, list);
+    this.globalUpdatedAt.set(gameId, new Date(0).toISOString());
+    return list;
   }
 
   private ensureLocalList(gameId: string, countryCode: string) {
     const gameMap = this.localTop.get(gameId) ?? new Map<string, LeaderboardEntry[]>();
     if (!this.localTop.has(gameId)) this.localTop.set(gameId, gameMap);
 
-    if (!gameMap.has(countryCode)) {
-      gameMap.set(countryCode, []);
-      this.markLocalUpdated(gameId, countryCode, new Date(0).toISOString());
-    }
-
-    return gameMap.get(countryCode)!;
+    const existing = gameMap.get(countryCode);
+    if (existing) return existing;
+    const list: LeaderboardEntry[] = [];
+    gameMap.set(countryCode, list);
+    this.markLocalUpdated(gameId, countryCode, new Date(0).toISOString());
+    return list;
   }
 
   private setLocalList(gameId: string, countryCode: string, entries: LeaderboardEntry[]) {

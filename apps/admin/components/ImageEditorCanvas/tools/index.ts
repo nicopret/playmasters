@@ -3,13 +3,13 @@ import type { ToolContext, ToolHandlers, ToolId } from './types';
 const pencil: ToolHandlers = {
   onPointerDown: (x, y, ctx) => paintSquare(x, y, ctx, ctx.color),
   onPointerMove: (x, y, ctx) => paintSquare(x, y, ctx, ctx.color),
-  onPointerUp: () => {},
+  onPointerUp: () => undefined,
 };
 
 const eraser: ToolHandlers = {
   onPointerDown: (x, y, ctx) => paintSquare(x, y, ctx, [0, 0, 0, 0]),
   onPointerMove: (x, y, ctx) => paintSquare(x, y, ctx, [0, 0, 0, 0]),
-  onPointerUp: () => {},
+  onPointerUp: () => undefined,
 };
 
 const picker: ToolHandlers = {
@@ -17,14 +17,14 @@ const picker: ToolHandlers = {
     const [r, g, b, a] = ctx.getPixel(x, y);
     ctx.color = [r, g, b, a];
   },
-  onPointerMove: () => {},
-  onPointerUp: () => {},
+  onPointerMove: () => undefined,
+  onPointerUp: () => undefined,
 };
 
 const fill: ToolHandlers = {
   onPointerDown: (x, y, ctx) => floodFill(x, y, ctx, ctx.color),
-  onPointerMove: () => {},
-  onPointerUp: () => {},
+  onPointerMove: () => undefined,
+  onPointerUp: () => undefined,
 };
 
 const map: Record<ToolId, ToolHandlers> = {

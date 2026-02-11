@@ -5,7 +5,7 @@ const SNAPSHOT_INTERVAL_MS = Number(process.env.SNAPSHOT_INTERVAL_MS ?? 10_000);
 
 export function startSnapshotLoop(store: LeaderboardStore) {
   if (!snapshotsEnabled) {
-    return () => {};
+    return () => undefined;
   }
 
   const timer = setInterval(async () => {

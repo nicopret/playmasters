@@ -9,7 +9,6 @@ const IMAGE_VERSIONS_TABLE = process.env.DDB_TABLE_IMAGE_EDITOR_VERSIONS ?? IMAG
 const PK_ATTR = process.env.DDB_PK_NAME || 'PK';
 const SK_ATTR = process.env.DDB_SK_NAME || 'SK';
 const ASSET_PK_ATTR = process.env.DDB_PK_NAME_ASSETS || PK_ATTR;
-const ASSET_SK_ATTR = process.env.DDB_SK_NAME_ASSETS || SK_ATTR;
 const VERSION_PK_ATTR = process.env.DDB_PK_NAME_ASSET_VERSIONS || PK_ATTR;
 const VERSION_SK_ATTR = process.env.DDB_SK_NAME_ASSET_VERSIONS || SK_ATTR;
 const ASSETS_PUBLIC_BASE_URL = process.env.ASSETS_PUBLIC_BASE_URL ?? '';
@@ -23,6 +22,22 @@ type BackgroundItem = {
   publishedVersionId: string;
   publishedUrl: string;
   updatedAt: string;
+};
+
+type AssetRecord = {
+  assetId: string;
+  title?: string;
+  tags?: string[];
+  width: number;
+  height: number;
+  updatedAt: string;
+  currentPublishedVersionId?: string;
+};
+
+type VersionRecord = {
+  versionId: string;
+  state?: string;
+  storageKey?: string;
 };
 
 const bad = (message: string, status = 400) =>
@@ -46,7 +61,7 @@ export async function GET() {
       })
     );
 
-    const assets = (res.Items ?? []) as any[];
+    const assets = (res.Items ?? []) as AssetRecord[];
     if (!assets.length) {
       return NextResponse.json(
         { backgrounds: [] },
@@ -65,14 +80,14 @@ export async function GET() {
       })
       .filter(Boolean) as Record<string, string>[];
 
-    let versionMap = new Map<string, any>();
+    let versionMap = new Map<string, VersionRecord>();
     if (keys.length) {
       const vRes = await ddbDocClient.send(
         new BatchGetCommand({
           RequestItems: { [IMAGE_VERSIONS_TABLE]: { Keys: keys } },
         })
       );
-      const versions = (vRes.Responses?.[IMAGE_VERSIONS_TABLE] ?? []) as any[];
+      const versions = (vRes.Responses?.[IMAGE_VERSIONS_TABLE] ?? []) as VersionRecord[];
       versionMap = new Map(versions.map((v) => [v.versionId, v]));
     }
 
@@ -101,11 +116,14 @@ export async function GET() {
           publishedUrl,
         };
       })
-      .filter(Boolean) as BackgroundItem[]
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      .filter(Boolean) as BackgroundItem[];
+
+    const sortedBackgrounds = backgrounds.sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt)
+    );
 
     return NextResponse.json(
-      { backgrounds },
+      { backgrounds: sortedBackgrounds },
       { headers: { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=120' } }
     );
   } catch (err) {
