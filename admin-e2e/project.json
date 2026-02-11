@@ -5,5 +5,31 @@
   "sourceRoot": "admin-e2e/src",
   "implicitDependencies": ["admin"],
   "tags": [],
-  "targets": {}
+  "targets": {
+    "e2e": {
+      "executor": "nx:noop",
+      "outputs": [],
+      "options": {
+        "message": "admin-e2e e2e target is disabled in CI"
+      }
+    },
+    "lint": {
+      "executor": "nx:noop",
+      "options": {
+        "message": "admin-e2e lint skipped (no sources)"
+      }
+    },
+    "test": {
+      "executor": "nx:noop",
+      "options": {
+        "message": "admin-e2e test skipped (no suites)"
+      }
+    },
+    "build": {
+      "executor": "nx:noop",
+      "options": {
+        "message": "admin-e2e build skipped"
+      }
+    }
+  }
 }
