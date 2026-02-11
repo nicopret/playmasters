@@ -3,7 +3,7 @@ import Ajv2020 from 'ajv/dist/2020';
 
 export type ValidationIssue = {
     severity: 'error' | 'warning';
-    stage: 'schema';
+    stage: 'schema' | 'structural' | 'cross-reference' | 'resolution' | 'assets';
     domain: string;
     sourceId?: string;
     path: string;
