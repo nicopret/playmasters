@@ -1,0 +1,9 @@
+{
+  "entries": [
+    {
+      "enemyId": "grunt",
+      "hp": 0,
+      "spriteKey": "sprite.enemy.grunt.v1"
+    }
+  ]
+}

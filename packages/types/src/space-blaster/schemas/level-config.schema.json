@@ -3,40 +3,36 @@
     "$id": "https://playmasters.dev/schemas/space-blaster/level-config.schema.json",
     "title": "SpaceBlasterLevelConfig",
     "type": "object",
-    "required": [ "layoutId" ],
+    "additionalProperties": false,
+    "required": ["layoutId"],
     "properties": {
-        "boss": {
-            "default": false,
-            "type": "boolean"
-        },
-        "dive": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "number"
-        },
+        "layoutId": { "type": "string", "minLength": 1 },
+        "boss": { "type": "boolean", "default": false },
+        "dive": { "type": "number", "minimum": 1, "maximum": 100 },
         "enemyTypes": {
-            "type": "array"
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 0,
+            "uniqueItems": true
         },
-        "layoutId": {
-            "type": "string"
-        },
-        "scoreMultiplier": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "number"
-        },
-        "shooting": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "number"
-        },
-        "speed": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "number"
-        },
+        "scoreMultiplier": { "type": "number", "minimum": 1, "maximum": 100 },
+        "shooting": { "type": "number", "minimum": 1, "maximum": 100 },
+        "speed": { "type": "number", "minimum": 1, "maximum": 100 },
         "waves": {
-            "type": "array"
+            "type": "array",
+            "items": { "$ref": "#/$defs/wave" }
+        }
+    },
+    "$defs": {
+        "wave": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["enemyId"],
+            "properties": {
+                "enemyId": { "type": "string", "minLength": 1 },
+                "count": { "type": "integer", "minimum": 1 },
+                "spawnDelayMs": { "type": "number", "minimum": 0 }
+            }
         }
     }
 }

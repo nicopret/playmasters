@@ -1,0 +1,16 @@
+{
+  "layoutId": "layout_alpha",
+  "boss": false,
+  "dive": 10,
+  "enemyTypes": ["grunt", "elite"],
+  "scoreMultiplier": 2,
+  "shooting": 15,
+  "speed": 20,
+  "waves": [
+    {
+      "enemyId": "grunt",
+      "count": 5,
+      "spawnDelayMs": 0
+    }
+  ]
+}

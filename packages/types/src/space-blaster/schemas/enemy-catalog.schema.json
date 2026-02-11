@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://playmasters.dev/schemas/space-blaster/enemy-catalog.schema.json",
+  "title": "SpaceBlasterEnemyCatalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entries"],
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/enemyEntry" }
+    }
+  },
+  "$defs": {
+    "assetKey": {
+      "type": "string",
+      "minLength": 1
+    },
+    "enemyEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enemyId", "hp", "spriteKey"],
+      "properties": {
+        "enemyId": { "type": "string", "minLength": 1 },
+        "hp": { "type": "integer", "minimum": 1 },
+        "spriteKey": { "$ref": "#/$defs/assetKey" },
+        "fireSfxKey": { "$ref": "#/$defs/assetKey" },
+        "deathSfxKey": { "$ref": "#/$defs/assetKey" },
+        "diveTelegraphSfxKey": { "$ref": "#/$defs/assetKey" },
+        "explodeFxKey": { "$ref": "#/$defs/assetKey" },
+        "canDive": { "type": "boolean" },
+        "canShoot": { "type": "boolean" },
+        "speed": { "type": "number", "minimum": 0 },
+        "baseScore": { "type": "number", "minimum": 0 },
+        "projectileCooldownMs": { "type": "number", "minimum": 0 },
+        "diveCooldownMs": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

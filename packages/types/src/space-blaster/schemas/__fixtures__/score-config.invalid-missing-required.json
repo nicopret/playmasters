@@ -1,0 +1,12 @@
+{
+  "combo": {
+    "enabled": true,
+    "tiers": [
+      { "minCount": 2, "multiplier": 1.5, "name": "double" }
+    ],
+    "minWindowMs": 500,
+    "resetOnPlayerHit": true,
+    "windowMs": 1500
+  },
+  "waveClearBonus": { "base": 50, "perLifeBonus": 10 }
+}

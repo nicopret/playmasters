@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://playmasters.dev/schemas/space-blaster/hero-catalog.schema.json",
+  "title": "SpaceBlasterHeroCatalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entries"],
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/heroEntry" }
+    }
+  },
+  "$defs": {
+    "assetKey": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hitbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "number", "minimum": 0 },
+        "height": { "type": "number", "minimum": 0 }
+      }
+    },
+    "heroEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["heroId", "spriteKey", "defaultAmmoId", "moveSpeed", "maxLives", "hitbox"],
+      "properties": {
+        "heroId": { "type": "string", "minLength": 1 },
+        "spriteKey": { "$ref": "#/$defs/assetKey" },
+        "hurtFlashSpriteKey": { "$ref": "#/$defs/assetKey" },
+        "engineTrailFxKey": { "$ref": "#/$defs/assetKey" },
+        "fireSfxKey": { "$ref": "#/$defs/assetKey" },
+        "hitSfxKey": { "$ref": "#/$defs/assetKey" },
+        "defaultAmmoId": { "type": "string", "minLength": 1 },
+        "moveSpeed": { "type": "number", "minimum": 0 },
+        "maxLives": { "type": "integer", "minimum": 1 },
+        "hitbox": { "$ref": "#/$defs/hitbox" }
+      }
+    }
+  }
+}

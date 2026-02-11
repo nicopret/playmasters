@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "enemyId": "grunt",
+      "hp": 3,
+      "spriteKey": "sprite.enemy.grunt.v1",
+      "speed": 1.2,
+      "baseScore": 100,
+      "fireSfxKey": "sfx.enemy.fire.v1"
+    }
+  ]
+}

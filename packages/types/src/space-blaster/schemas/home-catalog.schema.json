@@ -1,0 +1,46 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://playmasters.dev/schemas/space-blaster/home-catalog.schema.json",
+    "title": "SpaceBlasterHomeCatalog",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["entries"],
+    "properties": {
+        "entries": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/homeEntry" }
+        }
+    },
+    "$defs": {
+        "homeEntry": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["heroId", "ammo", "hitbox", "maxLives", "moveSpeed"],
+            "properties": {
+                "heroId": { "type": "string", "minLength": 1 },
+                "ammo": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["ammoId", "damage", "projectileSpeed", "fireCooldownMs"],
+                    "properties": {
+                        "ammoId": { "type": "string", "minLength": 1 },
+                        "damage": { "type": "number", "minimum": 0 },
+                        "projectileSpeed": { "type": "number", "minimum": 0 },
+                        "fireCooldownMs": { "type": "number", "minimum": 0 }
+                    }
+                },
+                "hitbox": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["height", "width"],
+                    "properties": {
+                        "height": { "type": "number", "minimum": 0 },
+                        "width": { "type": "number", "minimum": 0 }
+                    }
+                },
+                "maxLives": { "type": "integer", "minimum": 1 },
+                "moveSpeed": { "type": "number", "minimum": 0 }
+            }
+        }
+    }
+}
