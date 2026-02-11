@@ -1,0 +1,50 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://playmasters.dev/schemas/space-blaster/formation-layouts.schema.json",
+    "title": "SpaceBlasterFormationLayouts",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["entries"],
+    "properties": {
+        "entries": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/layout" }
+        }
+    },
+    "$defs": {
+        "vec2": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y"],
+            "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" }
+            }
+        },
+        "layout": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["layoutId", "rows", "columns", "spacing"],
+            "properties": {
+                "layoutId": { "type": "string", "minLength": 1 },
+                "rows": { "type": "integer", "minimum": 1 },
+                "columns": { "type": "integer", "minimum": 1 },
+                "spacing": {
+                    "allOf": [
+                        { "$ref": "#/$defs/vec2" }
+                    ],
+                    "properties": {
+                        "x": { "type": "number", "minimum": 0 },
+                        "y": { "type": "number", "minimum": 0 }
+                    }
+                },
+                "offset": {
+                    "allOf": [
+                        { "$ref": "#/$defs/vec2" }
+                    ]
+                },
+                "compact": { "type": "boolean", "default": false }
+            }
+        }
+    }
+}

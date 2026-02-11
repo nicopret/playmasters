@@ -5,6 +5,7 @@ import scoreConfigSchema from './score-config.schema.json';
 import heroCatalogSchema from './hero-catalog.schema.json';
 import enemyCatalogSchema from './enemy-catalog.schema.json';
 import ammoCatalogSchema from './ammo-catalog.schema.json';
+import formationLayoutsSchema from './formation-layouts.schema.json';
 
 export const SpaceBlasterSchema = {
     gameConfig: gameConfigSchema,
@@ -13,5 +14,6 @@ export const SpaceBlasterSchema = {
     scoreConfig: scoreConfigSchema,
     heroCatalog: heroCatalogSchema,
     enemyCatalog: enemyCatalogSchema,
-    ammoCatalog: ammoCatalogSchema
+    ammoCatalog: ammoCatalogSchema,
+    formationLayouts: formationLayoutsSchema
 } as const;
