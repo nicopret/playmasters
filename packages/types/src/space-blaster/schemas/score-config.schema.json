@@ -1,5 +1,132 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://playmasters.dev/schemas/space-blaster/score-config.schema.json"
-
+    "$id": "https://playmasters.dev/schemas/space-blaster/score-config.schema.json",
+    "title": "SpaceBlasterScoreConfig",
+    "type": "object",
+    "properties": {
+        "accuracyBonus": {
+            "properties": {
+                "scaleByLevelMultiplier": {
+                    "default": false,
+                    "type": "boolean"
+                },
+                "thresholds": {
+                    "items": {
+                        "properties": {
+                            "bonus": {
+                                "type": "number"
+                            },
+                            "minAccuracy": {
+                                "type": "number"
+                            }
+                        },
+                        "required": [ "bonus", "minAccuracy" ],
+                        "type": "object"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [ "thresholds" ],
+            "type": "object"
+        },
+        "baseEnemyScores": {
+            "items": {
+                "properties": {
+                    "enemyId": {
+                        "type": "string"
+                    },
+                    "score": {
+                        "type": "number"
+                    }
+                },
+                "required": [ "enemyId", "score" ],
+                "type": "object"
+            },
+            "type": "array"
+        },
+        "combo": {
+            "properties": {
+                "enabled": {
+                    "default": false,
+                    "type": "boolean"
+                },
+                "minWindowMs": {
+                    "type": "number"
+                },
+                "resetOnPlayerHit": {
+                    "default": true,
+                    "type": "boolean"
+                },
+                "tiers": {
+                    "items": {
+                        "properties": {
+                            "minCount": {
+                                "type": "number"
+                            },
+                            "multiplier": {
+                                "type": "number"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "tierBonus": {
+                                "minimum": 0,
+                                "type": "number"
+                            }
+                        },
+                        "required": [ "minCount", "multiplier", "name" ],
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                "windowDecayPerLevelMs": {
+                    "type": "number"
+                },
+                "windowMs": {
+                    "type": "number"
+                }
+            },
+            "required": [ "enabled", "tiers", "minWindowMs", "resetOnPlayerHit", "windowMs" ],
+            "type": "object"
+        },
+        "levelScoreMultiplier": {
+            "properties": {
+                "base": {
+                    "type": "number"
+                },
+                "max": {
+                    "type": "number"
+                },
+                "perLevel": {
+                    "type": "number"
+                }
+            },
+            "required": [ "base", "max", "perLevel" ],
+            "type": "object"
+        },
+        "survivalBonus": {
+            "properties": {
+                "bonus": {
+                    "type": "number"
+                },
+                "perSeconds": {
+                    "type": "number"
+                }
+            },
+            "type": "object"
+        },
+        "waveClearBonus": {
+            "properties": {
+                "base": {
+                    "type": "number"
+                },
+                "perLifeBonus": {
+                    "type": "number"
+                }
+            },
+            "required": [ "base", "perLifeBonus" ],
+            "type": "object"
+        }
+    },
+    "required": [ "baseEnemyScores", "combo", "levelScoreMultiplier", "waveClearBonus" ]
 }
