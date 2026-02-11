@@ -18,16 +18,16 @@ jobs:
         with:
           filter: tree:0
           fetch-depth: 0
+      # Install pnpm before any pnpm usage
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
 
       # Cache node_modules for pnpm
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.14.0
 
       # This enables task distribution via Nx Cloud
       # Run this command as early as possible, before dependencies are installed
