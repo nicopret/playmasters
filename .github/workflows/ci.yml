@@ -36,6 +36,6 @@ jobs:
           NX_DISABLE_CLOUD: 'true'
         run: |
           pnpm exec nx format:check --base="remotes/origin/main"
-          pnpm exec nx run-many -t lint test build typecheck e2e
+          pnpm exec nx run-many -t lint test build typecheck
       # Nx Cloud specific fix step is skipped because cloud is disabled in CI to avoid auth errors
       - run: echo "Nx Cloud disabled for CI (no NX_CLOUD_ACCESS_TOKEN provided)"

@@ -15,5 +15,10 @@
     "jest.config.cts",
     "src/**/*.spec.ts",
     "src/**/*.test.ts"
+  ],
+  "references": [
+    {
+      "path": "../games-sdk/tsconfig.lib.json"
+    }
   ]
 }
