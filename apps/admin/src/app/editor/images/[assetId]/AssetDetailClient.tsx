@@ -52,6 +52,7 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
   const [usageRefs, setUsageRefs] = useState<
     { refId: string; usageType: string }[]
   >([]);
+  void usageRefs; // currently unused in UI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);

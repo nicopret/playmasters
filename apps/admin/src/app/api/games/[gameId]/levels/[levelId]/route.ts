@@ -4,6 +4,7 @@ import {
   getLevelConfig,
   saveLevelConfig,
 } from '../../../../../../../lib/levelConfig';
+import { LevelConfig } from '@playmasters/types';
 
 export const runtime = 'nodejs';
 const bad = (message: string, status = 400) =>
@@ -82,7 +83,9 @@ export async function POST(
       backgroundAssetId: body.backgroundAssetId?.trim() || undefined,
       backgroundVersionId: body.backgroundVersionId?.trim() || undefined,
       pinToVersion: !!body.pinToVersion,
-      waves: Array.isArray(body.waves) ? body.waves : [],
+      waves: Array.isArray(body.waves)
+        ? (body.waves as LevelConfig['waves'])
+        : [],
       fleetSpeed:
         typeof body.fleetSpeed === 'number' ? body.fleetSpeed : undefined,
       rampFactor:

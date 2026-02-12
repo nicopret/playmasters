@@ -99,6 +99,9 @@ export async function createAnnouncement(
     ...input,
     createdAt: timestamp,
     updatedAt: timestamp,
+    imageUrl: input.imageUrl ?? undefined,
+    ctaLabel: input.ctaLabel ?? undefined,
+    ctaHref: input.ctaHref ?? undefined,
   };
 
   await ddbDocClient.send(

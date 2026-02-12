@@ -68,10 +68,7 @@ const WorldMapPanel: React.FC<WorldMapPanelProps> = ({
     [data],
   );
 
-  const quantize = useMemo(
-    () => scaleQuantize<string>().domain([0, maxVal]).range(colorRamp),
-    [maxVal],
-  );
+  const quantize = useMemo(() => scaleQuantize().domain([0, maxVal]).range(colorRamp), [maxVal]);
 
   const footerColumns = useMemo(() => {
     const perCol = Math.ceil(data.length / 3);
@@ -112,7 +109,7 @@ const WorldMapPanel: React.FC<WorldMapPanelProps> = ({
               projectionConfig={{ scale: 160 }}
             >
               <Geographies geography={geoCollection}>
-                {({ geographies }) =>
+                {({ geographies }: { geographies: any[] }) =>
                   geographies.map((geo) => {
                     const code = (geo.properties.ISO_A2 || geo.id || '')
                       .toString()
@@ -126,7 +123,9 @@ const WorldMapPanel: React.FC<WorldMapPanelProps> = ({
                         fill={fill}
                         stroke="#4a4a4a"
                         strokeWidth={0.6}
-                        onMouseEnter={(e) => handleEnter(e, code)}
+                        onMouseEnter={(e: React.MouseEvent<SVGPathElement>) =>
+                          handleEnter(e, code)
+                        }
                         onMouseLeave={handleLeave}
                       />
                     );

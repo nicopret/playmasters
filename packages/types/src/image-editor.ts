@@ -34,8 +34,25 @@ export type ImageAssetVersion = {
 export type LevelConfig = {
   gameId: string;
   levelId: string;
+  layoutId?: string;
   backgroundAssetId?: string;
   backgroundVersionId?: string;
   pinnedToVersion?: boolean;
   updatedAt: string;
+  // Gameplay fields used by admin editor
+  waves?: Array<{
+    enemies?: Array<{ enemyId?: string; count?: number }>;
+    overrides?: Record<string, unknown>;
+  }>;
+  fleetSpeed?: number;
+  rampFactor?: number;
+  descendStep?: number;
+  maxConcurrentDivers?: number;
+  maxConcurrentShots?: number;
+  attackTickMs?: number;
+  diveChancePerTick?: number;
+  divePattern?: string;
+  turnRate?: number;
+  fireTickMs?: number;
+  fireChancePerTick?: number;
 };
