@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import styles from '../page.module.css';
-
+import { validateScoreConfigDraft } from './validateScoreConfigDraft';
 type Enemy = { enemyId: string; displayName?: string };
+
 type BaseEnemyScore = { enemyId: string; score: number };
 type ScoreConfig = {
   scoreConfigId: string;
@@ -106,157 +107,20 @@ export default function ScoreConfigPage() {
     return map;
   }, [config.baseEnemyScores]);
 
-  const issues: ValidationIssue[] = useMemo(() => {
-    const list: ValidationIssue[] = [];
-    enemies.forEach((e) => {
-      const score = scoreMap.get(e.enemyId);
-      if (score === undefined) {
-        list.push({
-          severity: 'error',
-          path: `baseEnemyScores.${e.enemyId}`,
-          message: `Missing score for enemy '${e.enemyId}'.`,
-        });
-      } else if (score < 0) {
-        list.push({
-          severity: 'error',
-          path: `baseEnemyScores.${e.enemyId}`,
-          message: `Score must be >= 0 (enemy ${e.enemyId}).`,
-        });
-      }
-    });
-    const mult = config.levelScoreMultiplier ?? { base: 1, perLevel: 0, max: 1 };
-    if (mult.base < 1) {
-      list.push({
-        severity: 'error',
-        path: 'levelScoreMultiplier.base',
-        message: 'Base multiplier must be ≥ 1.0.',
-      });
-    }
-    if (mult.perLevel < 0) {
-      list.push({
-        severity: 'error',
-        path: 'levelScoreMultiplier.perLevel',
-        message: 'Per-level increment must be ≥ 0.',
-      });
-    }
-    if (mult.max < 1) {
-      list.push({
-        severity: 'error',
-        path: 'levelScoreMultiplier.max',
-        message: 'Max multiplier must be ≥ 1.0.',
-      });
-    }
-    if (mult.max < mult.base) {
-      list.push({
-        severity: 'error',
-        path: 'levelScoreMultiplier.max',
-        message: 'Max multiplier must be ≥ base multiplier.',
-      });
-    }
-
-    const tiers = config.combo?.tiers ?? [];
-    let prevMin = 0;
-    const seen = new Set<number>();
-    tiers.forEach((t, idx) => {
-      if (t.minCount < 1) {
-        list.push({
-          severity: 'error',
-          path: `combo.tiers.${idx}.minCount`,
-          message: 'minCount must be ≥ 1.',
-        });
-      }
-      if (t.minCount < prevMin) {
-        list.push({
-          severity: 'error',
-          path: `combo.tiers.${idx}.minCount`,
-          message: 'minCount must be sorted ascending.',
-        });
-      }
-      if (seen.has(t.minCount)) {
-        list.push({
-          severity: 'error',
-          path: `combo.tiers.${idx}.minCount`,
-          message: 'Duplicate minCount; each tier must be unique.',
-        });
-      }
-      seen.add(t.minCount);
-      prevMin = t.minCount;
-      if (t.multiplier < 1) {
-        list.push({
-          severity: 'error',
-          path: `combo.tiers.${idx}.multiplier`,
-          message: 'Multiplier must be ≥ 1.',
-        });
-      }
-      if ((t.tierBonus ?? 0) < 0) {
-        list.push({
-          severity: 'error',
-          path: `combo.tiers.${idx}.tierBonus`,
-          message: 'Tier bonus must be ≥ 0.',
-        });
-      }
-    });
-
-    const wave = config.waveClearBonus ?? { base: 0, perLifeBonus: 0 };
-    if (wave.base < 0) {
-      list.push({
-        severity: 'error',
-        path: 'waveClearBonus.base',
-        message: 'Base wave bonus must be ≥ 0.',
-      });
-    }
-    if (wave.perLifeBonus !== undefined && wave.perLifeBonus < 0) {
-      list.push({
-        severity: 'error',
-        path: 'waveClearBonus.perLifeBonus',
-        message: 'Per-life wave bonus must be ≥ 0.',
-      });
-    }
-
-    const thresholds = config.accuracyBonus?.thresholds ?? [];
-    const seenAcc = new Set<number>();
-    let prevAcc = -1;
-    thresholds.forEach((t, idx) => {
-      if (t.minAccuracy < 0 || t.minAccuracy > 1) {
-        list.push({
-          severity: 'error',
-          path: `accuracyBonus.thresholds.${idx}.minAccuracy`,
-          message: 'Accuracy threshold must be between 0 and 1.',
-        });
-      }
-      if (t.minAccuracy < prevAcc) {
-        list.push({
-          severity: 'error',
-          path: `accuracyBonus.thresholds.${idx}.minAccuracy`,
-          message: 'Thresholds must be sorted ascending.',
-        });
-      }
-      if (seenAcc.has(t.minAccuracy)) {
-        list.push({
-          severity: 'error',
-          path: `accuracyBonus.thresholds.${idx}.minAccuracy`,
-          message: 'Duplicate thresholds are not allowed.',
-        });
-      }
-      seenAcc.add(t.minAccuracy);
-      prevAcc = t.minAccuracy;
-      if (t.bonus < 0) {
-        list.push({
-          severity: 'error',
-          path: `accuracyBonus.thresholds.${idx}.bonus`,
-          message: 'Bonus must be ≥ 0.',
-        });
-      }
-    });
-    return list;
-  }, [
-    enemies,
-    scoreMap,
-    config.levelScoreMultiplier,
-    config.combo?.tiers,
-    config.waveClearBonus,
-    config.accuracyBonus?.thresholds,
-  ]);
+  const issues: ValidationIssue[] = useMemo(
+    () =>
+      validateScoreConfigDraft(
+        {
+          baseEnemyScores: config.baseEnemyScores,
+          levelScoreMultiplier: config.levelScoreMultiplier,
+          combo: { tiers: config.combo?.tiers ?? [] },
+          waveClearBonus: config.waveClearBonus,
+          accuracyBonus: config.accuracyBonus,
+        },
+        { enemies },
+      ),
+    [config, enemies],
+  );
 
   const hasBlocking = issues.some((i) => i.severity === 'error');
 
@@ -468,13 +332,16 @@ export default function ScoreConfigPage() {
         {issues.length === 0 ? (
           <div className={styles.success}>Ready to publish</div>
         ) : (
-          <ul className={styles.issueList}>
-            {issues.map((i, idx) => (
-              <li key={idx}>
-                <strong>{i.path ?? ''}</strong> {i.message}
-              </li>
-            ))}
-          </ul>
+          <div>
+            <div className={styles.error}>ScoreConfig has {issues.length} error(s).</div>
+            <ul className={styles.issueList}>
+              {issues.map((i, idx) => (
+                <li key={idx}>
+                  <strong>{i.path ?? ''}</strong> {i.message}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </section>
 
