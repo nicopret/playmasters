@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import styles from './page.module.css';
+import { validateLevelDraft, ValidationIssue } from './validateLevelDraft';
 
 type BackgroundItem = {
   assetId: string;
@@ -64,6 +65,7 @@ export default function LevelConfigPage() {
   const [backgrounds, setBackgrounds] = useState<BackgroundItem[]>([]);
   const [layouts, setLayouts] = useState<FormationLayout[]>([]);
   const [enemies, setEnemies] = useState<EnemyOption[]>([]);
+  const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [config, setConfig] = useState<LevelConfig>({
     gameId,
     levelId,
@@ -252,6 +254,14 @@ export default function LevelConfigPage() {
       (k) => (config as any)[k] !== (originalKnobs as any)[k],
     );
 
+  useEffect(() => {
+    const nextIssues = validateLevelDraft(config, {
+      enemies,
+      layouts,
+    });
+    setIssues(nextIssues);
+  }, [config, enemies, layouts]);
+
   async function onSave() {
     setError(null);
     setSaving(true);
@@ -322,7 +332,14 @@ export default function LevelConfigPage() {
         <button
           className={styles.saveBtn}
           onClick={onSave}
-          disabled={saving || loading || !!layoutError || !!wavesError || Object.keys(knobErrors).length > 0}
+          disabled={
+            saving ||
+            loading ||
+            !!layoutError ||
+            !!wavesError ||
+            Object.keys(knobErrors).length > 0 ||
+            issues.some((i) => i.severity === 'error')
+          }
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
@@ -330,6 +347,26 @@ export default function LevelConfigPage() {
 
       {error && <div className={styles.error}>Error: {error}</div>}
       {savedAt && <div className={styles.success}>Saved at {savedAt}</div>}
+
+      <section className={styles.card}>
+        <h2>Publish readiness</h2>
+        {issues.length === 0 ? (
+          <div className={styles.success}>Ready to publish</div>
+        ) : (
+          <>
+            <div className={styles.error}>
+              Not ready: {issues.filter((i) => i.severity === 'error').length} blocking issue(s)
+            </div>
+            <ul className={styles.issueList}>
+              {issues.map((i, idx) => (
+                <li key={idx}>
+                  <strong>{i.path ?? '(general)'}</strong>: {i.message}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
 
       <section className={styles.card}>
         <h2>Difficulty / Fleet Behavior</h2>
