@@ -22,6 +22,10 @@ type ScoreConfig = {
       name?: string;
     }[];
   };
+  waveClearBonus?: {
+    base: number;
+    perLifeBonus?: number;
+  };
   updatedAt?: string;
 };
 
@@ -37,6 +41,7 @@ export default function ScoreConfigPage() {
     baseEnemyScores: [],
     levelScoreMultiplier: { base: 1, perLevel: 0, max: 1 },
     combo: { enabled: true, tiers: [] },
+    waveClearBonus: { base: 0, perLifeBonus: 0 },
   });
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +70,7 @@ export default function ScoreConfigPage() {
             levelScoreMultiplier:
               loaded.levelScoreMultiplier ?? { base: 1, perLevel: 0, max: 1 },
             combo: loaded.combo ?? { enabled: true, tiers: [] },
+            waveClearBonus: loaded.waveClearBonus ?? { base: 0, perLifeBonus: 0 },
             updatedAt: loaded.updatedAt,
           });
           setEnemies(enemyJson.enemies ?? []);
@@ -180,8 +186,24 @@ export default function ScoreConfigPage() {
         });
       }
     });
+
+    const wave = config.waveClearBonus ?? { base: 0, perLifeBonus: 0 };
+    if (wave.base < 0) {
+      list.push({
+        severity: 'error',
+        path: 'waveClearBonus.base',
+        message: 'Base wave bonus must be ≥ 0.',
+      });
+    }
+    if (wave.perLifeBonus !== undefined && wave.perLifeBonus < 0) {
+      list.push({
+        severity: 'error',
+        path: 'waveClearBonus.perLifeBonus',
+        message: 'Per-life wave bonus must be ≥ 0.',
+      });
+    }
     return list;
-  }, [enemies, scoreMap, config.levelScoreMultiplier, config.combo?.tiers]);
+  }, [enemies, scoreMap, config.levelScoreMultiplier, config.combo?.tiers, config.waveClearBonus]);
 
   const hasBlocking = issues.some((i) => i.severity === 'error');
 
@@ -269,6 +291,17 @@ export default function ScoreConfigPage() {
     return Math.min(raw, mult.max);
   };
 
+  const updateWaveBonus = (key: 'base' | 'perLifeBonus', value: number) => {
+    setConfig((c) => ({
+      ...c,
+      waveClearBonus: {
+        base: c.waveClearBonus?.base ?? 0,
+        perLifeBonus: c.waveClearBonus?.perLifeBonus ?? 0,
+        [key]: value,
+      },
+    }));
+  };
+
   async function onSave() {
     setError(null);
     setSaving(true);
@@ -280,6 +313,7 @@ export default function ScoreConfigPage() {
           baseEnemyScores: config.baseEnemyScores,
           levelScoreMultiplier: config.levelScoreMultiplier,
           combo: config.combo,
+          waveClearBonus: config.waveClearBonus,
         }),
       });
       if (!res.ok) {
@@ -457,6 +491,43 @@ export default function ScoreConfigPage() {
           <button type="button" onClick={addTier}>
             Add tier
           </button>
+        </div>
+      </section>
+
+      <section className={styles.card}>
+        <h2>Wave Bonus</h2>
+        <div className={styles.fieldRow}>
+          <label>Base wave bonus</label>
+          <input
+            className={styles.input}
+            type="number"
+            min={0}
+            step={1}
+            value={config.waveClearBonus?.base ?? 0}
+            onChange={(e) => updateWaveBonus('base', Number(e.target.value))}
+          />
+          {issues.find((i) => i.path === 'waveClearBonus.base') && (
+            <div className={styles.error}>
+              {issues.find((i) => i.path === 'waveClearBonus.base')?.message}
+            </div>
+          )}
+        </div>
+        <div className={styles.fieldRow}>
+          <label>Per-life bonus (optional)</label>
+          <input
+            className={styles.input}
+            type="number"
+            min={0}
+            step={1}
+            value={config.waveClearBonus?.perLifeBonus ?? 0}
+            onChange={(e) => updateWaveBonus('perLifeBonus', Number(e.target.value))}
+          />
+          {issues.find((i) => i.path === 'waveClearBonus.perLifeBonus') && (
+            <div className={styles.error}>
+              {issues.find((i) => i.path === 'waveClearBonus.perLifeBonus')?.message}
+            </div>
+          )}
+          <p className={styles.helper}>Leave at 0 if you don’t want per-life bonuses.</p>
         </div>
       </section>
 

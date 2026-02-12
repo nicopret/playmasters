@@ -61,6 +61,10 @@ export async function POST(req: Request) {
       resetOnPlayerHit?: boolean;
       windowDecayPerLevelMs?: number;
     };
+    waveClearBonus?: {
+      base?: number;
+      perLifeBonus?: number;
+    };
   };
 
   const scores = Array.isArray(body.baseEnemyScores)
@@ -112,6 +116,16 @@ export async function POST(req: Request) {
         windowDecayPerLevelMs:
           typeof body.combo?.windowDecayPerLevelMs === 'number'
             ? body.combo?.windowDecayPerLevelMs
+            : undefined,
+      },
+      waveClearBonus: {
+        base:
+          typeof body.waveClearBonus?.base === 'number'
+            ? body.waveClearBonus.base
+            : undefined,
+        perLifeBonus:
+          typeof body.waveClearBonus?.perLifeBonus === 'number'
+            ? body.waveClearBonus.perLifeBonus
             : undefined,
       },
     });

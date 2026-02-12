@@ -25,11 +25,17 @@ export type ComboConfig = {
   windowDecayPerLevelMs?: number;
 };
 
+export type WaveClearBonus = {
+  base: number;
+  perLifeBonus?: number;
+};
+
 export type ScoreConfigDraft = {
   scoreConfigId: string;
   baseEnemyScores: BaseEnemyScore[];
   levelScoreMultiplier?: LevelScoreMultiplier;
   combo?: ComboConfig;
+  waveClearBonus?: WaveClearBonus;
   updatedAt: string;
 };
 
@@ -71,6 +77,10 @@ export async function getScoreConfigDraft(
     enabled: false,
     tiers: [],
   };
+  cfg.waveClearBonus = cfg.waveClearBonus ?? {
+    base: 0,
+    perLifeBonus: 0,
+  };
   return cfg;
 }
 
@@ -79,6 +89,7 @@ export async function saveScoreConfigDraft(input: {
   baseEnemyScores: BaseEnemyScore[];
   levelScoreMultiplier?: Partial<LevelScoreMultiplier>;
   combo?: Partial<ComboConfig>;
+  waveClearBonus?: Partial<WaveClearBonus>;
 }): Promise<ScoreConfigDraft> {
   const id = input.id ?? 'default';
   const now = new Date().toISOString();
@@ -95,11 +106,16 @@ export async function saveScoreConfigDraft(input: {
     resetOnPlayerHit: input.combo?.resetOnPlayerHit,
     windowDecayPerLevelMs: input.combo?.windowDecayPerLevelMs,
   };
+  const waveClearBonus: WaveClearBonus = {
+    base: input.waveClearBonus?.base ?? 0,
+    perLifeBonus: input.waveClearBonus?.perLifeBonus ?? 0,
+  };
   const draft: ScoreConfigDraft = {
     scoreConfigId: id,
     baseEnemyScores: input.baseEnemyScores ?? [],
     levelScoreMultiplier,
     combo,
+    waveClearBonus,
     updatedAt: now,
   };
 
