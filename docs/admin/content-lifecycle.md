@@ -22,7 +22,6 @@ This repo already wires the core Space Blaster / Playmasters content types throu
 - Drafts remain editable; publishing always creates a new version and repoints the environment pointer.
 
 ## Validation on publish
-
 - Schema validation runs for all types.
 - LevelConfig: structural (#69), cross-reference (#68), fairness (#70).
 - ScoreConfig: tier/structure (#71) plus client-side readiness (#86).
