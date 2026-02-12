@@ -67,6 +67,8 @@ export async function POST(
     diveChancePerTick?: number;
     divePattern?: string;
     turnRate?: number;
+    fireTickMs?: number;
+    fireChancePerTick?: number;
   };
 
   try {
@@ -90,6 +92,9 @@ export async function POST(
         typeof body.diveChancePerTick === 'number' ? body.diveChancePerTick : undefined,
       divePattern: typeof body.divePattern === 'string' ? body.divePattern : undefined,
       turnRate: typeof body.turnRate === 'number' ? body.turnRate : undefined,
+      fireTickMs: typeof body.fireTickMs === 'number' ? body.fireTickMs : undefined,
+      fireChancePerTick:
+        typeof body.fireChancePerTick === 'number' ? body.fireChancePerTick : undefined,
     });
     return NextResponse.json({ config: saved });
   } catch (err) {

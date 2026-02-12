@@ -50,6 +50,8 @@ type LevelConfig = {
   diveChancePerTick?: number;
   divePattern?: 'straight' | 'sine' | 'track';
   turnRate?: number;
+  fireTickMs?: number;
+  fireChancePerTick?: number;
 };
 
 export default function LevelConfigPage() {
@@ -75,6 +77,8 @@ export default function LevelConfigPage() {
     diveChancePerTick: 0,
     divePattern: 'straight',
     turnRate: 0,
+    fireTickMs: 1000,
+    fireChancePerTick: 0,
   });
   const [originalKnobs, setOriginalKnobs] = useState<Pick<
     LevelConfig,
@@ -87,6 +91,8 @@ export default function LevelConfigPage() {
     | 'diveChancePerTick'
     | 'divePattern'
     | 'turnRate'
+    | 'fireTickMs'
+    | 'fireChancePerTick'
   > | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -126,6 +132,8 @@ export default function LevelConfigPage() {
               diveChancePerTick: 0,
               divePattern: 'straight',
               turnRate: 0,
+              fireTickMs: 1000,
+              fireChancePerTick: 0,
             } as LevelConfig);
           setConfig({
             ...cfgData,
@@ -139,6 +147,8 @@ export default function LevelConfigPage() {
             diveChancePerTick: cfgData.diveChancePerTick ?? 0,
             divePattern: (cfgData.divePattern as any) ?? 'straight',
             turnRate: cfgData.turnRate ?? 0,
+            fireTickMs: cfgData.fireTickMs ?? 1000,
+            fireChancePerTick: cfgData.fireChancePerTick ?? 0,
           });
           setOriginalKnobs({
             fleetSpeed: cfgData.fleetSpeed ?? 0,
@@ -150,6 +160,8 @@ export default function LevelConfigPage() {
             diveChancePerTick: cfgData.diveChancePerTick ?? 0,
             divePattern: (cfgData.divePattern as any) ?? 'straight',
             turnRate: cfgData.turnRate ?? 0,
+            fireTickMs: cfgData.fireTickMs ?? 1000,
+            fireChancePerTick: cfgData.fireChancePerTick ?? 0,
           });
           setBackgrounds(bgJson.backgrounds ?? []);
           setLayouts(layoutJson.layouts ?? []);
@@ -220,6 +232,9 @@ export default function LevelConfigPage() {
       knobErrors.turnRate = `Must be between 0 and ${MAX_TURN_RATE}`;
     }
   }
+  if ((config.fireTickMs ?? 0) < 1) knobErrors.fireTickMs = 'Must be at least 1 ms';
+  if ((config.fireChancePerTick ?? 0) < 0 || (config.fireChancePerTick ?? 0) > 1)
+    knobErrors.fireChancePerTick = 'Must be between 0 and 1';
 
   const knobChanged =
     originalKnobs &&
@@ -229,6 +244,11 @@ export default function LevelConfigPage() {
   const diveKnobChanged =
     originalKnobs &&
     ['attackTickMs', 'diveChancePerTick', 'divePattern', 'turnRate', 'maxConcurrentDivers'].some(
+      (k) => (config as any)[k] !== (originalKnobs as any)[k],
+    );
+  const shootKnobChanged =
+    originalKnobs &&
+    ['fireTickMs', 'fireChancePerTick', 'maxConcurrentShots'].some(
       (k) => (config as any)[k] !== (originalKnobs as any)[k],
     );
 
@@ -252,6 +272,12 @@ export default function LevelConfigPage() {
           maxConcurrentDivers: config.maxConcurrentDivers,
           maxConcurrentShots: config.maxConcurrentShots,
           waves: config.waves,
+          attackTickMs: config.attackTickMs,
+          diveChancePerTick: config.diveChancePerTick,
+          divePattern: config.divePattern,
+          turnRate: config.turnRate,
+          fireTickMs: config.fireTickMs,
+          fireChancePerTick: config.fireChancePerTick,
         }),
       });
       if (!res.ok) {
@@ -266,6 +292,12 @@ export default function LevelConfigPage() {
         descendStep: j.config.descendStep ?? 0,
         maxConcurrentDivers: j.config.maxConcurrentDivers ?? 0,
         maxConcurrentShots: j.config.maxConcurrentShots ?? 0,
+        attackTickMs: j.config.attackTickMs ?? 1000,
+        diveChancePerTick: j.config.diveChancePerTick ?? 0,
+        divePattern: (j.config.divePattern as any) ?? 'straight',
+        turnRate: j.config.turnRate ?? 0,
+        fireTickMs: j.config.fireTickMs ?? 1000,
+        fireChancePerTick: j.config.fireChancePerTick ?? 0,
       });
       setSavedAt(new Date().toLocaleTimeString());
     } catch (err: any) {
@@ -460,6 +492,66 @@ export default function LevelConfigPage() {
               {knobErrors.turnRate && <div className={styles.error}>{knobErrors.turnRate}</div>}
             </label>
           )}
+        </div>
+      </section>
+
+      <section className={styles.card}>
+        <h2>Shooting</h2>
+        {shootKnobChanged && (
+          <div className={styles.warning}>
+            Warning: Changing shooting tuning affects difficulty and leaderboard comparability.
+          </div>
+        )}
+        <div className={styles.grid2}>
+          <label className={styles.label}>
+            fireTickMs
+            <input
+              className={styles.input}
+              type="number"
+              min={1}
+              step={1}
+              value={config.fireTickMs ?? 1}
+              onChange={(e) => setConfig((c) => ({ ...c, fireTickMs: Number(e.target.value) }))}
+            />
+            {knobErrors.fireTickMs && <div className={styles.error}>{knobErrors.fireTickMs}</div>}
+          </label>
+          <label className={styles.label}>
+            fireChancePerTick
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              max={1}
+              step={0.01}
+              value={config.fireChancePerTick ?? 0}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, fireChancePerTick: Number(e.target.value) }))
+              }
+            />
+            {knobErrors.fireChancePerTick && (
+              <div className={styles.error}>{knobErrors.fireChancePerTick}</div>
+            )}
+          </label>
+          <label className={styles.label}>
+            Max concurrent shots
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              step={1}
+              value={config.maxConcurrentShots ?? 0}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, maxConcurrentShots: Number(e.target.value) }))
+              }
+            />
+            {knobErrors.maxConcurrentShots && (
+              <div className={styles.error}>{knobErrors.maxConcurrentShots}</div>
+            )}
+          </label>
+        </div>
+        <div className={styles.helper}>
+          <strong>Shooting Rule:</strong> Column Shooter (locked). Only the bottom-most living enemy
+          in each column may fire. This is a core fairness rule and not editable in v1.
         </div>
       </section>
 

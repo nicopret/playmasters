@@ -40,6 +40,8 @@ export async function getLevelConfig(
   if (cfg.attackTickMs === undefined) cfg.attackTickMs = 0;
   if (cfg.diveChancePerTick === undefined) cfg.diveChancePerTick = 0;
   if (cfg.turnRate === undefined) cfg.turnRate = 0;
+  if (cfg.fireTickMs === undefined) cfg.fireTickMs = 0;
+  if (cfg.fireChancePerTick === undefined) cfg.fireChancePerTick = 0;
   return cfg;
 }
 
@@ -60,6 +62,8 @@ export async function saveLevelConfig(input: {
   diveChancePerTick?: number;
   divePattern?: string;
   turnRate?: number;
+  fireTickMs?: number;
+  fireChancePerTick?: number;
 }): Promise<LevelConfig> {
   const {
     gameId,
@@ -78,6 +82,8 @@ export async function saveLevelConfig(input: {
     diveChancePerTick,
     divePattern,
     turnRate,
+    fireTickMs,
+    fireChancePerTick,
   } = input;
   const now = new Date().toISOString();
 
@@ -112,6 +118,8 @@ export async function saveLevelConfig(input: {
     diveChancePerTick,
     divePattern,
     turnRate,
+    fireTickMs,
+    fireChancePerTick,
     updatedAt: now,
   };
 
