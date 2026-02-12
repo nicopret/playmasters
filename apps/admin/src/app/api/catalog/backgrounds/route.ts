@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '../../../../../auth';
+import { auth } from '../../../../auth';
 import { listPublishedBackgroundCatalog } from '../../../../../lib/imageAssets';
 
 export const runtime = 'nodejs';

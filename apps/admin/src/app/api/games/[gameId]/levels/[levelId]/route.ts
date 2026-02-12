@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '../../../../../../auth';
-import { getLevelConfig, saveLevelConfig } from '../../../../../../lib/levelConfig';
+import { getLevelConfig, saveLevelConfig } from '../../../../../../../lib/levelConfig';
 
 export const runtime = 'nodejs';
 const bad = (message: string, status = 400) =>
@@ -8,9 +8,15 @@ const bad = (message: string, status = 400) =>
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ gameId: string; levelId: string }> }
+  { params }: { params: Promise<{ gameId: string; levelId: string }> },
 ) {
-  const session = await auth();
+  let session;
+  try {
+    session = await auth();
+  } catch (err) {
+    console.error('auth_error_level_get', err);
+    return bad('auth_failed', 500);
+  }
   if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin)
     return bad('unauthorized', 401);
   const { gameId, levelId } = await params;
@@ -33,14 +39,21 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ gameId: string; levelId: string }> }
+  { params }: { params: Promise<{ gameId: string; levelId: string }> },
 ) {
-  const session = await auth();
+  let session;
+  try {
+    session = await auth();
+  } catch (err) {
+    console.error('auth_error_level_post', err);
+    return bad('auth_failed', 500);
+  }
   if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin)
     return bad('unauthorized', 401);
   const { gameId, levelId } = await params;
 
   const body = (await req.json().catch(() => ({}))) as {
+    layoutId?: string;
     backgroundAssetId?: string;
     backgroundVersionId?: string;
     pinToVersion?: boolean;
@@ -50,6 +63,7 @@ export async function POST(
     const saved = await saveLevelConfig({
       gameId,
       levelId,
+      layoutId: body.layoutId?.trim() || undefined,
       backgroundAssetId: body.backgroundAssetId?.trim() || undefined,
       backgroundVersionId: body.backgroundVersionId?.trim() || undefined,
       pinToVersion: !!body.pinToVersion,

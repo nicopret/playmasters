@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'next/navigation';
 import styles from './page.module.css';
 
 type BackgroundItem = {
@@ -15,24 +16,33 @@ type BackgroundItem = {
   updatedAt: string;
 };
 
+type FormationLayout = {
+  layoutId: string;
+  rows: number;
+  cols: number;
+  spacingX?: number;
+  spacingY?: number;
+};
+
 type LevelConfig = {
   gameId: string;
   levelId: string;
+  layoutId?: string;
   backgroundAssetId?: string;
   backgroundVersionId?: string;
   pinnedToVersion?: boolean;
   updatedAt?: string;
 };
 
-export default function LevelConfigPage({
-  params,
-}: {
-  params: { gameId: string; levelId: string };
-}) {
-  const { gameId, levelId } = params;
+export default function LevelConfigPage() {
+  const { gameId, levelId } = useParams<{ gameId: string; levelId: string }>();
+  if (!gameId || !levelId) {
+    return <div className={styles.page}>Missing route parameters</div>;
+  }
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [backgrounds, setBackgrounds] = useState<BackgroundItem[]>([]);
+  const [layouts, setLayouts] = useState<FormationLayout[]>([]);
   const [config, setConfig] = useState<LevelConfig>({
     gameId,
     levelId,
@@ -45,17 +55,21 @@ export default function LevelConfigPage({
     async function load() {
       try {
         setLoading(true);
-        const [cfgRes, bgRes] = await Promise.all([
+        const [cfgRes, bgRes, layoutRes] = await Promise.all([
           fetch(`/api/games/${gameId}/levels/${levelId}`),
           fetch(`/api/catalog/backgrounds`),
+          fetch(`/api/catalog/formation-layouts`),
         ]);
         if (!cfgRes.ok) throw new Error('Failed to load level');
         if (!bgRes.ok) throw new Error('Failed to load backgrounds');
+        if (!layoutRes.ok) throw new Error('Failed to load formation layouts');
         const cfgJson = await cfgRes.json();
         const bgJson = await bgRes.json();
+        const layoutJson = await layoutRes.json();
         if (!cancelled) {
           setConfig(cfgJson.config ?? { gameId, levelId });
           setBackgrounds(bgJson.backgrounds ?? []);
+          setLayouts(layoutJson.layouts ?? []);
         }
       } catch (err: any) {
         if (!cancelled) setError(err?.message ?? 'Load failed');
@@ -78,6 +92,19 @@ export default function LevelConfigPage({
     config.pinnedToVersion && config.backgroundVersionId
       ? config.backgroundVersionId
       : selectedBg?.publishedVersionId;
+
+  const selectedLayout = useMemo(
+    () => layouts.find((l) => l.layoutId === config.layoutId),
+    [layouts, config.layoutId],
+  );
+
+  const layoutError =
+    !loading &&
+    (!config.layoutId
+      ? 'Layout is required'
+      : !selectedLayout
+        ? 'Selected layout is not published'
+        : null);
 
   async function onSave() {
     setError(null);
@@ -123,7 +150,7 @@ export default function LevelConfigPage({
         <button
           className={styles.saveBtn}
           onClick={onSave}
-          disabled={saving || loading}
+          disabled={saving || loading || !!layoutError}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
@@ -131,6 +158,49 @@ export default function LevelConfigPage({
 
       {error && <div className={styles.error}>Error: {error}</div>}
       {savedAt && <div className={styles.success}>Saved at {savedAt}</div>}
+
+      <section className={styles.card}>
+        <h2>Formation Layout</h2>
+        {loading ? (
+          <div>Loading…</div>
+        ) : (
+          <>
+            <label className={styles.label}>
+              Choose published layout
+              <select
+                className={styles.select}
+                value={config.layoutId ?? ''}
+                onChange={(e) =>
+                  setConfig((c) => ({
+                    ...c,
+                    layoutId: e.target.value || undefined,
+                  }))
+                }
+              >
+                <option value="">— Select layout —</option>
+                {layouts.map((l) => (
+                  <option key={l.layoutId} value={l.layoutId}>
+                    {l.layoutId} ({l.rows}x{l.cols})
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedLayout && (
+              <div className={styles.helper}>
+                <div>
+                  <strong>Grid:</strong> {selectedLayout.rows} rows ×{' '}
+                  {selectedLayout.cols} cols
+                </div>
+                <div>
+                  <strong>Spacing:</strong>{' '}
+                  {selectedLayout.spacingX ?? '—'} / {selectedLayout.spacingY ?? '—'}
+                </div>
+              </div>
+            )}
+            {layoutError && <div className={styles.error}>{layoutError}</div>}
+          </>
+        )}
+      </section>
 
       <section className={styles.card}>
         <h2>Background</h2>

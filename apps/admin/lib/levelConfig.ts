@@ -36,6 +36,7 @@ export async function getLevelConfig(
 export async function saveLevelConfig(input: {
   gameId: string;
   levelId: string;
+  layoutId?: string;
   backgroundAssetId?: string;
   backgroundVersionId?: string;
   pinToVersion?: boolean;
@@ -43,6 +44,7 @@ export async function saveLevelConfig(input: {
   const {
     gameId,
     levelId,
+    layoutId,
     backgroundAssetId,
     backgroundVersionId,
     pinToVersion,
@@ -66,6 +68,7 @@ export async function saveLevelConfig(input: {
   const item: LevelConfig = {
     gameId,
     levelId,
+    layoutId,
     backgroundAssetId,
     backgroundVersionId: pinToVersion ? backgroundVersionId : undefined,
     pinnedToVersion: pinToVersion && !!backgroundVersionId ? true : false,
