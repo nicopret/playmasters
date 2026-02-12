@@ -8,6 +8,11 @@ type BaseEnemyScore = { enemyId: string; score: number };
 type ScoreConfig = {
   scoreConfigId: string;
   baseEnemyScores: BaseEnemyScore[];
+  levelScoreMultiplier?: {
+    base: number;
+    perLevel: number;
+    max: number;
+  };
   updatedAt?: string;
 };
 
@@ -21,6 +26,7 @@ export default function ScoreConfigPage() {
   const [config, setConfig] = useState<ScoreConfig>({
     scoreConfigId: 'default',
     baseEnemyScores: [],
+    levelScoreMultiplier: { base: 1, perLevel: 0, max: 1 },
   });
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +48,14 @@ export default function ScoreConfigPage() {
         const cfgJson = await cfgRes.json();
         const enemyJson = await enemyRes.json();
         if (!cancelled) {
-          setConfig(cfgJson.config ?? { scoreConfigId: 'default', baseEnemyScores: [] });
+          const loaded = cfgJson.config ?? { scoreConfigId: 'default', baseEnemyScores: [] };
+          setConfig({
+            scoreConfigId: loaded.scoreConfigId ?? 'default',
+            baseEnemyScores: loaded.baseEnemyScores ?? [],
+            levelScoreMultiplier:
+              loaded.levelScoreMultiplier ?? { base: 1, perLevel: 0, max: 1 },
+            updatedAt: loaded.updatedAt,
+          });
           setEnemies(enemyJson.enemies ?? []);
         }
       } catch (err: unknown) {
@@ -84,8 +97,37 @@ export default function ScoreConfigPage() {
         });
       }
     });
+    const mult = config.levelScoreMultiplier ?? { base: 1, perLevel: 0, max: 1 };
+    if (mult.base < 1) {
+      list.push({
+        severity: 'error',
+        path: 'levelScoreMultiplier.base',
+        message: 'Base multiplier must be ≥ 1.0.',
+      });
+    }
+    if (mult.perLevel < 0) {
+      list.push({
+        severity: 'error',
+        path: 'levelScoreMultiplier.perLevel',
+        message: 'Per-level increment must be ≥ 0.',
+      });
+    }
+    if (mult.max < 1) {
+      list.push({
+        severity: 'error',
+        path: 'levelScoreMultiplier.max',
+        message: 'Max multiplier must be ≥ 1.0.',
+      });
+    }
+    if (mult.max < mult.base) {
+      list.push({
+        severity: 'error',
+        path: 'levelScoreMultiplier.max',
+        message: 'Max multiplier must be ≥ base multiplier.',
+      });
+    }
     return list;
-  }, [enemies, scoreMap]);
+  }, [enemies, scoreMap, config.levelScoreMultiplier]);
 
   const hasBlocking = issues.some((i) => i.severity === 'error');
 
@@ -102,6 +144,24 @@ export default function ScoreConfigPage() {
     });
   };
 
+  const updateMultiplier = (key: 'base' | 'perLevel' | 'max', value: number) => {
+    setConfig((c) => ({
+      ...c,
+      levelScoreMultiplier: {
+        base: c.levelScoreMultiplier?.base ?? 1,
+        perLevel: c.levelScoreMultiplier?.perLevel ?? 0,
+        max: c.levelScoreMultiplier?.max ?? 1,
+        [key]: value,
+      },
+    }));
+  };
+
+  const exampleMultiplier = (level: number) => {
+    const mult = config.levelScoreMultiplier ?? { base: 1, perLevel: 0, max: 1 };
+    const raw = mult.base + (level - 1) * mult.perLevel;
+    return Math.min(raw, mult.max);
+  };
+
   async function onSave() {
     setError(null);
     setSaving(true);
@@ -109,7 +169,10 @@ export default function ScoreConfigPage() {
       const res = await fetch('/api/score-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ baseEnemyScores: config.baseEnemyScores }),
+        body: JSON.stringify({
+          baseEnemyScores: config.baseEnemyScores,
+          levelScoreMultiplier: config.levelScoreMultiplier,
+        }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -153,6 +216,66 @@ export default function ScoreConfigPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className={styles.card}>
+        <h2>Level Multipliers</h2>
+        <div className={styles.fieldRow}>
+          <label>Base</label>
+          <input
+            className={styles.input}
+            type="number"
+            min={1}
+            step={0.1}
+            value={config.levelScoreMultiplier?.base ?? 1}
+            onChange={(e) => updateMultiplier('base', Number(e.target.value))}
+          />
+          {issues.find((i) => i.path === 'levelScoreMultiplier.base') && (
+            <div className={styles.error}>
+              {issues.find((i) => i.path === 'levelScoreMultiplier.base')?.message}
+            </div>
+          )}
+        </div>
+        <div className={styles.fieldRow}>
+          <label>Per Level</label>
+          <input
+            className={styles.input}
+            type="number"
+            min={0}
+            step={0.05}
+            value={config.levelScoreMultiplier?.perLevel ?? 0}
+            onChange={(e) => updateMultiplier('perLevel', Number(e.target.value))}
+          />
+          {issues.find((i) => i.path === 'levelScoreMultiplier.perLevel') && (
+            <div className={styles.error}>
+              {issues.find((i) => i.path === 'levelScoreMultiplier.perLevel')?.message}
+            </div>
+          )}
+        </div>
+        <div className={styles.fieldRow}>
+          <label>Max</label>
+          <input
+            className={styles.input}
+            type="number"
+            min={1}
+            step={0.1}
+            value={config.levelScoreMultiplier?.max ?? 1}
+            onChange={(e) => updateMultiplier('max', Number(e.target.value))}
+          />
+          {issues.find((i) => i.path === 'levelScoreMultiplier.max') && (
+            <div className={styles.error}>
+              {issues.find((i) => i.path === 'levelScoreMultiplier.max')?.message}
+            </div>
+          )}
+        </div>
+        <div className={styles.preview}>
+          <p>Examples (capped):</p>
+          <ul>
+            <li>Level 1: {exampleMultiplier(1).toFixed(2)}</li>
+            <li>Level 5: {exampleMultiplier(5).toFixed(2)}</li>
+            <li>Level 10: {exampleMultiplier(10).toFixed(2)}</li>
+          </ul>
+        </div>
       </section>
 
       <section className={styles.card}>

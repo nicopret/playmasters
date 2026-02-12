@@ -43,6 +43,11 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => ({}))) as {
     baseEnemyScores?: BaseEnemyScore[];
+    levelScoreMultiplier?: {
+      base?: number;
+      perLevel?: number;
+      max?: number;
+    };
   };
 
   const scores = Array.isArray(body.baseEnemyScores)
@@ -55,6 +60,20 @@ export async function POST(req: Request) {
         enemyId: s.enemyId?.trim?.() ?? '',
         score: typeof s.score === 'number' ? s.score : 0,
       })),
+      levelScoreMultiplier: {
+        base:
+          typeof body.levelScoreMultiplier?.base === 'number'
+            ? body.levelScoreMultiplier.base
+            : undefined,
+        perLevel:
+          typeof body.levelScoreMultiplier?.perLevel === 'number'
+            ? body.levelScoreMultiplier.perLevel
+            : undefined,
+        max:
+          typeof body.levelScoreMultiplier?.max === 'number'
+            ? body.levelScoreMultiplier.max
+            : undefined,
+      },
     });
     return NextResponse.json({ config: saved });
   } catch (err) {

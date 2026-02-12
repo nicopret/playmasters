@@ -3,9 +3,16 @@ import { ddbDocClient } from '../../lib/ddb';
 
 export type BaseEnemyScore = { enemyId: string; score: number };
 
+export type LevelScoreMultiplier = {
+  base: number;
+  perLevel: number;
+  max: number;
+};
+
 export type ScoreConfigDraft = {
   scoreConfigId: string;
   baseEnemyScores: BaseEnemyScore[];
+  levelScoreMultiplier?: LevelScoreMultiplier;
   updatedAt: string;
 };
 
@@ -38,18 +45,30 @@ export async function getScoreConfigDraft(
   cfg.baseEnemyScores = Array.isArray(cfg.baseEnemyScores)
     ? cfg.baseEnemyScores
     : [];
+  cfg.levelScoreMultiplier = cfg.levelScoreMultiplier ?? {
+    base: 1,
+    perLevel: 0,
+    max: 1,
+  };
   return cfg;
 }
 
 export async function saveScoreConfigDraft(input: {
   id?: string;
   baseEnemyScores: BaseEnemyScore[];
+  levelScoreMultiplier?: Partial<LevelScoreMultiplier>;
 }): Promise<ScoreConfigDraft> {
   const id = input.id ?? 'default';
   const now = new Date().toISOString();
+  const levelScoreMultiplier: LevelScoreMultiplier = {
+    base: input.levelScoreMultiplier?.base ?? 1,
+    perLevel: input.levelScoreMultiplier?.perLevel ?? 0,
+    max: input.levelScoreMultiplier?.max ?? 1,
+  };
   const draft: ScoreConfigDraft = {
     scoreConfigId: id,
     baseEnemyScores: input.baseEnemyScores ?? [],
+    levelScoreMultiplier,
     updatedAt: now,
   };
 
