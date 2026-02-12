@@ -16,7 +16,8 @@
       "options": {
         "command": "pnpm tauri build --config apps/desktop/src-tauri/tauri.conf.json",
         "cwd": "."
-      }
+      },
+      "dependsOn": ["web:build"]
     }
   },
   "tags": []
