@@ -72,16 +72,27 @@ export default function ScoreConfigPage() {
         const cfgJson = await cfgRes.json();
         const enemyJson = await enemyRes.json();
         if (!cancelled) {
-          const loaded = cfgJson.config ?? { scoreConfigId: 'default', baseEnemyScores: [] };
+          const loaded = cfgJson.config ?? {
+            scoreConfigId: 'default',
+            baseEnemyScores: [],
+          };
           setConfig({
             scoreConfigId: loaded.scoreConfigId ?? 'default',
             baseEnemyScores: loaded.baseEnemyScores ?? [],
-            levelScoreMultiplier:
-              loaded.levelScoreMultiplier ?? { base: 1, perLevel: 0, max: 1 },
+            levelScoreMultiplier: loaded.levelScoreMultiplier ?? {
+              base: 1,
+              perLevel: 0,
+              max: 1,
+            },
             combo: loaded.combo ?? { enabled: true, tiers: [] },
-            waveClearBonus: loaded.waveClearBonus ?? { base: 0, perLifeBonus: 0 },
-            accuracyBonus:
-              loaded.accuracyBonus ?? { scaleByLevelMultiplier: false, thresholds: [] },
+            waveClearBonus: loaded.waveClearBonus ?? {
+              base: 0,
+              perLifeBonus: 0,
+            },
+            accuracyBonus: loaded.accuracyBonus ?? {
+              scaleByLevelMultiplier: false,
+              thresholds: [],
+            },
             updatedAt: loaded.updatedAt,
           });
           setEnemies(enemyJson.enemies ?? []);
@@ -137,7 +148,10 @@ export default function ScoreConfigPage() {
     });
   };
 
-  const updateMultiplier = (key: 'base' | 'perLevel' | 'max', value: number) => {
+  const updateMultiplier = (
+    key: 'base' | 'perLevel' | 'max',
+    value: number,
+  ) => {
     setConfig((c) => ({
       ...c,
       levelScoreMultiplier: {
@@ -154,7 +168,12 @@ export default function ScoreConfigPage() {
       const tiers = [...(c.combo?.tiers ?? [])];
       const last = tiers[tiers.length - 1];
       const nextMin = last ? last.minCount + 1 : 1;
-      tiers.push({ minCount: nextMin, multiplier: 1, tierBonus: 0, name: `Tier ${tiers.length + 1}` });
+      tiers.push({
+        minCount: nextMin,
+        multiplier: 1,
+        tierBonus: 0,
+        name: `Tier ${tiers.length + 1}`,
+      });
       return {
         ...c,
         combo: { enabled: c.combo?.enabled ?? true, tiers },
@@ -203,7 +222,11 @@ export default function ScoreConfigPage() {
   };
 
   const exampleMultiplier = (level: number) => {
-    const mult = config.levelScoreMultiplier ?? { base: 1, perLevel: 0, max: 1 };
+    const mult = config.levelScoreMultiplier ?? {
+      base: 1,
+      perLevel: 0,
+      max: 1,
+    };
     const raw = mult.base + (level - 1) * mult.perLevel;
     return Math.min(raw, mult.max);
   };
@@ -223,7 +246,8 @@ export default function ScoreConfigPage() {
     setConfig((c) => ({
       ...c,
       accuracyBonus: {
-        scaleByLevelMultiplier: c.accuracyBonus?.scaleByLevelMultiplier ?? false,
+        scaleByLevelMultiplier:
+          c.accuracyBonus?.scaleByLevelMultiplier ?? false,
         thresholds: [
           ...(c.accuracyBonus?.thresholds ?? []),
           { minAccuracy: 0.5, bonus: 0 },
@@ -246,7 +270,8 @@ export default function ScoreConfigPage() {
       return {
         ...c,
         accuracyBonus: {
-          scaleByLevelMultiplier: c.accuracyBonus?.scaleByLevelMultiplier ?? false,
+          scaleByLevelMultiplier:
+            c.accuracyBonus?.scaleByLevelMultiplier ?? false,
           thresholds,
         },
       };
@@ -260,7 +285,8 @@ export default function ScoreConfigPage() {
       return {
         ...c,
         accuracyBonus: {
-          scaleByLevelMultiplier: c.accuracyBonus?.scaleByLevelMultiplier ?? false,
+          scaleByLevelMultiplier:
+            c.accuracyBonus?.scaleByLevelMultiplier ?? false,
           thresholds,
         },
       };
@@ -272,11 +298,15 @@ export default function ScoreConfigPage() {
       const thresholds = [...(c.accuracyBonus?.thresholds ?? [])];
       const target = idx + delta;
       if (target < 0 || target >= thresholds.length) return c;
-      [thresholds[idx], thresholds[target]] = [thresholds[target], thresholds[idx]];
+      [thresholds[idx], thresholds[target]] = [
+        thresholds[target],
+        thresholds[idx],
+      ];
       return {
         ...c,
         accuracyBonus: {
-          scaleByLevelMultiplier: c.accuracyBonus?.scaleByLevelMultiplier ?? false,
+          scaleByLevelMultiplier:
+            c.accuracyBonus?.scaleByLevelMultiplier ?? false,
           thresholds,
         },
       };
@@ -319,7 +349,11 @@ export default function ScoreConfigPage() {
           <h1>ScoreConfig</h1>
           <p className={styles.meta}>Base enemy scores</p>
         </div>
-        <button className={styles.saveBtn} onClick={onSave} disabled={saving || loading || hasBlocking}>
+        <button
+          className={styles.saveBtn}
+          onClick={onSave}
+          disabled={saving || loading || hasBlocking}
+        >
           {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
@@ -333,7 +367,9 @@ export default function ScoreConfigPage() {
           <div className={styles.success}>Ready to publish</div>
         ) : (
           <div>
-            <div className={styles.error}>ScoreConfig has {issues.length} error(s).</div>
+            <div className={styles.error}>
+              ScoreConfig has {issues.length} error(s).
+            </div>
             <ul className={styles.issueList}>
               {issues.map((i, idx) => (
                 <li key={idx}>
@@ -359,7 +395,10 @@ export default function ScoreConfigPage() {
           />
           {issues.find((i) => i.path === 'levelScoreMultiplier.base') && (
             <div className={styles.error}>
-              {issues.find((i) => i.path === 'levelScoreMultiplier.base')?.message}
+              {
+                issues.find((i) => i.path === 'levelScoreMultiplier.base')
+                  ?.message
+              }
             </div>
           )}
         </div>
@@ -371,11 +410,16 @@ export default function ScoreConfigPage() {
             min={0}
             step={0.05}
             value={config.levelScoreMultiplier?.perLevel ?? 0}
-            onChange={(e) => updateMultiplier('perLevel', Number(e.target.value))}
+            onChange={(e) =>
+              updateMultiplier('perLevel', Number(e.target.value))
+            }
           />
           {issues.find((i) => i.path === 'levelScoreMultiplier.perLevel') && (
             <div className={styles.error}>
-              {issues.find((i) => i.path === 'levelScoreMultiplier.perLevel')?.message}
+              {
+                issues.find((i) => i.path === 'levelScoreMultiplier.perLevel')
+                  ?.message
+              }
             </div>
           )}
         </div>
@@ -391,7 +435,10 @@ export default function ScoreConfigPage() {
           />
           {issues.find((i) => i.path === 'levelScoreMultiplier.max') && (
             <div className={styles.error}>
-              {issues.find((i) => i.path === 'levelScoreMultiplier.max')?.message}
+              {
+                issues.find((i) => i.path === 'levelScoreMultiplier.max')
+                  ?.message
+              }
             </div>
           )}
         </div>
@@ -415,9 +462,15 @@ export default function ScoreConfigPage() {
           <span />
         </div>
         {(config.combo?.tiers ?? []).map((t, idx) => {
-          const minIssue = issues.find((i) => i.path === `combo.tiers.${idx}.minCount`);
-          const mulIssue = issues.find((i) => i.path === `combo.tiers.${idx}.multiplier`);
-          const bonusIssue = issues.find((i) => i.path === `combo.tiers.${idx}.tierBonus`);
+          const minIssue = issues.find(
+            (i) => i.path === `combo.tiers.${idx}.minCount`,
+          );
+          const mulIssue = issues.find(
+            (i) => i.path === `combo.tiers.${idx}.multiplier`,
+          );
+          const bonusIssue = issues.find(
+            (i) => i.path === `combo.tiers.${idx}.tierBonus`,
+          );
           return (
             <div key={idx} className={styles.tableRow}>
               <span>{t.name ?? `Tier ${idx + 1}`}</span>
@@ -428,9 +481,13 @@ export default function ScoreConfigPage() {
                   min={1}
                   step={1}
                   value={t.minCount}
-                  onChange={(e) => updateTier(idx, 'minCount', Number(e.target.value))}
+                  onChange={(e) =>
+                    updateTier(idx, 'minCount', Number(e.target.value))
+                  }
                 />
-                {minIssue && <div className={styles.error}>{minIssue.message}</div>}
+                {minIssue && (
+                  <div className={styles.error}>{minIssue.message}</div>
+                )}
               </div>
               <div>
                 <input
@@ -439,9 +496,13 @@ export default function ScoreConfigPage() {
                   min={1}
                   step={0.1}
                   value={t.multiplier}
-                  onChange={(e) => updateTier(idx, 'multiplier', Number(e.target.value))}
+                  onChange={(e) =>
+                    updateTier(idx, 'multiplier', Number(e.target.value))
+                  }
                 />
-                {mulIssue && <div className={styles.error}>{mulIssue.message}</div>}
+                {mulIssue && (
+                  <div className={styles.error}>{mulIssue.message}</div>
+                )}
               </div>
               <div>
                 <input
@@ -450,12 +511,20 @@ export default function ScoreConfigPage() {
                   min={0}
                   step={0.1}
                   value={t.tierBonus ?? 0}
-                  onChange={(e) => updateTier(idx, 'tierBonus', Number(e.target.value))}
+                  onChange={(e) =>
+                    updateTier(idx, 'tierBonus', Number(e.target.value))
+                  }
                 />
-                {bonusIssue && <div className={styles.error}>{bonusIssue.message}</div>}
+                {bonusIssue && (
+                  <div className={styles.error}>{bonusIssue.message}</div>
+                )}
               </div>
               <div className={styles.actions}>
-                <button type="button" onClick={() => moveTier(idx, -1)} disabled={idx === 0}>
+                <button
+                  type="button"
+                  onClick={() => moveTier(idx, -1)}
+                  disabled={idx === 0}
+                >
                   ↑
                 </button>
                 <button
@@ -505,22 +574,30 @@ export default function ScoreConfigPage() {
             min={0}
             step={1}
             value={config.waveClearBonus?.perLifeBonus ?? 0}
-            onChange={(e) => updateWaveBonus('perLifeBonus', Number(e.target.value))}
+            onChange={(e) =>
+              updateWaveBonus('perLifeBonus', Number(e.target.value))
+            }
           />
           {issues.find((i) => i.path === 'waveClearBonus.perLifeBonus') && (
             <div className={styles.error}>
-              {issues.find((i) => i.path === 'waveClearBonus.perLifeBonus')?.message}
+              {
+                issues.find((i) => i.path === 'waveClearBonus.perLifeBonus')
+                  ?.message
+              }
             </div>
           )}
-          <p className={styles.helper}>Leave at 0 if you don’t want per-life bonuses.</p>
+          <p className={styles.helper}>
+            Leave at 0 if you don’t want per-life bonuses.
+          </p>
         </div>
       </section>
 
       <section className={styles.card}>
         <h2>Accuracy Bonuses</h2>
         <p className={styles.helper}>
-          Rule: highest threshold met applies. Example: thresholds 0.50 (+100), 0.75 (+250), 0.90 (+500);
-          accuracy 0.82 → +250. Thresholds are stored as 0..1.
+          Rule: highest threshold met applies. Example: thresholds 0.50 (+100),
+          0.75 (+250), 0.90 (+500); accuracy 0.82 → +250. Thresholds are stored
+          as 0..1.
         </p>
         <div className={styles.tableHeader}>
           <span>Threshold (0..1)</span>
@@ -528,8 +605,12 @@ export default function ScoreConfigPage() {
           <span />
         </div>
         {(config.accuracyBonus?.thresholds ?? []).map((t, idx) => {
-          const thrIssue = issues.find((i) => i.path === `accuracyBonus.thresholds.${idx}.minAccuracy`);
-          const bonusIssue = issues.find((i) => i.path === `accuracyBonus.thresholds.${idx}.bonus`);
+          const thrIssue = issues.find(
+            (i) => i.path === `accuracyBonus.thresholds.${idx}.minAccuracy`,
+          );
+          const bonusIssue = issues.find(
+            (i) => i.path === `accuracyBonus.thresholds.${idx}.bonus`,
+          );
           return (
             <div key={idx} className={styles.tableRow}>
               <div>
@@ -540,9 +621,13 @@ export default function ScoreConfigPage() {
                   max={1}
                   step={0.01}
                   value={t.minAccuracy}
-                  onChange={(e) => updateAccuracy(idx, 'minAccuracy', Number(e.target.value))}
+                  onChange={(e) =>
+                    updateAccuracy(idx, 'minAccuracy', Number(e.target.value))
+                  }
                 />
-                {thrIssue && <div className={styles.error}>{thrIssue.message}</div>}
+                {thrIssue && (
+                  <div className={styles.error}>{thrIssue.message}</div>
+                )}
               </div>
               <div>
                 <input
@@ -551,18 +636,28 @@ export default function ScoreConfigPage() {
                   min={0}
                   step={1}
                   value={t.bonus}
-                  onChange={(e) => updateAccuracy(idx, 'bonus', Number(e.target.value))}
+                  onChange={(e) =>
+                    updateAccuracy(idx, 'bonus', Number(e.target.value))
+                  }
                 />
-                {bonusIssue && <div className={styles.error}>{bonusIssue.message}</div>}
+                {bonusIssue && (
+                  <div className={styles.error}>{bonusIssue.message}</div>
+                )}
               </div>
               <div className={styles.actions}>
-                <button type="button" onClick={() => moveAccuracy(idx, -1)} disabled={idx === 0}>
+                <button
+                  type="button"
+                  onClick={() => moveAccuracy(idx, -1)}
+                  disabled={idx === 0}
+                >
                   ↑
                 </button>
                 <button
                   type="button"
                   onClick={() => moveAccuracy(idx, 1)}
-                  disabled={idx === (config.accuracyBonus?.thresholds?.length ?? 0) - 1}
+                  disabled={
+                    idx === (config.accuracyBonus?.thresholds?.length ?? 0) - 1
+                  }
                 >
                   ↓
                 </button>
@@ -592,7 +687,9 @@ export default function ScoreConfigPage() {
             </div>
             {enemies.map((e) => {
               const score = scoreMap.get(e.enemyId) ?? 0;
-              const issue = issues.find((i) => i.path === `baseEnemyScores.${e.enemyId}`);
+              const issue = issues.find(
+                (i) => i.path === `baseEnemyScores.${e.enemyId}`,
+              );
               return (
                 <div key={e.enemyId} className={styles.tableRow}>
                   <span>{e.displayName ?? e.enemyId}</span>
@@ -601,7 +698,9 @@ export default function ScoreConfigPage() {
                     type="number"
                     min={0}
                     value={score}
-                    onChange={(ev) => updateScore(e.enemyId, Number(ev.target.value))}
+                    onChange={(ev) =>
+                      updateScore(e.enemyId, Number(ev.target.value))
+                    }
                   />
                   {issue && <div className={styles.error}>{issue.message}</div>}
                 </div>

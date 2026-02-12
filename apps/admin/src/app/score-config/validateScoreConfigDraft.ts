@@ -11,7 +11,9 @@ export type ValidationIssue = {
 export type ScoreConfigDraft = {
   baseEnemyScores: { enemyId: string; score: number }[];
   levelScoreMultiplier?: { base: number; perLevel: number; max: number };
-  combo?: { tiers: { minCount: number; multiplier: number; tierBonus?: number }[] };
+  combo?: {
+    tiers: { minCount: number; multiplier: number; tierBonus?: number }[];
+  };
   waveClearBonus?: { base: number; perLifeBonus?: number };
   accuracyBonus?: { thresholds: { minAccuracy: number; bonus: number }[] };
 };
@@ -23,7 +25,9 @@ export function validateScoreConfigDraft(
   const issues: ValidationIssue[] = [];
 
   // Base scores
-  const scoreMap = new Map(draft.baseEnemyScores?.map((r) => [r.enemyId, r.score]));
+  const scoreMap = new Map(
+    draft.baseEnemyScores?.map((r) => [r.enemyId, r.score]),
+  );
   catalogs.enemies.forEach((e) => {
     const score = scoreMap.get(e.enemyId);
     if (score === undefined) {

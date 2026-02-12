@@ -92,7 +92,10 @@ export async function getScoreConfigDraft(
     base: 0,
     perLifeBonus: 0,
   };
-  cfg.accuracyBonus = cfg.accuracyBonus ?? { scaleByLevelMultiplier: false, thresholds: [] };
+  cfg.accuracyBonus = cfg.accuracyBonus ?? {
+    scaleByLevelMultiplier: false,
+    thresholds: [],
+  };
   return cfg;
 }
 
@@ -124,8 +127,11 @@ export async function saveScoreConfigDraft(input: {
     perLifeBonus: input.waveClearBonus?.perLifeBonus ?? 0,
   };
   const accuracyBonus: AccuracyBonus = {
-    scaleByLevelMultiplier: input.accuracyBonus?.scaleByLevelMultiplier ?? false,
-    thresholds: Array.isArray(input.accuracyBonus?.thresholds) ? input.accuracyBonus.thresholds : [],
+    scaleByLevelMultiplier:
+      input.accuracyBonus?.scaleByLevelMultiplier ?? false,
+    thresholds: Array.isArray(input.accuracyBonus?.thresholds)
+      ? input.accuracyBonus.thresholds
+      : [],
   };
   const draft: ScoreConfigDraft = {
     scoreConfigId: id,
