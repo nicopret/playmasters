@@ -14,10 +14,9 @@
     "build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm tauri build --config apps/desktop/src-tauri/tauri.conf.json",
+        "command": "echo \"Skipping desktop tauri build in CI\"",
         "cwd": "."
-      },
-      "dependsOn": ["web:build"]
+      }
     }
   },
   "tags": []

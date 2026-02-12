@@ -5,7 +5,7 @@
   "identifier": "com.playmasters.desktop",
   "build": {
     "devUrl": "http://localhost:3000",
-    "frontendDist": "../../dist/apps/web"
+    "frontendDist": "dist-web"
   },
   "app": {
     "windows": [
