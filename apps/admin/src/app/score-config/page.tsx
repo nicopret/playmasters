@@ -13,6 +13,15 @@ type ScoreConfig = {
     perLevel: number;
     max: number;
   };
+  combo?: {
+    enabled: boolean;
+    tiers: {
+      minCount: number;
+      multiplier: number;
+      tierBonus?: number;
+      name?: string;
+    }[];
+  };
   updatedAt?: string;
 };
 
@@ -27,6 +36,7 @@ export default function ScoreConfigPage() {
     scoreConfigId: 'default',
     baseEnemyScores: [],
     levelScoreMultiplier: { base: 1, perLevel: 0, max: 1 },
+    combo: { enabled: true, tiers: [] },
   });
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +64,7 @@ export default function ScoreConfigPage() {
             baseEnemyScores: loaded.baseEnemyScores ?? [],
             levelScoreMultiplier:
               loaded.levelScoreMultiplier ?? { base: 1, perLevel: 0, max: 1 },
+            combo: loaded.combo ?? { enabled: true, tiers: [] },
             updatedAt: loaded.updatedAt,
           });
           setEnemies(enemyJson.enemies ?? []);
@@ -126,8 +137,51 @@ export default function ScoreConfigPage() {
         message: 'Max multiplier must be ≥ base multiplier.',
       });
     }
+
+    const tiers = config.combo?.tiers ?? [];
+    let prevMin = 0;
+    const seen = new Set<number>();
+    tiers.forEach((t, idx) => {
+      if (t.minCount < 1) {
+        list.push({
+          severity: 'error',
+          path: `combo.tiers.${idx}.minCount`,
+          message: 'minCount must be ≥ 1.',
+        });
+      }
+      if (t.minCount < prevMin) {
+        list.push({
+          severity: 'error',
+          path: `combo.tiers.${idx}.minCount`,
+          message: 'minCount must be sorted ascending.',
+        });
+      }
+      if (seen.has(t.minCount)) {
+        list.push({
+          severity: 'error',
+          path: `combo.tiers.${idx}.minCount`,
+          message: 'Duplicate minCount; each tier must be unique.',
+        });
+      }
+      seen.add(t.minCount);
+      prevMin = t.minCount;
+      if (t.multiplier < 1) {
+        list.push({
+          severity: 'error',
+          path: `combo.tiers.${idx}.multiplier`,
+          message: 'Multiplier must be ≥ 1.',
+        });
+      }
+      if ((t.tierBonus ?? 0) < 0) {
+        list.push({
+          severity: 'error',
+          path: `combo.tiers.${idx}.tierBonus`,
+          message: 'Tier bonus must be ≥ 0.',
+        });
+      }
+    });
     return list;
-  }, [enemies, scoreMap, config.levelScoreMultiplier]);
+  }, [enemies, scoreMap, config.levelScoreMultiplier, config.combo?.tiers]);
 
   const hasBlocking = issues.some((i) => i.severity === 'error');
 
@@ -156,6 +210,59 @@ export default function ScoreConfigPage() {
     }));
   };
 
+  const addTier = () => {
+    setConfig((c) => {
+      const tiers = [...(c.combo?.tiers ?? [])];
+      const last = tiers[tiers.length - 1];
+      const nextMin = last ? last.minCount + 1 : 1;
+      tiers.push({ minCount: nextMin, multiplier: 1, tierBonus: 0, name: `Tier ${tiers.length + 1}` });
+      return {
+        ...c,
+        combo: { enabled: c.combo?.enabled ?? true, tiers },
+      };
+    });
+  };
+
+  const updateTier = (
+    idx: number,
+    key: 'minCount' | 'multiplier' | 'tierBonus' | 'name',
+    value: number | string,
+  ) => {
+    setConfig((c) => {
+      const tiers = [...(c.combo?.tiers ?? [])];
+      const t = { ...tiers[idx] };
+      if (key === 'name') {
+        t.name = String(value);
+      } else if (key === 'tierBonus') {
+        t.tierBonus = Number(value);
+      } else if (key === 'minCount') {
+        t.minCount = Number(value);
+      } else if (key === 'multiplier') {
+        t.multiplier = Number(value);
+      }
+      tiers[idx] = t;
+      return { ...c, combo: { enabled: c.combo?.enabled ?? true, tiers } };
+    });
+  };
+
+  const removeTier = (idx: number) => {
+    setConfig((c) => {
+      const tiers = [...(c.combo?.tiers ?? [])];
+      tiers.splice(idx, 1);
+      return { ...c, combo: { enabled: c.combo?.enabled ?? true, tiers } };
+    });
+  };
+
+  const moveTier = (idx: number, delta: number) => {
+    setConfig((c) => {
+      const tiers = [...(c.combo?.tiers ?? [])];
+      const target = idx + delta;
+      if (target < 0 || target >= tiers.length) return c;
+      [tiers[idx], tiers[target]] = [tiers[target], tiers[idx]];
+      return { ...c, combo: { enabled: c.combo?.enabled ?? true, tiers } };
+    });
+  };
+
   const exampleMultiplier = (level: number) => {
     const mult = config.levelScoreMultiplier ?? { base: 1, perLevel: 0, max: 1 };
     const raw = mult.base + (level - 1) * mult.perLevel;
@@ -172,6 +279,7 @@ export default function ScoreConfigPage() {
         body: JSON.stringify({
           baseEnemyScores: config.baseEnemyScores,
           levelScoreMultiplier: config.levelScoreMultiplier,
+          combo: config.combo,
         }),
       });
       if (!res.ok) {
@@ -275,6 +383,80 @@ export default function ScoreConfigPage() {
             <li>Level 5: {exampleMultiplier(5).toFixed(2)}</li>
             <li>Level 10: {exampleMultiplier(10).toFixed(2)}</li>
           </ul>
+        </div>
+      </section>
+
+      <section className={styles.card}>
+        <h2>Combo Tiers</h2>
+        <div className={styles.tableHeader}>
+          <span>Tier</span>
+          <span>minCount</span>
+          <span>Multiplier</span>
+          <span>Tier Bonus</span>
+          <span />
+        </div>
+        {(config.combo?.tiers ?? []).map((t, idx) => {
+          const minIssue = issues.find((i) => i.path === `combo.tiers.${idx}.minCount`);
+          const mulIssue = issues.find((i) => i.path === `combo.tiers.${idx}.multiplier`);
+          const bonusIssue = issues.find((i) => i.path === `combo.tiers.${idx}.tierBonus`);
+          return (
+            <div key={idx} className={styles.tableRow}>
+              <span>{t.name ?? `Tier ${idx + 1}`}</span>
+              <div>
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={t.minCount}
+                  onChange={(e) => updateTier(idx, 'minCount', Number(e.target.value))}
+                />
+                {minIssue && <div className={styles.error}>{minIssue.message}</div>}
+              </div>
+              <div>
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={1}
+                  step={0.1}
+                  value={t.multiplier}
+                  onChange={(e) => updateTier(idx, 'multiplier', Number(e.target.value))}
+                />
+                {mulIssue && <div className={styles.error}>{mulIssue.message}</div>}
+              </div>
+              <div>
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={t.tierBonus ?? 0}
+                  onChange={(e) => updateTier(idx, 'tierBonus', Number(e.target.value))}
+                />
+                {bonusIssue && <div className={styles.error}>{bonusIssue.message}</div>}
+              </div>
+              <div className={styles.actions}>
+                <button type="button" onClick={() => moveTier(idx, -1)} disabled={idx === 0}>
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveTier(idx, 1)}
+                  disabled={idx === (config.combo?.tiers?.length ?? 0) - 1}
+                >
+                  ↓
+                </button>
+                <button type="button" onClick={() => removeTier(idx)}>
+                  Remove
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        <div style={{ marginTop: '12px' }}>
+          <button type="button" onClick={addTier}>
+            Add tier
+          </button>
         </div>
       </section>
 

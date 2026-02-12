@@ -9,10 +9,27 @@ export type LevelScoreMultiplier = {
   max: number;
 };
 
+export type ComboTier = {
+  minCount: number;
+  multiplier: number;
+  tierBonus?: number;
+  name?: string;
+};
+
+export type ComboConfig = {
+  enabled: boolean;
+  tiers: ComboTier[];
+  minWindowMs?: number;
+  windowMs?: number;
+  resetOnPlayerHit?: boolean;
+  windowDecayPerLevelMs?: number;
+};
+
 export type ScoreConfigDraft = {
   scoreConfigId: string;
   baseEnemyScores: BaseEnemyScore[];
   levelScoreMultiplier?: LevelScoreMultiplier;
+  combo?: ComboConfig;
   updatedAt: string;
 };
 
@@ -50,6 +67,10 @@ export async function getScoreConfigDraft(
     perLevel: 0,
     max: 1,
   };
+  cfg.combo = cfg.combo ?? {
+    enabled: false,
+    tiers: [],
+  };
   return cfg;
 }
 
@@ -57,6 +78,7 @@ export async function saveScoreConfigDraft(input: {
   id?: string;
   baseEnemyScores: BaseEnemyScore[];
   levelScoreMultiplier?: Partial<LevelScoreMultiplier>;
+  combo?: Partial<ComboConfig>;
 }): Promise<ScoreConfigDraft> {
   const id = input.id ?? 'default';
   const now = new Date().toISOString();
@@ -65,10 +87,19 @@ export async function saveScoreConfigDraft(input: {
     perLevel: input.levelScoreMultiplier?.perLevel ?? 0,
     max: input.levelScoreMultiplier?.max ?? 1,
   };
+  const combo: ComboConfig = {
+    enabled: input.combo?.enabled ?? false,
+    tiers: Array.isArray(input.combo?.tiers) ? input.combo?.tiers : [],
+    minWindowMs: input.combo?.minWindowMs,
+    windowMs: input.combo?.windowMs,
+    resetOnPlayerHit: input.combo?.resetOnPlayerHit,
+    windowDecayPerLevelMs: input.combo?.windowDecayPerLevelMs,
+  };
   const draft: ScoreConfigDraft = {
     scoreConfigId: id,
     baseEnemyScores: input.baseEnemyScores ?? [],
     levelScoreMultiplier,
+    combo,
     updatedAt: now,
   };
 
