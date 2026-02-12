@@ -64,22 +64,24 @@ describe('SpaceBlaster samples v1 golden set', () => {
     const score = loadJson('score-config.v1.json');
     const levels = levelFiles.map(loadJson);
 
-    const ammoIds = new Set(ammo.entries.map((e: any) => e.ammoId));
-    const heroAmmo = new Set(hero.entries.map((h: any) => h.defaultAmmoId));
+    const ammoIds = new Set(ammo.entries.map((e: { ammoId: string }) => e.ammoId));
+    const heroAmmo = new Set(hero.entries.map((h: { defaultAmmoId: string }) => h.defaultAmmoId));
     heroAmmo.forEach((id) => expect(ammoIds.has(id)).toBe(true));
 
-    const enemyIds = new Set(enemies.entries.map((e: any) => e.enemyId));
+    const enemyIds = new Set(enemies.entries.map((e: { enemyId: string }) => e.enemyId));
     const levelEnemyIds = new Set<string>();
     levels.forEach((lvl) => {
       (lvl.enemyTypes || []).forEach((id: string) => levelEnemyIds.add(id));
-      (lvl.waves || []).forEach((w: any) => levelEnemyIds.add(w.enemyId));
+      (lvl.waves || []).forEach((w: { enemyId: string }) => levelEnemyIds.add(w.enemyId));
     });
     levelEnemyIds.forEach((id) => expect(enemyIds.has(id)).toBe(true));
 
-    const scoreEnemyIds = new Set(score.baseEnemyScores.map((e: any) => e.enemyId));
+    const scoreEnemyIds = new Set(
+      score.baseEnemyScores.map((e: { enemyId: string }) => e.enemyId),
+    );
     levelEnemyIds.forEach((id) => expect(scoreEnemyIds.has(id)).toBe(true));
 
-    const layoutIds = new Set(formations.entries.map((l: any) => l.layoutId));
+    const layoutIds = new Set(formations.entries.map((l: { layoutId: string }) => l.layoutId));
     levels.forEach((lvl) => expect(layoutIds.has(lvl.layoutId)).toBe(true));
 
     // at least 2 layouts
