@@ -26,6 +26,13 @@ type ScoreConfig = {
     base: number;
     perLifeBonus?: number;
   };
+  accuracyBonus?: {
+    scaleByLevelMultiplier?: boolean;
+    thresholds: {
+      minAccuracy: number;
+      bonus: number;
+    }[];
+  };
   updatedAt?: string;
 };
 
@@ -42,6 +49,7 @@ export default function ScoreConfigPage() {
     levelScoreMultiplier: { base: 1, perLevel: 0, max: 1 },
     combo: { enabled: true, tiers: [] },
     waveClearBonus: { base: 0, perLifeBonus: 0 },
+    accuracyBonus: { scaleByLevelMultiplier: false, thresholds: [] },
   });
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +79,8 @@ export default function ScoreConfigPage() {
               loaded.levelScoreMultiplier ?? { base: 1, perLevel: 0, max: 1 },
             combo: loaded.combo ?? { enabled: true, tiers: [] },
             waveClearBonus: loaded.waveClearBonus ?? { base: 0, perLifeBonus: 0 },
+            accuracyBonus:
+              loaded.accuracyBonus ?? { scaleByLevelMultiplier: false, thresholds: [] },
             updatedAt: loaded.updatedAt,
           });
           setEnemies(enemyJson.enemies ?? []);
@@ -202,8 +212,51 @@ export default function ScoreConfigPage() {
         message: 'Per-life wave bonus must be ≥ 0.',
       });
     }
+
+    const thresholds = config.accuracyBonus?.thresholds ?? [];
+    const seenAcc = new Set<number>();
+    let prevAcc = -1;
+    thresholds.forEach((t, idx) => {
+      if (t.minAccuracy < 0 || t.minAccuracy > 1) {
+        list.push({
+          severity: 'error',
+          path: `accuracyBonus.thresholds.${idx}.minAccuracy`,
+          message: 'Accuracy threshold must be between 0 and 1.',
+        });
+      }
+      if (t.minAccuracy < prevAcc) {
+        list.push({
+          severity: 'error',
+          path: `accuracyBonus.thresholds.${idx}.minAccuracy`,
+          message: 'Thresholds must be sorted ascending.',
+        });
+      }
+      if (seenAcc.has(t.minAccuracy)) {
+        list.push({
+          severity: 'error',
+          path: `accuracyBonus.thresholds.${idx}.minAccuracy`,
+          message: 'Duplicate thresholds are not allowed.',
+        });
+      }
+      seenAcc.add(t.minAccuracy);
+      prevAcc = t.minAccuracy;
+      if (t.bonus < 0) {
+        list.push({
+          severity: 'error',
+          path: `accuracyBonus.thresholds.${idx}.bonus`,
+          message: 'Bonus must be ≥ 0.',
+        });
+      }
+    });
     return list;
-  }, [enemies, scoreMap, config.levelScoreMultiplier, config.combo?.tiers, config.waveClearBonus]);
+  }, [
+    enemies,
+    scoreMap,
+    config.levelScoreMultiplier,
+    config.combo?.tiers,
+    config.waveClearBonus,
+    config.accuracyBonus?.thresholds,
+  ]);
 
   const hasBlocking = issues.some((i) => i.severity === 'error');
 
@@ -302,6 +355,70 @@ export default function ScoreConfigPage() {
     }));
   };
 
+  const addAccuracy = () => {
+    setConfig((c) => ({
+      ...c,
+      accuracyBonus: {
+        scaleByLevelMultiplier: c.accuracyBonus?.scaleByLevelMultiplier ?? false,
+        thresholds: [
+          ...(c.accuracyBonus?.thresholds ?? []),
+          { minAccuracy: 0.5, bonus: 0 },
+        ],
+      },
+    }));
+  };
+
+  const updateAccuracy = (
+    idx: number,
+    key: 'minAccuracy' | 'bonus',
+    value: number,
+  ) => {
+    setConfig((c) => {
+      const thresholds = [...(c.accuracyBonus?.thresholds ?? [])];
+      const t = { ...thresholds[idx] };
+      if (key === 'minAccuracy') t.minAccuracy = value;
+      if (key === 'bonus') t.bonus = value;
+      thresholds[idx] = t;
+      return {
+        ...c,
+        accuracyBonus: {
+          scaleByLevelMultiplier: c.accuracyBonus?.scaleByLevelMultiplier ?? false,
+          thresholds,
+        },
+      };
+    });
+  };
+
+  const removeAccuracy = (idx: number) => {
+    setConfig((c) => {
+      const thresholds = [...(c.accuracyBonus?.thresholds ?? [])];
+      thresholds.splice(idx, 1);
+      return {
+        ...c,
+        accuracyBonus: {
+          scaleByLevelMultiplier: c.accuracyBonus?.scaleByLevelMultiplier ?? false,
+          thresholds,
+        },
+      };
+    });
+  };
+
+  const moveAccuracy = (idx: number, delta: number) => {
+    setConfig((c) => {
+      const thresholds = [...(c.accuracyBonus?.thresholds ?? [])];
+      const target = idx + delta;
+      if (target < 0 || target >= thresholds.length) return c;
+      [thresholds[idx], thresholds[target]] = [thresholds[target], thresholds[idx]];
+      return {
+        ...c,
+        accuracyBonus: {
+          scaleByLevelMultiplier: c.accuracyBonus?.scaleByLevelMultiplier ?? false,
+          thresholds,
+        },
+      };
+    });
+  };
+
   async function onSave() {
     setError(null);
     setSaving(true);
@@ -314,6 +431,7 @@ export default function ScoreConfigPage() {
           levelScoreMultiplier: config.levelScoreMultiplier,
           combo: config.combo,
           waveClearBonus: config.waveClearBonus,
+          accuracyBonus: config.accuracyBonus,
         }),
       });
       if (!res.ok) {
@@ -528,6 +646,70 @@ export default function ScoreConfigPage() {
             </div>
           )}
           <p className={styles.helper}>Leave at 0 if you don’t want per-life bonuses.</p>
+        </div>
+      </section>
+
+      <section className={styles.card}>
+        <h2>Accuracy Bonuses</h2>
+        <p className={styles.helper}>
+          Rule: highest threshold met applies. Example: thresholds 0.50 (+100), 0.75 (+250), 0.90 (+500);
+          accuracy 0.82 → +250. Thresholds are stored as 0..1.
+        </p>
+        <div className={styles.tableHeader}>
+          <span>Threshold (0..1)</span>
+          <span>Bonus</span>
+          <span />
+        </div>
+        {(config.accuracyBonus?.thresholds ?? []).map((t, idx) => {
+          const thrIssue = issues.find((i) => i.path === `accuracyBonus.thresholds.${idx}.minAccuracy`);
+          const bonusIssue = issues.find((i) => i.path === `accuracyBonus.thresholds.${idx}.bonus`);
+          return (
+            <div key={idx} className={styles.tableRow}>
+              <div>
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={t.minAccuracy}
+                  onChange={(e) => updateAccuracy(idx, 'minAccuracy', Number(e.target.value))}
+                />
+                {thrIssue && <div className={styles.error}>{thrIssue.message}</div>}
+              </div>
+              <div>
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={t.bonus}
+                  onChange={(e) => updateAccuracy(idx, 'bonus', Number(e.target.value))}
+                />
+                {bonusIssue && <div className={styles.error}>{bonusIssue.message}</div>}
+              </div>
+              <div className={styles.actions}>
+                <button type="button" onClick={() => moveAccuracy(idx, -1)} disabled={idx === 0}>
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveAccuracy(idx, 1)}
+                  disabled={idx === (config.accuracyBonus?.thresholds?.length ?? 0) - 1}
+                >
+                  ↓
+                </button>
+                <button type="button" onClick={() => removeAccuracy(idx)}>
+                  Remove
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        <div style={{ marginTop: '12px' }}>
+          <button type="button" onClick={addAccuracy}>
+            Add threshold
+          </button>
         </div>
       </section>
 

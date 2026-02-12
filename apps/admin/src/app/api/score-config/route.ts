@@ -65,6 +65,13 @@ export async function POST(req: Request) {
       base?: number;
       perLifeBonus?: number;
     };
+    accuracyBonus?: {
+      scaleByLevelMultiplier?: boolean;
+      thresholds?: {
+        minAccuracy?: number;
+        bonus?: number;
+      }[];
+    };
   };
 
   const scores = Array.isArray(body.baseEnemyScores)
@@ -127,6 +134,19 @@ export async function POST(req: Request) {
           typeof body.waveClearBonus?.perLifeBonus === 'number'
             ? body.waveClearBonus.perLifeBonus
             : undefined,
+      },
+      accuracyBonus: {
+        scaleByLevelMultiplier:
+          typeof body.accuracyBonus?.scaleByLevelMultiplier === 'boolean'
+            ? body.accuracyBonus.scaleByLevelMultiplier
+            : undefined,
+        thresholds: Array.isArray(body.accuracyBonus?.thresholds)
+          ? body.accuracyBonus.thresholds.map((t) => ({
+              minAccuracy:
+                typeof t.minAccuracy === 'number' ? t.minAccuracy : 0,
+              bonus: typeof t.bonus === 'number' ? t.bonus : 0,
+            }))
+          : [],
       },
     });
     return NextResponse.json({ config: saved });
