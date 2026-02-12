@@ -32,6 +32,11 @@ export async function getLevelConfig(
   void _sk;
   const cfg = rest as LevelConfig;
   if (!cfg.waves) (cfg as LevelConfig & { waves: unknown }).waves = [];
+  if (cfg.fleetSpeed === undefined) cfg.fleetSpeed = 0;
+  if (cfg.rampFactor === undefined) cfg.rampFactor = 0;
+  if (cfg.descendStep === undefined) cfg.descendStep = 0;
+  if (cfg.maxConcurrentDivers === undefined) cfg.maxConcurrentDivers = 0;
+  if (cfg.maxConcurrentShots === undefined) cfg.maxConcurrentShots = 0;
   return cfg;
 }
 
@@ -43,6 +48,11 @@ export async function saveLevelConfig(input: {
   backgroundVersionId?: string;
   pinToVersion?: boolean;
   waves?: LevelConfig['waves'];
+  fleetSpeed?: number;
+  rampFactor?: number;
+  descendStep?: number;
+  maxConcurrentDivers?: number;
+  maxConcurrentShots?: number;
 }): Promise<LevelConfig> {
   const {
     gameId,
@@ -52,6 +62,11 @@ export async function saveLevelConfig(input: {
     backgroundVersionId,
     pinToVersion,
     waves,
+    fleetSpeed,
+    rampFactor,
+    descendStep,
+    maxConcurrentDivers,
+    maxConcurrentShots,
   } = input;
   const now = new Date().toISOString();
 
@@ -77,6 +92,11 @@ export async function saveLevelConfig(input: {
     backgroundAssetId,
     backgroundVersionId: pinToVersion ? backgroundVersionId : undefined,
     pinnedToVersion: pinToVersion && !!backgroundVersionId ? true : false,
+    fleetSpeed,
+    rampFactor,
+    descendStep,
+    maxConcurrentDivers,
+    maxConcurrentShots,
     updatedAt: now,
   };
 

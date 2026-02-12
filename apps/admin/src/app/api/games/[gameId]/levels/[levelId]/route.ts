@@ -58,6 +58,11 @@ export async function POST(
     backgroundVersionId?: string;
     pinToVersion?: boolean;
     waves?: unknown[];
+    fleetSpeed?: number;
+    rampFactor?: number;
+    descendStep?: number;
+    maxConcurrentDivers?: number;
+    maxConcurrentShots?: number;
   };
 
   try {
@@ -69,6 +74,13 @@ export async function POST(
       backgroundVersionId: body.backgroundVersionId?.trim() || undefined,
       pinToVersion: !!body.pinToVersion,
       waves: Array.isArray(body.waves) ? body.waves : [],
+      fleetSpeed: typeof body.fleetSpeed === 'number' ? body.fleetSpeed : undefined,
+      rampFactor: typeof body.rampFactor === 'number' ? body.rampFactor : undefined,
+      descendStep: typeof body.descendStep === 'number' ? body.descendStep : undefined,
+      maxConcurrentDivers:
+        typeof body.maxConcurrentDivers === 'number' ? body.maxConcurrentDivers : undefined,
+      maxConcurrentShots:
+        typeof body.maxConcurrentShots === 'number' ? body.maxConcurrentShots : undefined,
     });
     return NextResponse.json({ config: saved });
   } catch (err) {

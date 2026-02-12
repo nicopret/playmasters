@@ -41,6 +41,11 @@ type LevelConfig = {
   pinnedToVersion?: boolean;
   updatedAt?: string;
   waves: Wave[];
+  fleetSpeed?: number;
+  rampFactor?: number;
+  descendStep?: number;
+  maxConcurrentDivers?: number;
+  maxConcurrentShots?: number;
 };
 
 export default function LevelConfigPage() {
@@ -57,7 +62,16 @@ export default function LevelConfigPage() {
     gameId,
     levelId,
     waves: [],
+    fleetSpeed: 0,
+    rampFactor: 0,
+    descendStep: 0,
+    maxConcurrentDivers: 0,
+    maxConcurrentShots: 0,
   });
+  const [originalKnobs, setOriginalKnobs] = useState<Pick<
+    LevelConfig,
+    'fleetSpeed' | 'rampFactor' | 'descendStep' | 'maxConcurrentDivers' | 'maxConcurrentShots'
+  > | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
@@ -76,15 +90,38 @@ export default function LevelConfigPage() {
         if (!bgRes.ok) throw new Error('Failed to load backgrounds');
         if (!layoutRes.ok) throw new Error('Failed to load formation layouts');
         if (!enemyRes.ok) throw new Error('Failed to load enemies');
-        const cfgJson = await cfgRes.json();
+          const cfgJson = await cfgRes.json();
         const bgJson = await bgRes.json();
         const layoutJson = await layoutRes.json();
         const enemyJson = await enemyRes.json();
         if (!cancelled) {
-          const cfgData = cfgJson.config ?? { gameId, levelId, waves: [] };
+          const cfgData =
+            cfgJson.config ??
+            ({
+              gameId,
+              levelId,
+              waves: [],
+              fleetSpeed: 0,
+              rampFactor: 0,
+              descendStep: 0,
+              maxConcurrentDivers: 0,
+              maxConcurrentShots: 0,
+            } as LevelConfig);
           setConfig({
             ...cfgData,
             waves: Array.isArray(cfgData.waves) ? cfgData.waves : [],
+            fleetSpeed: cfgData.fleetSpeed ?? 0,
+            rampFactor: cfgData.rampFactor ?? 0,
+            descendStep: cfgData.descendStep ?? 0,
+            maxConcurrentDivers: cfgData.maxConcurrentDivers ?? 0,
+            maxConcurrentShots: cfgData.maxConcurrentShots ?? 0,
+          });
+          setOriginalKnobs({
+            fleetSpeed: cfgData.fleetSpeed ?? 0,
+            rampFactor: cfgData.rampFactor ?? 0,
+            descendStep: cfgData.descendStep ?? 0,
+            maxConcurrentDivers: cfgData.maxConcurrentDivers ?? 0,
+            maxConcurrentShots: cfgData.maxConcurrentShots ?? 0,
           });
           setBackgrounds(bgJson.backgrounds ?? []);
           setLayouts(layoutJson.layouts ?? []);
@@ -136,6 +173,20 @@ export default function LevelConfigPage() {
       ? 'At least one wave is required'
       : waveErrors.find((e) => e) ?? null;
 
+  const knobErrors: Partial<Record<keyof LevelConfig, string>> = {};
+  if ((config.fleetSpeed ?? 0) < 0) knobErrors.fleetSpeed = 'Must be >= 0';
+  if ((config.rampFactor ?? 0) < 0 || (config.rampFactor ?? 0) > 1)
+    knobErrors.rampFactor = 'Must be between 0 and 1';
+  if ((config.descendStep ?? 0) < 0) knobErrors.descendStep = 'Must be >= 0';
+  if ((config.maxConcurrentDivers ?? 0) < 0) knobErrors.maxConcurrentDivers = 'Must be >= 0';
+  if ((config.maxConcurrentShots ?? 0) < 0) knobErrors.maxConcurrentShots = 'Must be >= 0';
+
+  const knobChanged =
+    originalKnobs &&
+    ['fleetSpeed', 'rampFactor', 'descendStep', 'maxConcurrentDivers', 'maxConcurrentShots'].some(
+      (k) => (config as any)[k] !== (originalKnobs as any)[k],
+    );
+
   async function onSave() {
     setError(null);
     setSaving(true);
@@ -144,11 +195,18 @@ export default function LevelConfigPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          layoutId: config.layoutId,
           backgroundAssetId: config.backgroundAssetId,
           backgroundVersionId: config.pinnedToVersion
             ? (config.backgroundVersionId ?? selectedBg?.publishedVersionId)
             : undefined,
           pinToVersion: config.pinnedToVersion,
+          fleetSpeed: config.fleetSpeed,
+          rampFactor: config.rampFactor,
+          descendStep: config.descendStep,
+          maxConcurrentDivers: config.maxConcurrentDivers,
+          maxConcurrentShots: config.maxConcurrentShots,
+          waves: config.waves,
         }),
       });
       if (!res.ok) {
@@ -157,6 +215,13 @@ export default function LevelConfigPage() {
       }
       const j = await res.json();
       setConfig(j.config);
+      setOriginalKnobs({
+        fleetSpeed: j.config.fleetSpeed ?? 0,
+        rampFactor: j.config.rampFactor ?? 0,
+        descendStep: j.config.descendStep ?? 0,
+        maxConcurrentDivers: j.config.maxConcurrentDivers ?? 0,
+        maxConcurrentShots: j.config.maxConcurrentShots ?? 0,
+      });
       setSavedAt(new Date().toLocaleTimeString());
     } catch (err: any) {
       setError(err?.message ?? 'Save failed');
@@ -180,7 +245,7 @@ export default function LevelConfigPage() {
         <button
           className={styles.saveBtn}
           onClick={onSave}
-          disabled={saving || loading || !!layoutError || !!wavesError}
+          disabled={saving || loading || !!layoutError || !!wavesError || Object.keys(knobErrors).length > 0}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
@@ -188,6 +253,93 @@ export default function LevelConfigPage() {
 
       {error && <div className={styles.error}>Error: {error}</div>}
       {savedAt && <div className={styles.success}>Saved at {savedAt}</div>}
+
+      <section className={styles.card}>
+        <h2>Difficulty / Fleet Behavior</h2>
+        {knobChanged && (
+          <div className={styles.warning}>
+            Warning: Changing these values affects difficulty and may impact leaderboard
+            comparability. Consider resetting or segmenting leaderboards when publishing.
+          </div>
+        )}
+        <div className={styles.grid2}>
+          <label className={styles.label}>
+            Fleet speed
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              step={0.1}
+              value={config.fleetSpeed ?? 0}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, fleetSpeed: Number(e.target.value) }))
+              }
+            />
+            {knobErrors.fleetSpeed && <div className={styles.error}>{knobErrors.fleetSpeed}</div>}
+          </label>
+          <label className={styles.label}>
+            Ramp factor
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              max={1}
+              step={0.05}
+              value={config.rampFactor ?? 0}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, rampFactor: Number(e.target.value) }))
+              }
+            />
+            {knobErrors.rampFactor && <div className={styles.error}>{knobErrors.rampFactor}</div>}
+          </label>
+          <label className={styles.label}>
+            Descend step
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              step={1}
+              value={config.descendStep ?? 0}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, descendStep: Number(e.target.value) }))
+              }
+            />
+            {knobErrors.descendStep && <div className={styles.error}>{knobErrors.descendStep}</div>}
+          </label>
+          <label className={styles.label}>
+            Max concurrent divers
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              step={1}
+              value={config.maxConcurrentDivers ?? 0}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, maxConcurrentDivers: Number(e.target.value) }))
+              }
+            />
+            {knobErrors.maxConcurrentDivers && (
+              <div className={styles.error}>{knobErrors.maxConcurrentDivers}</div>
+            )}
+          </label>
+          <label className={styles.label}>
+            Max concurrent shots
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              step={1}
+              value={config.maxConcurrentShots ?? 0}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, maxConcurrentShots: Number(e.target.value) }))
+              }
+            />
+            {knobErrors.maxConcurrentShots && (
+              <div className={styles.error}>{knobErrors.maxConcurrentShots}</div>
+            )}
+          </label>
+        </div>
+      </section>
 
       <section className={styles.card}>
         <div className={styles.cardHeader}>
