@@ -57,6 +57,7 @@ export async function POST(
     backgroundAssetId?: string;
     backgroundVersionId?: string;
     pinToVersion?: boolean;
+    waves?: unknown[];
   };
 
   try {
@@ -67,6 +68,7 @@ export async function POST(
       backgroundAssetId: body.backgroundAssetId?.trim() || undefined,
       backgroundVersionId: body.backgroundVersionId?.trim() || undefined,
       pinToVersion: !!body.pinToVersion,
+      waves: Array.isArray(body.waves) ? body.waves : [],
     });
     return NextResponse.json({ config: saved });
   } catch (err) {

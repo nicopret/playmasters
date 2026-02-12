@@ -30,7 +30,9 @@ export async function getLevelConfig(
   const { [LEVEL_PK_ATTR]: _pk, [LEVEL_SK_ATTR]: _sk, ...rest } = res.Item;
   void _pk;
   void _sk;
-  return rest as LevelConfig;
+  const cfg = rest as LevelConfig;
+  if (!cfg.waves) (cfg as LevelConfig & { waves: unknown }).waves = [];
+  return cfg;
 }
 
 export async function saveLevelConfig(input: {
@@ -40,6 +42,7 @@ export async function saveLevelConfig(input: {
   backgroundAssetId?: string;
   backgroundVersionId?: string;
   pinToVersion?: boolean;
+  waves?: LevelConfig['waves'];
 }): Promise<LevelConfig> {
   const {
     gameId,
@@ -48,6 +51,7 @@ export async function saveLevelConfig(input: {
     backgroundAssetId,
     backgroundVersionId,
     pinToVersion,
+    waves,
   } = input;
   const now = new Date().toISOString();
 
@@ -69,6 +73,7 @@ export async function saveLevelConfig(input: {
     gameId,
     levelId,
     layoutId,
+    waves: waves ?? [],
     backgroundAssetId,
     backgroundVersionId: pinToVersion ? backgroundVersionId : undefined,
     pinnedToVersion: pinToVersion && !!backgroundVersionId ? true : false,

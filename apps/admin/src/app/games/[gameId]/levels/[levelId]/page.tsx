@@ -24,6 +24,14 @@ type FormationLayout = {
   spacingY?: number;
 };
 
+type EnemyOption = {
+  enemyId: string;
+  displayName?: string;
+};
+
+type WaveEnemy = { enemyId: string; count: number };
+type Wave = { enemies: WaveEnemy[]; overrides?: Record<string, unknown> };
+
 type LevelConfig = {
   gameId: string;
   levelId: string;
@@ -32,6 +40,7 @@ type LevelConfig = {
   backgroundVersionId?: string;
   pinnedToVersion?: boolean;
   updatedAt?: string;
+  waves: Wave[];
 };
 
 export default function LevelConfigPage() {
@@ -43,9 +52,11 @@ export default function LevelConfigPage() {
   const [saving, setSaving] = useState(false);
   const [backgrounds, setBackgrounds] = useState<BackgroundItem[]>([]);
   const [layouts, setLayouts] = useState<FormationLayout[]>([]);
+  const [enemies, setEnemies] = useState<EnemyOption[]>([]);
   const [config, setConfig] = useState<LevelConfig>({
     gameId,
     levelId,
+    waves: [],
   });
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -55,21 +66,29 @@ export default function LevelConfigPage() {
     async function load() {
       try {
         setLoading(true);
-        const [cfgRes, bgRes, layoutRes] = await Promise.all([
+        const [cfgRes, bgRes, layoutRes, enemyRes] = await Promise.all([
           fetch(`/api/games/${gameId}/levels/${levelId}`),
           fetch(`/api/catalog/backgrounds`),
           fetch(`/api/catalog/formation-layouts`),
+          fetch(`/api/catalog/enemies`),
         ]);
         if (!cfgRes.ok) throw new Error('Failed to load level');
         if (!bgRes.ok) throw new Error('Failed to load backgrounds');
         if (!layoutRes.ok) throw new Error('Failed to load formation layouts');
+        if (!enemyRes.ok) throw new Error('Failed to load enemies');
         const cfgJson = await cfgRes.json();
         const bgJson = await bgRes.json();
         const layoutJson = await layoutRes.json();
+        const enemyJson = await enemyRes.json();
         if (!cancelled) {
-          setConfig(cfgJson.config ?? { gameId, levelId });
+          const cfgData = cfgJson.config ?? { gameId, levelId, waves: [] };
+          setConfig({
+            ...cfgData,
+            waves: Array.isArray(cfgData.waves) ? cfgData.waves : [],
+          });
           setBackgrounds(bgJson.backgrounds ?? []);
           setLayouts(layoutJson.layouts ?? []);
+          setEnemies(enemyJson.enemies ?? []);
         }
       } catch (err: any) {
         if (!cancelled) setError(err?.message ?? 'Load failed');
@@ -105,6 +124,17 @@ export default function LevelConfigPage() {
       : !selectedLayout
         ? 'Selected layout is not published'
         : null);
+
+  const waveErrors = (config.waves ?? []).map((w) => {
+    const counts = (w.enemies ?? []).map((e) => e.count ?? 0);
+    const negative = counts.some((c) => c < 0);
+    const total = counts.reduce((s, c) => s + c, 0);
+    return negative ? 'Counts must be >= 0' : total <= 0 ? 'Wave must have enemies' : null;
+  });
+  const wavesError =
+    !loading && (config.waves?.length ?? 0) === 0
+      ? 'At least one wave is required'
+      : waveErrors.find((e) => e) ?? null;
 
   async function onSave() {
     setError(null);
@@ -150,7 +180,7 @@ export default function LevelConfigPage() {
         <button
           className={styles.saveBtn}
           onClick={onSave}
-          disabled={saving || loading || !!layoutError}
+          disabled={saving || loading || !!layoutError || !!wavesError}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
@@ -158,6 +188,152 @@ export default function LevelConfigPage() {
 
       {error && <div className={styles.error}>Error: {error}</div>}
       {savedAt && <div className={styles.success}>Saved at {savedAt}</div>}
+
+      <section className={styles.card}>
+        <div className={styles.cardHeader}>
+          <h2>Waves</h2>
+          <button
+            className={styles.saveBtn}
+            onClick={() =>
+              setConfig((c) => ({
+                ...c,
+                waves: [...(c.waves ?? []), { enemies: [] }],
+              }))
+            }
+          >
+            Add wave
+          </button>
+        </div>
+        {wavesError && <div className={styles.error}>{wavesError}</div>}
+        {(config.waves ?? []).map((wave, idx) => {
+          const total = (wave.enemies ?? []).reduce((s, e) => s + (e.count ?? 0), 0);
+          const waveError = waveErrors[idx] ?? null;
+          return (
+            <div key={idx} className={styles.waveCard}>
+              <div className={styles.waveHeader}>
+                <div>
+                  <strong>Wave {idx + 1}</strong> {total ? `• ${total} enemies` : ''}
+                  {waveError && <span className={styles.errorInline}> {waveError}</span>}
+                </div>
+                <div className={styles.waveActions}>
+                  <button
+                    disabled={idx === 0}
+                    onClick={() =>
+                      setConfig((c) => {
+                        const waves = [...(c.waves ?? [])];
+                        [waves[idx - 1], waves[idx]] = [waves[idx], waves[idx - 1]];
+                        return { ...c, waves };
+                      })
+                    }
+                  >
+                    ↑
+                  </button>
+                  <button
+                    disabled={idx === (config.waves?.length ?? 1) - 1}
+                    onClick={() =>
+                      setConfig((c) => {
+                        const waves = [...(c.waves ?? [])];
+                        [waves[idx + 1], waves[idx]] = [waves[idx], waves[idx + 1]];
+                        return { ...c, waves };
+                      })
+                    }
+                  >
+                    ↓
+                  </button>
+                  <button
+                    onClick={() =>
+                      setConfig((c) => ({
+                        ...c,
+                        waves: (c.waves ?? []).filter((_, i) => i !== idx),
+                      }))
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+
+              <div className={styles.table}>
+                <div className={styles.tableHeader}>
+                  <span>Enemy</span>
+                  <span>Count</span>
+                  <span></span>
+                </div>
+                {(wave.enemies ?? []).map((row, rIdx) => (
+                  <div key={rIdx} className={styles.tableRow}>
+                    <select
+                      className={styles.select}
+                      value={row.enemyId ?? ''}
+                      onChange={(e) =>
+                        setConfig((c) => {
+                          const waves = [...(c.waves ?? [])];
+                          const enemies = [...(waves[idx].enemies ?? [])];
+                          enemies[rIdx] = { ...enemies[rIdx], enemyId: e.target.value };
+                          waves[idx] = { ...waves[idx], enemies };
+                          return { ...c, waves };
+                        })
+                      }
+                    >
+                      <option value="">— Select enemy —</option>
+                      {enemies.map((e) => (
+                        <option key={e.enemyId} value={e.enemyId}>
+                          {e.displayName ?? e.enemyId}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={0}
+                      value={row.count ?? 0}
+                      onChange={(e) =>
+                        setConfig((c) => {
+                          const waves = [...(c.waves ?? [])];
+                          const enemies = [...(waves[idx].enemies ?? [])];
+                          enemies[rIdx] = {
+                            ...enemies[rIdx],
+                            count: Number(e.target.value),
+                          };
+                          waves[idx] = { ...waves[idx], enemies };
+                          return { ...c, waves };
+                        })
+                      }
+                    />
+                    <button
+                      onClick={() =>
+                        setConfig((c) => {
+                          const waves = [...(c.waves ?? [])];
+                          const enemies = [...(waves[idx].enemies ?? [])].filter(
+                            (_, i) => i !== rIdx,
+                          );
+                          waves[idx] = { ...waves[idx], enemies };
+                          return { ...c, waves };
+                        })
+                      }
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+                <div className={styles.tableFooter}>
+                  <button
+                    onClick={() =>
+                      setConfig((c) => {
+                        const waves = [...(c.waves ?? [])];
+                        const enemies = [...(waves[idx].enemies ?? []), { enemyId: '', count: 0 }];
+                        waves[idx] = { ...waves[idx], enemies };
+                        return { ...c, waves };
+                      })
+                    }
+                  >
+                    Add enemy
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </section>
 
       <section className={styles.card}>
         <h2>Formation Layout</h2>
