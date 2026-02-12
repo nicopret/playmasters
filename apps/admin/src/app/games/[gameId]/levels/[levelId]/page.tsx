@@ -114,7 +114,7 @@ export default function LevelConfigPage() {
         if (!bgRes.ok) throw new Error('Failed to load backgrounds');
         if (!layoutRes.ok) throw new Error('Failed to load formation layouts');
         if (!enemyRes.ok) throw new Error('Failed to load enemies');
-          const cfgJson = await cfgRes.json();
+        const cfgJson = await cfgRes.json();
         const bgJson = await bgRes.json();
         const layoutJson = await layoutRes.json();
         const enemyJson = await enemyRes.json();
@@ -208,24 +208,37 @@ export default function LevelConfigPage() {
     const counts = (w.enemies ?? []).map((e) => e.count ?? 0);
     const negative = counts.some((c) => c < 0);
     const total = counts.reduce((s, c) => s + c, 0);
-    return negative ? 'Counts must be >= 0' : total <= 0 ? 'Wave must have enemies' : null;
+    return negative
+      ? 'Counts must be >= 0'
+      : total <= 0
+        ? 'Wave must have enemies'
+        : null;
   });
   const wavesError =
     !loading && (config.waves?.length ?? 0) === 0
       ? 'At least one wave is required'
-      : waveErrors.find((e) => e) ?? null;
+      : (waveErrors.find((e) => e) ?? null);
 
   const knobErrors: Partial<Record<keyof LevelConfig, string>> = {};
   if ((config.fleetSpeed ?? 0) < 0) knobErrors.fleetSpeed = 'Must be >= 0';
   if ((config.rampFactor ?? 0) < 0 || (config.rampFactor ?? 0) > 1)
     knobErrors.rampFactor = 'Must be between 0 and 1';
   if ((config.descendStep ?? 0) < 0) knobErrors.descendStep = 'Must be >= 0';
-  if ((config.maxConcurrentDivers ?? 0) < 0) knobErrors.maxConcurrentDivers = 'Must be >= 0';
-  if ((config.maxConcurrentShots ?? 0) < 0) knobErrors.maxConcurrentShots = 'Must be >= 0';
-  if ((config.attackTickMs ?? 0) < 1) knobErrors.attackTickMs = 'Must be at least 1 ms';
-  if ((config.diveChancePerTick ?? 0) < 0 || (config.diveChancePerTick ?? 0) > 1)
+  if ((config.maxConcurrentDivers ?? 0) < 0)
+    knobErrors.maxConcurrentDivers = 'Must be >= 0';
+  if ((config.maxConcurrentShots ?? 0) < 0)
+    knobErrors.maxConcurrentShots = 'Must be >= 0';
+  if ((config.attackTickMs ?? 0) < 1)
+    knobErrors.attackTickMs = 'Must be at least 1 ms';
+  if (
+    (config.diveChancePerTick ?? 0) < 0 ||
+    (config.diveChancePerTick ?? 0) > 1
+  )
     knobErrors.diveChancePerTick = 'Must be between 0 and 1';
-  if (config.divePattern && !['straight', 'sine', 'track'].includes(config.divePattern))
+  if (
+    config.divePattern &&
+    !['straight', 'sine', 'track'].includes(config.divePattern)
+  )
     knobErrors.divePattern = 'Invalid pattern';
   const trackingEnabled = config.divePattern === 'track';
   const MAX_TURN_RATE = 10;
@@ -234,20 +247,32 @@ export default function LevelConfigPage() {
       knobErrors.turnRate = `Must be between 0 and ${MAX_TURN_RATE}`;
     }
   }
-  if ((config.fireTickMs ?? 0) < 1) knobErrors.fireTickMs = 'Must be at least 1 ms';
-  if ((config.fireChancePerTick ?? 0) < 0 || (config.fireChancePerTick ?? 0) > 1)
+  if ((config.fireTickMs ?? 0) < 1)
+    knobErrors.fireTickMs = 'Must be at least 1 ms';
+  if (
+    (config.fireChancePerTick ?? 0) < 0 ||
+    (config.fireChancePerTick ?? 0) > 1
+  )
     knobErrors.fireChancePerTick = 'Must be between 0 and 1';
 
   const knobChanged =
     originalKnobs &&
-    ['fleetSpeed', 'rampFactor', 'descendStep', 'maxConcurrentDivers', 'maxConcurrentShots'].some(
-      (k) => (config as any)[k] !== (originalKnobs as any)[k],
-    );
+    [
+      'fleetSpeed',
+      'rampFactor',
+      'descendStep',
+      'maxConcurrentDivers',
+      'maxConcurrentShots',
+    ].some((k) => (config as any)[k] !== (originalKnobs as any)[k]);
   const diveKnobChanged =
     originalKnobs &&
-    ['attackTickMs', 'diveChancePerTick', 'divePattern', 'turnRate', 'maxConcurrentDivers'].some(
-      (k) => (config as any)[k] !== (originalKnobs as any)[k],
-    );
+    [
+      'attackTickMs',
+      'diveChancePerTick',
+      'divePattern',
+      'turnRate',
+      'maxConcurrentDivers',
+    ].some((k) => (config as any)[k] !== (originalKnobs as any)[k]);
   const shootKnobChanged =
     originalKnobs &&
     ['fireTickMs', 'fireChancePerTick', 'maxConcurrentShots'].some(
@@ -355,7 +380,8 @@ export default function LevelConfigPage() {
         ) : (
           <>
             <div className={styles.error}>
-              Not ready: {issues.filter((i) => i.severity === 'error').length} blocking issue(s)
+              Not ready: {issues.filter((i) => i.severity === 'error').length}{' '}
+              blocking issue(s)
             </div>
             <ul className={styles.issueList}>
               {issues.map((i, idx) => (
@@ -372,8 +398,9 @@ export default function LevelConfigPage() {
         <h2>Difficulty / Fleet Behavior</h2>
         {knobChanged && (
           <div className={styles.warning}>
-            Warning: Changing these values affects difficulty and may impact leaderboard
-            comparability. Consider resetting or segmenting leaderboards when publishing.
+            Warning: Changing these values affects difficulty and may impact
+            leaderboard comparability. Consider resetting or segmenting
+            leaderboards when publishing.
           </div>
         )}
         <div className={styles.grid2}>
@@ -389,7 +416,9 @@ export default function LevelConfigPage() {
                 setConfig((c) => ({ ...c, fleetSpeed: Number(e.target.value) }))
               }
             />
-            {knobErrors.fleetSpeed && <div className={styles.error}>{knobErrors.fleetSpeed}</div>}
+            {knobErrors.fleetSpeed && (
+              <div className={styles.error}>{knobErrors.fleetSpeed}</div>
+            )}
           </label>
           <label className={styles.label}>
             Ramp factor
@@ -404,7 +433,9 @@ export default function LevelConfigPage() {
                 setConfig((c) => ({ ...c, rampFactor: Number(e.target.value) }))
               }
             />
-            {knobErrors.rampFactor && <div className={styles.error}>{knobErrors.rampFactor}</div>}
+            {knobErrors.rampFactor && (
+              <div className={styles.error}>{knobErrors.rampFactor}</div>
+            )}
           </label>
           <label className={styles.label}>
             Descend step
@@ -415,10 +446,15 @@ export default function LevelConfigPage() {
               step={1}
               value={config.descendStep ?? 0}
               onChange={(e) =>
-                setConfig((c) => ({ ...c, descendStep: Number(e.target.value) }))
+                setConfig((c) => ({
+                  ...c,
+                  descendStep: Number(e.target.value),
+                }))
               }
             />
-            {knobErrors.descendStep && <div className={styles.error}>{knobErrors.descendStep}</div>}
+            {knobErrors.descendStep && (
+              <div className={styles.error}>{knobErrors.descendStep}</div>
+            )}
           </label>
           <label className={styles.label}>
             Max concurrent divers
@@ -429,11 +465,16 @@ export default function LevelConfigPage() {
               step={1}
               value={config.maxConcurrentDivers ?? 0}
               onChange={(e) =>
-                setConfig((c) => ({ ...c, maxConcurrentDivers: Number(e.target.value) }))
+                setConfig((c) => ({
+                  ...c,
+                  maxConcurrentDivers: Number(e.target.value),
+                }))
               }
             />
             {knobErrors.maxConcurrentDivers && (
-              <div className={styles.error}>{knobErrors.maxConcurrentDivers}</div>
+              <div className={styles.error}>
+                {knobErrors.maxConcurrentDivers}
+              </div>
             )}
           </label>
           <label className={styles.label}>
@@ -445,11 +486,16 @@ export default function LevelConfigPage() {
               step={1}
               value={config.maxConcurrentShots ?? 0}
               onChange={(e) =>
-                setConfig((c) => ({ ...c, maxConcurrentShots: Number(e.target.value) }))
+                setConfig((c) => ({
+                  ...c,
+                  maxConcurrentShots: Number(e.target.value),
+                }))
               }
             />
             {knobErrors.maxConcurrentShots && (
-              <div className={styles.error}>{knobErrors.maxConcurrentShots}</div>
+              <div className={styles.error}>
+                {knobErrors.maxConcurrentShots}
+              </div>
             )}
           </label>
         </div>
@@ -459,7 +505,8 @@ export default function LevelConfigPage() {
         <h2>Dive / Attack</h2>
         {diveKnobChanged && (
           <div className={styles.warning}>
-            Warning: Changing dive/attack tuning affects difficulty and leaderboard comparability.
+            Warning: Changing dive/attack tuning affects difficulty and
+            leaderboard comparability.
           </div>
         )}
         <div className={styles.grid2}>
@@ -472,7 +519,10 @@ export default function LevelConfigPage() {
               step={1}
               value={config.attackTickMs ?? 1}
               onChange={(e) =>
-                setConfig((c) => ({ ...c, attackTickMs: Number(e.target.value) }))
+                setConfig((c) => ({
+                  ...c,
+                  attackTickMs: Number(e.target.value),
+                }))
               }
             />
             {knobErrors.attackTickMs && (
@@ -489,7 +539,10 @@ export default function LevelConfigPage() {
               step={0.01}
               value={config.diveChancePerTick ?? 0}
               onChange={(e) =>
-                setConfig((c) => ({ ...c, diveChancePerTick: Number(e.target.value) }))
+                setConfig((c) => ({
+                  ...c,
+                  diveChancePerTick: Number(e.target.value),
+                }))
               }
             />
             {knobErrors.diveChancePerTick && (
@@ -509,7 +562,9 @@ export default function LevelConfigPage() {
               <option value="sine">Sine</option>
               <option value="track">Track</option>
             </select>
-            {knobErrors.divePattern && <div className={styles.error}>{knobErrors.divePattern}</div>}
+            {knobErrors.divePattern && (
+              <div className={styles.error}>{knobErrors.divePattern}</div>
+            )}
           </label>
           {trackingEnabled && (
             <label className={styles.label}>
@@ -525,8 +580,12 @@ export default function LevelConfigPage() {
                   setConfig((c) => ({ ...c, turnRate: Number(e.target.value) }))
                 }
               />
-              <div className={styles.helper}>Capped to prevent perfect tracking.</div>
-              {knobErrors.turnRate && <div className={styles.error}>{knobErrors.turnRate}</div>}
+              <div className={styles.helper}>
+                Capped to prevent perfect tracking.
+              </div>
+              {knobErrors.turnRate && (
+                <div className={styles.error}>{knobErrors.turnRate}</div>
+              )}
             </label>
           )}
         </div>
@@ -536,7 +595,8 @@ export default function LevelConfigPage() {
         <h2>Shooting</h2>
         {shootKnobChanged && (
           <div className={styles.warning}>
-            Warning: Changing shooting tuning affects difficulty and leaderboard comparability.
+            Warning: Changing shooting tuning affects difficulty and leaderboard
+            comparability.
           </div>
         )}
         <div className={styles.grid2}>
@@ -548,9 +608,13 @@ export default function LevelConfigPage() {
               min={1}
               step={1}
               value={config.fireTickMs ?? 1}
-              onChange={(e) => setConfig((c) => ({ ...c, fireTickMs: Number(e.target.value) }))}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, fireTickMs: Number(e.target.value) }))
+              }
             />
-            {knobErrors.fireTickMs && <div className={styles.error}>{knobErrors.fireTickMs}</div>}
+            {knobErrors.fireTickMs && (
+              <div className={styles.error}>{knobErrors.fireTickMs}</div>
+            )}
           </label>
           <label className={styles.label}>
             fireChancePerTick
@@ -562,7 +626,10 @@ export default function LevelConfigPage() {
               step={0.01}
               value={config.fireChancePerTick ?? 0}
               onChange={(e) =>
-                setConfig((c) => ({ ...c, fireChancePerTick: Number(e.target.value) }))
+                setConfig((c) => ({
+                  ...c,
+                  fireChancePerTick: Number(e.target.value),
+                }))
               }
             />
             {knobErrors.fireChancePerTick && (
@@ -578,17 +645,23 @@ export default function LevelConfigPage() {
               step={1}
               value={config.maxConcurrentShots ?? 0}
               onChange={(e) =>
-                setConfig((c) => ({ ...c, maxConcurrentShots: Number(e.target.value) }))
+                setConfig((c) => ({
+                  ...c,
+                  maxConcurrentShots: Number(e.target.value),
+                }))
               }
             />
             {knobErrors.maxConcurrentShots && (
-              <div className={styles.error}>{knobErrors.maxConcurrentShots}</div>
+              <div className={styles.error}>
+                {knobErrors.maxConcurrentShots}
+              </div>
             )}
           </label>
         </div>
         <div className={styles.helper}>
-          <strong>Shooting Rule:</strong> Column Shooter (locked). Only the bottom-most living enemy
-          in each column may fire. This is a core fairness rule and not editable in v1.
+          <strong>Shooting Rule:</strong> Column Shooter (locked). Only the
+          bottom-most living enemy in each column may fire. This is a core
+          fairness rule and not editable in v1.
         </div>
       </section>
 
@@ -609,14 +682,20 @@ export default function LevelConfigPage() {
         </div>
         {wavesError && <div className={styles.error}>{wavesError}</div>}
         {(config.waves ?? []).map((wave, idx) => {
-          const total = (wave.enemies ?? []).reduce((s, e) => s + (e.count ?? 0), 0);
+          const total = (wave.enemies ?? []).reduce(
+            (s, e) => s + (e.count ?? 0),
+            0,
+          );
           const waveError = waveErrors[idx] ?? null;
           return (
             <div key={idx} className={styles.waveCard}>
               <div className={styles.waveHeader}>
                 <div>
-                  <strong>Wave {idx + 1}</strong> {total ? `• ${total} enemies` : ''}
-                  {waveError && <span className={styles.errorInline}> {waveError}</span>}
+                  <strong>Wave {idx + 1}</strong>{' '}
+                  {total ? `• ${total} enemies` : ''}
+                  {waveError && (
+                    <span className={styles.errorInline}> {waveError}</span>
+                  )}
                 </div>
                 <div className={styles.waveActions}>
                   <button
@@ -624,7 +703,10 @@ export default function LevelConfigPage() {
                     onClick={() =>
                       setConfig((c) => {
                         const waves = [...(c.waves ?? [])];
-                        [waves[idx - 1], waves[idx]] = [waves[idx], waves[idx - 1]];
+                        [waves[idx - 1], waves[idx]] = [
+                          waves[idx],
+                          waves[idx - 1],
+                        ];
                         return { ...c, waves };
                       })
                     }
@@ -636,7 +718,10 @@ export default function LevelConfigPage() {
                     onClick={() =>
                       setConfig((c) => {
                         const waves = [...(c.waves ?? [])];
-                        [waves[idx + 1], waves[idx]] = [waves[idx], waves[idx + 1]];
+                        [waves[idx + 1], waves[idx]] = [
+                          waves[idx],
+                          waves[idx + 1],
+                        ];
                         return { ...c, waves };
                       })
                     }
@@ -671,7 +756,10 @@ export default function LevelConfigPage() {
                         setConfig((c) => {
                           const waves = [...(c.waves ?? [])];
                           const enemies = [...(waves[idx].enemies ?? [])];
-                          enemies[rIdx] = { ...enemies[rIdx], enemyId: e.target.value };
+                          enemies[rIdx] = {
+                            ...enemies[rIdx],
+                            enemyId: e.target.value,
+                          };
                           waves[idx] = { ...waves[idx], enemies };
                           return { ...c, waves };
                         })
@@ -706,9 +794,9 @@ export default function LevelConfigPage() {
                       onClick={() =>
                         setConfig((c) => {
                           const waves = [...(c.waves ?? [])];
-                          const enemies = [...(waves[idx].enemies ?? [])].filter(
-                            (_, i) => i !== rIdx,
-                          );
+                          const enemies = [
+                            ...(waves[idx].enemies ?? []),
+                          ].filter((_, i) => i !== rIdx);
                           waves[idx] = { ...waves[idx], enemies };
                           return { ...c, waves };
                         })
@@ -723,7 +811,10 @@ export default function LevelConfigPage() {
                     onClick={() =>
                       setConfig((c) => {
                         const waves = [...(c.waves ?? [])];
-                        const enemies = [...(waves[idx].enemies ?? []), { enemyId: '', count: 0 }];
+                        const enemies = [
+                          ...(waves[idx].enemies ?? []),
+                          { enemyId: '', count: 0 },
+                        ];
                         waves[idx] = { ...waves[idx], enemies };
                         return { ...c, waves };
                       })
@@ -771,8 +862,8 @@ export default function LevelConfigPage() {
                   {selectedLayout.cols} cols
                 </div>
                 <div>
-                  <strong>Spacing:</strong>{' '}
-                  {selectedLayout.spacingX ?? '—'} / {selectedLayout.spacingY ?? '—'}
+                  <strong>Spacing:</strong> {selectedLayout.spacingX ?? '—'} /{' '}
+                  {selectedLayout.spacingY ?? '—'}
                 </div>
               </div>
             )}

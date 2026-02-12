@@ -9,7 +9,8 @@ const games = [
   {
     id: 'space-blaster',
     name: 'Space Blaster',
-    description: 'Vertical shooter configs (LevelConfig, formations, catalogs).',
+    description:
+      'Vertical shooter configs (LevelConfig, formations, catalogs).',
   },
 ];
 
@@ -37,7 +38,10 @@ export default function GamesIndex() {
             <h2>{g.name}</h2>
             <p>{g.description}</p>
             <div className={styles.actionRow}>
-              <Link href={`/games/${g.id}/levels/demo`} className={styles.linkButton}>
+              <Link
+                href={`/games/${g.id}/levels/demo`}
+                className={styles.linkButton}
+              >
                 Open demo level
               </Link>
             </div>
@@ -48,7 +52,10 @@ export default function GamesIndex() {
                 value={levelId}
                 onChange={(e) => setLevelId(e.target.value)}
               />
-              <button className={styles.saveBtn} onClick={() => onOpenLevel(g.id)}>
+              <button
+                className={styles.saveBtn}
+                onClick={() => onOpenLevel(g.id)}
+              >
                 Open level
               </button>
             </div>

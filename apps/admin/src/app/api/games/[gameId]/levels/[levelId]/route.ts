@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '../../../../../../auth';
-import { getLevelConfig, saveLevelConfig } from '../../../../../../../lib/levelConfig';
+import {
+  getLevelConfig,
+  saveLevelConfig,
+} from '../../../../../../../lib/levelConfig';
 
 export const runtime = 'nodejs';
 const bad = (message: string, status = 400) =>
@@ -80,21 +83,35 @@ export async function POST(
       backgroundVersionId: body.backgroundVersionId?.trim() || undefined,
       pinToVersion: !!body.pinToVersion,
       waves: Array.isArray(body.waves) ? body.waves : [],
-      fleetSpeed: typeof body.fleetSpeed === 'number' ? body.fleetSpeed : undefined,
-      rampFactor: typeof body.rampFactor === 'number' ? body.rampFactor : undefined,
-      descendStep: typeof body.descendStep === 'number' ? body.descendStep : undefined,
+      fleetSpeed:
+        typeof body.fleetSpeed === 'number' ? body.fleetSpeed : undefined,
+      rampFactor:
+        typeof body.rampFactor === 'number' ? body.rampFactor : undefined,
+      descendStep:
+        typeof body.descendStep === 'number' ? body.descendStep : undefined,
       maxConcurrentDivers:
-        typeof body.maxConcurrentDivers === 'number' ? body.maxConcurrentDivers : undefined,
+        typeof body.maxConcurrentDivers === 'number'
+          ? body.maxConcurrentDivers
+          : undefined,
       maxConcurrentShots:
-        typeof body.maxConcurrentShots === 'number' ? body.maxConcurrentShots : undefined,
-      attackTickMs: typeof body.attackTickMs === 'number' ? body.attackTickMs : undefined,
+        typeof body.maxConcurrentShots === 'number'
+          ? body.maxConcurrentShots
+          : undefined,
+      attackTickMs:
+        typeof body.attackTickMs === 'number' ? body.attackTickMs : undefined,
       diveChancePerTick:
-        typeof body.diveChancePerTick === 'number' ? body.diveChancePerTick : undefined,
-      divePattern: typeof body.divePattern === 'string' ? body.divePattern : undefined,
+        typeof body.diveChancePerTick === 'number'
+          ? body.diveChancePerTick
+          : undefined,
+      divePattern:
+        typeof body.divePattern === 'string' ? body.divePattern : undefined,
       turnRate: typeof body.turnRate === 'number' ? body.turnRate : undefined,
-      fireTickMs: typeof body.fireTickMs === 'number' ? body.fireTickMs : undefined,
+      fireTickMs:
+        typeof body.fireTickMs === 'number' ? body.fireTickMs : undefined,
       fireChancePerTick:
-        typeof body.fireChancePerTick === 'number' ? body.fireChancePerTick : undefined,
+        typeof body.fireChancePerTick === 'number'
+          ? body.fireChancePerTick
+          : undefined,
     });
     return NextResponse.json({ config: saved });
   } catch (err) {

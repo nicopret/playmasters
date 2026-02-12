@@ -112,10 +112,27 @@ export function validateLevelDraft(
   });
 
   // Bounds / fairness
-  const numericChecks: Array<[string, number | undefined, () => boolean, string]> = [
-    ['fleetSpeed', draft.fleetSpeed, () => (draft.fleetSpeed ?? 0) < 0, 'Must be >= 0'],
-    ['rampFactor', draft.rampFactor, () => within(draft.rampFactor, 0, 1), 'Must be between 0 and 1'],
-    ['descendStep', draft.descendStep, () => (draft.descendStep ?? 0) < 0, 'Must be >= 0'],
+  const numericChecks: Array<
+    [string, number | undefined, () => boolean, string]
+  > = [
+    [
+      'fleetSpeed',
+      draft.fleetSpeed,
+      () => (draft.fleetSpeed ?? 0) < 0,
+      'Must be >= 0',
+    ],
+    [
+      'rampFactor',
+      draft.rampFactor,
+      () => within(draft.rampFactor, 0, 1),
+      'Must be between 0 and 1',
+    ],
+    [
+      'descendStep',
+      draft.descendStep,
+      () => (draft.descendStep ?? 0) < 0,
+      'Must be >= 0',
+    ],
     [
       'maxConcurrentDivers',
       draft.maxConcurrentDivers,
@@ -128,8 +145,18 @@ export function validateLevelDraft(
       () => (draft.maxConcurrentShots ?? 0) < 0,
       'Must be >= 0',
     ],
-    ['attackTickMs', draft.attackTickMs, () => (draft.attackTickMs ?? 0) < 1, 'Must be at least 1 ms'],
-    ['fireTickMs', draft.fireTickMs, () => (draft.fireTickMs ?? 0) < 1, 'Must be at least 1 ms'],
+    [
+      'attackTickMs',
+      draft.attackTickMs,
+      () => (draft.attackTickMs ?? 0) < 1,
+      'Must be at least 1 ms',
+    ],
+    [
+      'fireTickMs',
+      draft.fireTickMs,
+      () => (draft.fireTickMs ?? 0) < 1,
+      'Must be at least 1 ms',
+    ],
     [
       'diveChancePerTick',
       draft.diveChancePerTick,
