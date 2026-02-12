@@ -52,7 +52,8 @@ export async function POST(request: Request) {
   if (!type) return bad('type_required');
   if (!title) return bad('title_required');
   if (!ALLOWED_TYPES.includes(file.type)) return bad('unsupported_type');
-  if (!ALLOWED_ASSET_TYPES.includes(type)) return bad('invalid_asset_type');
+  if (!ALLOWED_ASSET_TYPES.includes(type as ImageAsset['type']))
+    return bad('invalid_asset_type');
 
   const buffer = Buffer.from(await file.arrayBuffer());
   if (buffer.byteLength > MAX_BYTES) return bad('file_too_large');
@@ -105,7 +106,7 @@ export async function POST(request: Request) {
           ContentLength: buffer.byteLength,
           // Prevent overwrite if the same key somehow exists
           IfNoneMatch: '*',
-        })
+        }),
       );
     } else if (process.env.NODE_ENV !== 'development') {
       return bad('draft_bucket_not_configured', 500);

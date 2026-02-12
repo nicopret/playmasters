@@ -40,6 +40,7 @@
     "components/**/*.tsx",
     "lib/**/*.ts",
     "lib/**/*.tsx",
+    "types/**/*.d.ts",
     "../../packages/types/src/**/*.ts",
     "../../packages/games-sdk/src/**/*.ts",
     "./.next/types/**/*.ts",

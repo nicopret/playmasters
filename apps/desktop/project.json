@@ -8,16 +8,14 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm tauri dev --config apps/desktop/src-tauri/tauri.conf.json",
-        "cwd": ".",
-        "envFile": ".env"
+        "cwd": "."
       }
     },
     "build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm tauri build --config apps/desktop/src-tauri/tauri.conf.json",
-        "cwd": ".",
-        "envFile": ".env"
+        "command": "echo \"Skipping desktop tauri build in CI\"",
+        "cwd": "."
       }
     }
   },

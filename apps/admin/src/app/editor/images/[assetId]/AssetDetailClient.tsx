@@ -1,5 +1,5 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -40,10 +40,19 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
   const [asset, setAsset] = useState<Asset | null>(null);
   const [versions, setVersions] = useState<Version[]>([]);
   const [audit, setAudit] = useState<
-    { id: string; action: string; timestamp: string; actorEmail?: string | null; details?: any }[]
+    {
+      id: string;
+      action: string;
+      timestamp: string;
+      actorEmail?: string | null;
+      details?: any;
+    }[]
   >([]);
   const [usageCount, setUsageCount] = useState(0);
-  const [usageRefs, setUsageRefs] = useState<{ refId: string; usageType: string }[]>([]);
+  const [usageRefs, setUsageRefs] = useState<
+    { refId: string; usageType: string }[]
+  >([]);
+  void usageRefs; // currently unused in UI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -60,9 +69,15 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
     try {
       const [a, v, auditRes, usageRes] = await Promise.all([
         fetch(toAbsolute(`/api/assets/${assetId}`), { cache: 'no-store' }),
-        fetch(toAbsolute(`/api/assets/${assetId}/versions`), { cache: 'no-store' }),
-        fetch(toAbsolute(`/api/assets/${assetId}/audit`), { cache: 'no-store' }),
-        fetch(toAbsolute(`/api/assets/${assetId}/usage`), { cache: 'no-store' }),
+        fetch(toAbsolute(`/api/assets/${assetId}/versions`), {
+          cache: 'no-store',
+        }),
+        fetch(toAbsolute(`/api/assets/${assetId}/audit`), {
+          cache: 'no-store',
+        }),
+        fetch(toAbsolute(`/api/assets/${assetId}/usage`), {
+          cache: 'no-store',
+        }),
       ]);
 
       const assetJson = a.ok ? await a.json() : null;
@@ -131,11 +146,16 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
     setActionBusy('create-draft');
     setActionError(null);
     try {
-      const res = await fetch(toAbsolute(`/api/assets/${assetId}/draft-from-published`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ changeNotes: changeNotes.trim() || undefined }),
-      });
+      const res = await fetch(
+        toAbsolute(`/api/assets/${assetId}/draft-from-published`),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            changeNotes: changeNotes.trim() || undefined,
+          }),
+        },
+      );
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || 'Failed to create draft');
       await load();
@@ -161,15 +181,18 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
     setActionBusy('publish');
     setActionError(null);
     try {
-      const res = await fetch(toAbsolute(`/api/assets/${asset.assetId}/publish`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assetId: asset.assetId,
-          versionId: asset.currentDraftVersionId,
-          changeNotes: changeNotes.trim(),
-        }),
-      });
+      const res = await fetch(
+        toAbsolute(`/api/assets/${asset.assetId}/publish`),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assetId: asset.assetId,
+            versionId: asset.currentDraftVersionId,
+            changeNotes: changeNotes.trim(),
+          }),
+        },
+      );
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || 'Failed to publish draft');
       await load();
@@ -182,12 +205,17 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
 
   const handleArchive = async (version: Version) => {
     if (!asset) return;
-    if (asset.currentDraftVersionId === version.versionId || asset.currentPublishedVersionId === version.versionId) {
+    if (
+      asset.currentDraftVersionId === version.versionId ||
+      asset.currentPublishedVersionId === version.versionId
+    ) {
       setActionError('Cannot archive the current draft or published version.');
       return;
     }
     if (version.state === 'Archived') return;
-    const confirmed = window.confirm('Archive this version? This does not delete the binary.');
+    const confirmed = window.confirm(
+      'Archive this version? This does not delete the binary.',
+    );
     if (!confirmed) return;
 
     const key = `archive-${version.versionId}`;
@@ -195,8 +223,10 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
     setActionError(null);
     try {
       const res = await fetch(
-        toAbsolute(`/api/assets/${asset.assetId}/versions/${version.versionId}/archive`),
-        { method: 'POST' }
+        toAbsolute(
+          `/api/assets/${asset.assetId}/versions/${version.versionId}/archive`,
+        ),
+        { method: 'POST' },
       );
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || 'Failed to archive version');
@@ -211,14 +241,21 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
   const handleRollback = async () => {
     if (!asset) return;
     const publishedVersions = versions.filter(
-      (v) => v.state === 'Published' && v.versionId !== asset.currentPublishedVersionId
+      (v) =>
+        v.state === 'Published' &&
+        v.versionId !== asset.currentPublishedVersionId,
     );
     if (publishedVersions.length === 0) {
       setActionError('No previous published versions to roll back to.');
       return;
     }
-    const list = publishedVersions.map((v) => `${v.versionId} (${new Date(v.createdAt).toLocaleString()})`).join('\n');
-    const choice = window.prompt(`Enter versionId to roll back to:\n${list}`, publishedVersions[0].versionId);
+    const list = publishedVersions
+      .map((v) => `${v.versionId} (${new Date(v.createdAt).toLocaleString()})`)
+      .join('\n');
+    const choice = window.prompt(
+      `Enter versionId to roll back to:\n${list}`,
+      publishedVersions[0].versionId,
+    );
     if (!choice) return;
     const targetId = choice.trim();
     if (!publishedVersions.some((v) => v.versionId === targetId)) {
@@ -229,11 +266,14 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
     setActionBusy('rollback');
     setActionError(null);
     try {
-      const res = await fetch(toAbsolute(`/api/assets/${asset.assetId}/rollback`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ versionId: targetId }),
-      });
+      const res = await fetch(
+        toAbsolute(`/api/assets/${asset.assetId}/rollback`),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ versionId: targetId }),
+        },
+      );
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || 'Failed to rollback');
       await load();
@@ -276,7 +316,8 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
             <div className={styles.placeholder}>No preview available</div>
           )}
           <div className={styles.muted}>
-            Showing {asset.currentDraftVersionId ? 'draft' : 'published'} version preview
+            Showing {asset.currentDraftVersionId ? 'draft' : 'published'}{' '}
+            version preview
           </div>
         </div>
 
@@ -286,7 +327,9 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
             <button
               className={styles.button}
               onClick={handlePublishDraft}
-              disabled={actionBusy === 'publish' || !asset.currentDraftVersionId}
+              disabled={
+                actionBusy === 'publish' || !asset.currentDraftVersionId
+              }
             >
               {actionBusy === 'publish' ? 'Publishing…' : 'Publish draft'}
             </button>
@@ -295,14 +338,22 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
               onClick={handleRollback}
               disabled={actionBusy === 'rollback'}
             >
-              {actionBusy === 'rollback' ? 'Rolling back…' : 'Rollback to previous published'}
+              {actionBusy === 'rollback'
+                ? 'Rolling back…'
+                : 'Rollback to previous published'}
             </button>
             {asset.currentDraftVersionId ? (
-              <Link href={`/editor/images/${asset.assetId}/edit`} className={`${styles.button} ${styles.buttonSecondary}`}>
+              <Link
+                href={`/editor/images/${asset.assetId}/edit`}
+                className={`${styles.button} ${styles.buttonSecondary}`}
+              >
                 Edit draft
               </Link>
             ) : (
-              <button className={`${styles.button} ${styles.buttonSecondary}`} disabled>
+              <button
+                className={`${styles.button} ${styles.buttonSecondary}`}
+                disabled
+              >
                 Edit draft (requires draft)
               </button>
             )}
@@ -315,12 +366,19 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
                 Boolean(asset.currentDraftVersionId)
               }
             >
-              {actionBusy === 'create-draft' ? 'Creating draft…' : 'Create new draft from published'}
+              {actionBusy === 'create-draft'
+                ? 'Creating draft…'
+                : 'Create new draft from published'}
             </button>
-            <button className={`${styles.button} ${styles.buttonSecondary}`} disabled>
+            <button
+              className={`${styles.button} ${styles.buttonSecondary}`}
+              disabled
+            >
               Archive version (select below)
             </button>
-            {actionError ? <div className={styles.muted}>Error: {actionError}</div> : null}
+            {actionError ? (
+              <div className={styles.muted}>Error: {actionError}</div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -356,7 +414,9 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
                 {asset.width} × {asset.height}
               </div>
             </div>
-            <div className={styles.muted}>Editing and saving will be wired up in a later step.</div>
+            <div className={styles.muted}>
+              Editing and saving will be wired up in a later step.
+            </div>
           </div>
         </div>
 
@@ -397,7 +457,9 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
                         }
                         onClick={() => handleArchive(v)}
                       >
-                        {actionBusy === `archive-${v.versionId}` ? 'Archiving…' : 'Archive'}
+                        {actionBusy === `archive-${v.versionId}`
+                          ? 'Archiving…'
+                          : 'Archive'}
                       </button>
                     </td>
                   </tr>
@@ -432,9 +494,7 @@ export function AssetDetailClient({ assetId }: { assetId: string }) {
                     <td>{entry.action}</td>
                     <td>{entry.actorEmail ?? '—'}</td>
                     <td>
-                      {entry.details
-                        ? JSON.stringify(entry.details)
-                        : '—'}
+                      {entry.details ? JSON.stringify(entry.details) : '—'}
                     </td>
                   </tr>
                 ))}

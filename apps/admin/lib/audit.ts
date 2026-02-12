@@ -26,7 +26,9 @@ export type AuditLog = {
 const auditPk = (entityId: string) => `AUDIT#${entityId}`;
 const auditSk = (ts: string, id: string) => `AUDIT#${ts}#${id}`;
 
-export async function logAudit(entry: Omit<AuditLog, 'id' | 'timestamp'> & { timestamp?: string }) {
+export async function logAudit(
+  entry: Omit<AuditLog, 'id' | 'timestamp'> & { timestamp?: string },
+) {
   const ts = entry.timestamp ?? new Date().toISOString();
   const id = randomUUID();
   const item: AuditLog & { [key: string]: any } = {
@@ -40,12 +42,15 @@ export async function logAudit(entry: Omit<AuditLog, 'id' | 'timestamp'> & { tim
     new PutCommand({
       TableName: IMAGE_TABLE,
       Item: item,
-    })
+    }),
   );
   return item;
 }
 
-export async function listAudit(entityId: string, limit = 10): Promise<AuditLog[]> {
+export async function listAudit(
+  entityId: string,
+  limit = 10,
+): Promise<AuditLog[]> {
   const res = await ddbDocClient.send(
     new QueryCommand({
       TableName: IMAGE_TABLE,
@@ -56,9 +61,9 @@ export async function listAudit(entityId: string, limit = 10): Promise<AuditLog[
       },
       ScanIndexForward: false,
       Limit: limit,
-    })
+    }),
   );
-  const items = (res.Items ?? []) as ({ [key: string]: any })[];
+  const items = (res.Items ?? []) as { [key: string]: any }[];
   return items.map((i) => {
     const { [PK_ATTR]: _pk, [SK_ATTR]: _sk, ...rest } = i;
     return rest as AuditLog;

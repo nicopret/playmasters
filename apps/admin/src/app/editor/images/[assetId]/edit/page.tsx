@@ -19,7 +19,7 @@ export type SelectionState = {
 export function generateMaskImageData(
   width: number,
   height: number,
-  selection: SelectionState
+  selection: SelectionState,
 ): ImageData {
   const data = new ImageData(width, height);
   const white = [255, 255, 255, 255];
@@ -63,7 +63,12 @@ export default function EditPage({ params }: { params: ParamInput }) {
   const [tool, setTool] = useState<Tool>('pencil');
   const [color, setColor] = useState('#ff0090');
   const [brushSize, setBrushSize] = useState(1);
-  const [palette, setPalette] = useState<string[]>(['#ff0090', '#00d1ff', '#ffffff', '#000000']);
+  const [palette, setPalette] = useState<string[]>([
+    '#ff0090',
+    '#00d1ff',
+    '#ffffff',
+    '#000000',
+  ]);
   const [zoom, setZoom] = useState(8);
   const [showGrid, setShowGrid] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -79,12 +84,15 @@ export default function EditPage({ params }: { params: ParamInput }) {
   });
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiScope, setAiScope] = useState<'all' | 'selection'>('all');
-  const [aiStyle, setAiStyle] = useState<'pixel' | 'minimal' | 'modern'>('pixel');
+  const [aiStyle, setAiStyle] = useState<'pixel' | 'minimal' | 'modern'>(
+    'pixel',
+  );
   const [aiLoading, setAiLoading] = useState(false);
   const [aiPreview, setAiPreview] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiCollapsed, setAiCollapsed] = useState(false);
-  const scopeRequiresSelection = aiScope === 'selection' && !selection.normalized;
+  const scopeRequiresSelection =
+    aiScope === 'selection' && !selection.normalized;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -121,7 +129,9 @@ export default function EditPage({ params }: { params: ParamInput }) {
     const load = async () => {
       setMessage('Loading draft...');
       try {
-        const res = await fetch(`/api/assets/${assetId}/draft-image`, { cache: 'no-store' });
+        const res = await fetch(`/api/assets/${assetId}/draft-image`, {
+          cache: 'no-store',
+        });
         if (!res.ok) throw new Error('draft_not_found');
         const blob = await res.blob();
         const image = new Image();
@@ -154,13 +164,15 @@ export default function EditPage({ params }: { params: ParamInput }) {
         height: img ? img.height * zoom : undefined,
         '--grid-size': `${zoom}px`,
       }) as React.CSSProperties,
-    [img, zoom]
+    [img, zoom],
   );
 
   const pushUndo = () => {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx || !canvasRef.current) return;
-    undoStack.current.push(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
+    undoStack.current.push(
+      ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height),
+    );
     if (undoStack.current.length > 30) undoStack.current.shift();
   };
 
@@ -211,7 +223,8 @@ export default function EditPage({ params }: { params: ParamInput }) {
       const targetIdx = (sy * w + sx) * 4;
       const target = data.data.slice(targetIdx, targetIdx + 4).join(',');
       const newColor = hexToRgba(color);
-      const match = (idx: number) => data.data.slice(idx, idx + 4).join(',') === target;
+      const match = (idx: number) =>
+        data.data.slice(idx, idx + 4).join(',') === target;
       if (target === newColor.join(',')) return;
       const stack = [[sx, sy]];
       while (stack.length) {
@@ -249,16 +262,23 @@ export default function EditPage({ params }: { params: ParamInput }) {
       }
     };
 
-    if (ev.type === 'pointerdown' && (tool === 'pencil' || tool === 'eraser' || tool === 'fill')) {
+    if (
+      ev.type === 'pointerdown' &&
+      (tool === 'pencil' || tool === 'eraser' || tool === 'fill')
+    ) {
       mutateAtPoint();
       if (tool === 'fill') applyFill(x, y);
-    } else if (ev.type === 'pointermove' && isPointerDown.current && (tool === 'pencil' || tool === 'eraser')) {
+    } else if (
+      ev.type === 'pointermove' &&
+      isPointerDown.current &&
+      (tool === 'pencil' || tool === 'eraser')
+    ) {
       mutateAtPoint();
     }
     if (tool === 'picker' && ev.type === 'pointerdown') {
       const data = ctx.getImageData(x, y, 1, 1).data;
       setColor(
-        `#${[data[0], data[1], data[2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`
+        `#${[data[0], data[1], data[2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`,
       );
     }
     // palette update only if we mutated
@@ -273,7 +293,9 @@ export default function EditPage({ params }: { params: ParamInput }) {
 
   const handlePointerUp = () => {
     if (isSelecting.current) {
-      setSelection((sel) => normalizeSelection(sel, img?.width ?? 0, img?.height ?? 0));
+      setSelection((sel) =>
+        normalizeSelection(sel, img?.width ?? 0, img?.height ?? 0),
+      );
       isSelecting.current = false;
       return;
     }
@@ -329,7 +351,11 @@ export default function EditPage({ params }: { params: ParamInput }) {
       const baseImageBlob = await canvasToBlob(canvasRef.current);
       let maskBlob: Blob | undefined;
       if (aiScope === 'selection' && selection.normalized) {
-        const mask = generateMaskImageData(img?.width ?? 0, img?.height ?? 0, selection);
+        const mask = generateMaskImageData(
+          img?.width ?? 0,
+          img?.height ?? 0,
+          selection,
+        );
         maskBlob = await exportMaskAsBlob(mask);
       }
       const form = new FormData();
@@ -342,7 +368,11 @@ export default function EditPage({ params }: { params: ParamInput }) {
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 30000);
-      const res = await fetch('/api/image-edit', { method: 'POST', body: form, signal: controller.signal });
+      const res = await fetch('/api/image-edit', {
+        method: 'POST',
+        body: form,
+        signal: controller.signal,
+      });
       clearTimeout(timeout);
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.previewImageBase64) {
@@ -366,13 +396,18 @@ export default function EditPage({ params }: { params: ParamInput }) {
     if (!aiPreview || !assetId) return;
     setAiLoading(true);
     try {
-      const blob = await (await fetch(`data:image/png;base64,${aiPreview}`)).blob();
+      const blob = await (
+        await fetch(`data:image/png;base64,${aiPreview}`)
+      ).blob();
       const form = new FormData();
       form.append('file', blob, 'ai.png');
       form.append('changeNotes', `AI edit: ${aiPrompt.slice(0, 100)}`);
       form.append('derivedFromVersionId', '');
 
-      const res = await fetch(`/api/assets/${assetId}/versions`, { method: 'POST', body: form });
+      const res = await fetch(`/api/assets/${assetId}/versions`, {
+        method: 'POST',
+        body: form,
+      });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error(json?.error || 'version_create_failed');
       // clear local state and redirect
@@ -405,7 +440,9 @@ export default function EditPage({ params }: { params: ParamInput }) {
     if (!ctx) return;
     const prev = undoStack.current.pop();
     if (!prev) return;
-    redoStack.current.push(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
+    redoStack.current.push(
+      ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height),
+    );
     ctx.putImageData(prev, 0, 0);
   };
 
@@ -415,7 +452,9 @@ export default function EditPage({ params }: { params: ParamInput }) {
     if (!ctx) return;
     const next = redoStack.current.pop();
     if (!next) return;
-    undoStack.current.push(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
+    undoStack.current.push(
+      ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height),
+    );
     ctx.putImageData(next, 0, 0);
   };
 
@@ -427,7 +466,10 @@ export default function EditPage({ params }: { params: ParamInput }) {
       if (e.key.toLowerCase() === 'z' && !shift) {
         e.preventDefault();
         undo();
-      } else if ((e.key.toLowerCase() === 'z' && shift) || e.key.toLowerCase() === 'y') {
+      } else if (
+        (e.key.toLowerCase() === 'z' && shift) ||
+        e.key.toLowerCase() === 'y'
+      ) {
         e.preventDefault();
         redo();
       }
@@ -462,7 +504,7 @@ export default function EditPage({ params }: { params: ParamInput }) {
   const normalizeSelection = (
     sel: typeof selection,
     w: number,
-    h: number
+    h: number,
   ): typeof selection => {
     const startX = clamp(Math.min(sel.startX, sel.endX), w);
     const endX = clamp(Math.max(sel.startX, sel.endX), w);
@@ -482,7 +524,6 @@ export default function EditPage({ params }: { params: ParamInput }) {
     const { x, y, width, height } = selection.normalized;
     return px >= x && px < x + width && py >= y && py < y + height;
   };
-
 
   const handleColorChange = (value: string) => {
     const normalized = value.startsWith('#') ? value : `#${value}`;
@@ -515,125 +556,143 @@ export default function EditPage({ params }: { params: ParamInput }) {
                 onClick={() => setTool('pencil')}
               >
                 Pencil
-            </button>
-            <button
-              className={`${styles.button} ${tool === 'eraser' ? styles.active : ''}`}
-              onClick={() => setTool('eraser')}
-            >
-              Eraser
-            </button>
-            <button
-              className={`${styles.button} ${tool === 'fill' ? styles.active : ''}`}
-              onClick={() => setTool('fill')}
-            >
-              Fill
-            </button>
-            <button
-          className={`${styles.button} ${tool === 'picker' ? styles.active : ''}`}
-          onClick={() => setTool('picker')}
-            >
-              Picker
-            </button>
-            <button
-              className={`${styles.button} ${tool === 'select' ? styles.active : ''}`}
-              onClick={() => setTool('select')}
-            >
-              Select
-            </button>
-        <div className={styles.colorPanel}>
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => handleColorChange(e.target.value)}
-            className={styles.colorSwatch}
-            aria-label="Color picker"
-          />
-          <input
-            type="text"
-            value={color}
-            onChange={(e) => handleColorChange(e.target.value)}
-            size={8}
-            aria-label="Hex color"
-          />
-          <select
-            className={styles.brushSelect}
-            value={brushSize}
-            onChange={(e) => setBrushSize(Number(e.target.value))}
-          >
-            {[1, 2, 3, 4, 6, 8].map((b) => (
-              <option key={b} value={b}>
-                {b}px
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={styles.palette}>
-          {palette.map((p) => (
-            <button
-              key={p}
-              className={styles.swatch}
-              style={{ background: p }}
-              onClick={() => setColor(p)}
-              aria-label={`Use color ${p}`}
-            />
-          ))}
-        </div>
-            <label>
-              Zoom
-              <input
-                type="range"
-                min={2}
-                max={24}
-                step={1}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-              />
-              {zoom}x
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={showGrid}
-                onChange={(e) => setShowGrid(e.target.checked)}
-              />
-              Grid
-            </label>
-            <span className={styles.chip}>Zoom: {zoom}x</span>
-            {selection.normalized ? <span className={styles.chip}>Selection Active</span> : null}
-            <label>
-              <input
-                type="checkbox"
-                checked={showGrid}
-                onChange={(e) => setShowGrid(e.target.checked)}
-              />
-              Grid
-            </label>
-            <button className={styles.button} onClick={undo} disabled={undoStack.current.length === 0}>
-              Undo
-            </button>
-            <button className={styles.button} onClick={redo} disabled={redoStack.current.length === 0}>
-              Redo
-            </button>
-            <button className={styles.button} onClick={handleSave} disabled={busy}>
-              {busy ? 'Saving…' : 'Save as new draft'}
-            </button>
-            {dirty && <span className={styles.chip}>● Unsaved</span>}
-            <button
-              className={styles.button}
-              onClick={async () => {
-                if (!img) return;
-                const mask = generateMaskImageData(img.width, img.height, selection);
-                const blob = await exportMaskAsBlob(mask);
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'mask.png';
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-            >
-              Download Mask
-            </button>
+              </button>
+              <button
+                className={`${styles.button} ${tool === 'eraser' ? styles.active : ''}`}
+                onClick={() => setTool('eraser')}
+              >
+                Eraser
+              </button>
+              <button
+                className={`${styles.button} ${tool === 'fill' ? styles.active : ''}`}
+                onClick={() => setTool('fill')}
+              >
+                Fill
+              </button>
+              <button
+                className={`${styles.button} ${tool === 'picker' ? styles.active : ''}`}
+                onClick={() => setTool('picker')}
+              >
+                Picker
+              </button>
+              <button
+                className={`${styles.button} ${tool === 'select' ? styles.active : ''}`}
+                onClick={() => setTool('select')}
+              >
+                Select
+              </button>
+              <div className={styles.colorPanel}>
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => handleColorChange(e.target.value)}
+                  className={styles.colorSwatch}
+                  aria-label="Color picker"
+                />
+                <input
+                  type="text"
+                  value={color}
+                  onChange={(e) => handleColorChange(e.target.value)}
+                  size={8}
+                  aria-label="Hex color"
+                />
+                <select
+                  className={styles.brushSelect}
+                  value={brushSize}
+                  onChange={(e) => setBrushSize(Number(e.target.value))}
+                >
+                  {[1, 2, 3, 4, 6, 8].map((b) => (
+                    <option key={b} value={b}>
+                      {b}px
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.palette}>
+                {palette.map((p) => (
+                  <button
+                    key={p}
+                    className={styles.swatch}
+                    style={{ background: p }}
+                    onClick={() => setColor(p)}
+                    aria-label={`Use color ${p}`}
+                  />
+                ))}
+              </div>
+              <label>
+                Zoom
+                <input
+                  type="range"
+                  min={2}
+                  max={24}
+                  step={1}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                />
+                {zoom}x
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showGrid}
+                  onChange={(e) => setShowGrid(e.target.checked)}
+                />
+                Grid
+              </label>
+              <span className={styles.chip}>Zoom: {zoom}x</span>
+              {selection.normalized ? (
+                <span className={styles.chip}>Selection Active</span>
+              ) : null}
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showGrid}
+                  onChange={(e) => setShowGrid(e.target.checked)}
+                />
+                Grid
+              </label>
+              <button
+                className={styles.button}
+                onClick={undo}
+                disabled={undoStack.current.length === 0}
+              >
+                Undo
+              </button>
+              <button
+                className={styles.button}
+                onClick={redo}
+                disabled={redoStack.current.length === 0}
+              >
+                Redo
+              </button>
+              <button
+                className={styles.button}
+                onClick={handleSave}
+                disabled={busy}
+              >
+                {busy ? 'Saving…' : 'Save as new draft'}
+              </button>
+              {dirty && <span className={styles.chip}>● Unsaved</span>}
+              <button
+                className={styles.button}
+                onClick={async () => {
+                  if (!img) return;
+                  const mask = generateMaskImageData(
+                    img.width,
+                    img.height,
+                    selection,
+                  );
+                  const blob = await exportMaskAsBlob(mask);
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'mask.png';
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                Download Mask
+              </button>
             </div>
 
             <div className={styles.canvasOuter}>
@@ -642,10 +701,18 @@ export default function EditPage({ params }: { params: ParamInput }) {
                   <>
                     <div className={styles.previewBanner}>
                       <span>AI Preview — Accept or Discard</span>
-                      <button className={styles.button} onClick={handleAcceptAI} disabled={aiLoading}>
+                      <button
+                        className={styles.button}
+                        onClick={handleAcceptAI}
+                        disabled={aiLoading}
+                      >
                         Accept
                       </button>
-                      <button className={styles.button} onClick={handleDiscardAI} disabled={aiLoading}>
+                      <button
+                        className={styles.button}
+                        onClick={handleDiscardAI}
+                        disabled={aiLoading}
+                      >
                         Discard
                       </button>
                     </div>
@@ -656,11 +723,16 @@ export default function EditPage({ params }: { params: ParamInput }) {
                     />
                   </>
                 ) : null}
-                {selection.normalized ? <div className={styles.selectionOverlay} /> : null}
+                {selection.normalized ? (
+                  <div className={styles.selectionOverlay} />
+                ) : null}
                 <canvas
                   ref={canvasRef}
                   className={styles.canvas}
-                  style={{ width: applyZoomStyles.width, height: applyZoomStyles.height }}
+                  style={{
+                    width: applyZoomStyles.width,
+                    height: applyZoomStyles.height,
+                  }}
                   onPointerDown={handlePointer}
                   onPointerMove={handlePointer}
                   onPointerUp={handlePointerUp}
@@ -677,7 +749,13 @@ export default function EditPage({ params }: { params: ParamInput }) {
                     }}
                   />
                 ) : null}
-                {showGrid && <div ref={overlayRef} className={styles.gridOverlay} style={applyZoomStyles} />}
+                {showGrid && (
+                  <div
+                    ref={overlayRef}
+                    className={styles.gridOverlay}
+                    style={applyZoomStyles}
+                  />
+                )}
               </div>
             </div>
 
@@ -689,59 +767,74 @@ export default function EditPage({ params }: { params: ParamInput }) {
           {!aiCollapsed && (
             <aside className={styles.aiPanel}>
               <h4>AI Edit</h4>
-              <button className={styles.button} onClick={() => setAiCollapsed(true)}>
+              <button
+                className={styles.button}
+                onClick={() => setAiCollapsed(true)}
+              >
                 Hide AI Panel
               </button>
-            <textarea
-              className={styles.textarea}
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="Describe the change…"
-            />
-            <label>
-              Scope
-              <select
-                className={styles.select}
-                value={aiScope}
-                onChange={(e) => setAiScope(e.target.value as 'all' | 'selection')}
-                disabled={!selection.normalized && aiScope === 'selection'}
+              <textarea
+                className={styles.textarea}
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="Describe the change…"
+              />
+              <label>
+                Scope
+                <select
+                  className={styles.select}
+                  value={aiScope}
+                  onChange={(e) =>
+                    setAiScope(e.target.value as 'all' | 'selection')
+                  }
+                  disabled={!selection.normalized && aiScope === 'selection'}
+                >
+                  <option value="all">Whole Image</option>
+                  <option value="selection">Selection Only</option>
+                </select>
+              </label>
+              <label>
+                Style
+                <select
+                  className={styles.select}
+                  value={aiStyle}
+                  onChange={(e) =>
+                    setAiStyle(e.target.value as 'pixel' | 'minimal' | 'modern')
+                  }
+                >
+                  <option value="pixel">Pixel Art</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="modern">Modern</option>
+                </select>
+              </label>
+              {scopeRequiresSelection ? (
+                <div className={styles.status}>
+                  Selection Only requires an active selection.
+                </div>
+              ) : null}
+              <button
+                className={styles.button}
+                onClick={handleGenerateAI}
+                disabled={aiLoading || !aiPrompt || scopeRequiresSelection}
               >
-                <option value="all">Whole Image</option>
-                <option value="selection">Selection Only</option>
-              </select>
-            </label>
-            <label>
-              Style
-              <select
-                className={styles.select}
-                value={aiStyle}
-                onChange={(e) => setAiStyle(e.target.value as 'pixel' | 'minimal' | 'modern')}
-              >
-                <option value="pixel">Pixel Art</option>
-                <option value="minimal">Minimal</option>
-                <option value="modern">Modern</option>
-              </select>
-            </label>
-            {scopeRequiresSelection ? (
-              <div className={styles.status}>Selection Only requires an active selection.</div>
-            ) : null}
-            <button
-              className={styles.button}
-              onClick={handleGenerateAI}
-              disabled={aiLoading || !aiPrompt || scopeRequiresSelection}
-            >
-              {aiLoading ? 'Generating…' : 'Generate'}
-            </button>
-            {aiError ? <div className={styles.status}>Error: {aiError}</div> : null}
-            <div className={styles.status}>
-              AI edits always create a new Draft version. Original images are never overwritten.
-            </div>
+                {aiLoading ? 'Generating…' : 'Generate'}
+              </button>
+              {aiError ? (
+                <div className={styles.status}>Error: {aiError}</div>
+              ) : null}
+              <div className={styles.status}>
+                AI edits always create a new Draft version. Original images are
+                never overwritten.
+              </div>
               {aiLoading ? <div className={styles.status}>Loading…</div> : null}
             </aside>
           )}
           {aiCollapsed && (
             <div>
-              <button className={styles.button} onClick={() => setAiCollapsed(false)}>
+              <button
+                className={styles.button}
+                onClick={() => setAiCollapsed(false)}
+              >
                 Show AI Panel
               </button>
             </div>

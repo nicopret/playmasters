@@ -1,4 +1,8 @@
-import type { LeaderboardEntry, LeaderboardScope, LeaderboardState } from '@playmasters/types';
+import type {
+  LeaderboardEntry,
+  LeaderboardScope,
+  LeaderboardState,
+} from '@playmasters/types';
 
 export type ScoreInput = {
   gameId: string;
@@ -17,7 +21,8 @@ const compareEntries = (a: LeaderboardEntry, b: LeaderboardEntry) => {
   return new Date(a.achievedAt).getTime() - new Date(b.achievedAt).getTime();
 };
 
-const makeLocalKey = (gameId: string, countryCode: string) => `${gameId}::${countryCode}`;
+const makeLocalKey = (gameId: string, countryCode: string) =>
+  `${gameId}::${countryCode}`;
 
 export class LeaderboardStore {
   private globalTop = new Map<string, LeaderboardEntry[]>();
@@ -39,7 +44,10 @@ export class LeaderboardStore {
     const personalMap = this.ensurePersonalMap(gameId);
     const existingPersonal = personalMap.get(userId);
 
-    if (existingPersonal && !this.isBetter(score, achievedAt, existingPersonal)) {
+    if (
+      existingPersonal &&
+      !this.isBetter(score, achievedAt, existingPersonal)
+    ) {
       return { changed: false };
     }
 
@@ -57,7 +65,9 @@ export class LeaderboardStore {
     const personalState = this.buildPersonalState(gameId, userId);
 
     const globalState = this.upsertLeaderboard(gameId, baseEntry);
-    const localState = countryCode ? this.upsertLeaderboard(gameId, baseEntry, countryCode) : undefined;
+    const localState = countryCode
+      ? this.upsertLeaderboard(gameId, baseEntry, countryCode)
+      : undefined;
 
     return {
       changed: true,
@@ -67,22 +77,35 @@ export class LeaderboardStore {
     };
   }
 
-  getState(gameId: string, scope: LeaderboardScope, countryCode?: string, userId?: string): LeaderboardState {
+  getState(
+    gameId: string,
+    scope: LeaderboardScope,
+    countryCode?: string,
+    userId?: string,
+  ): LeaderboardState {
     if (scope === 'global') {
       const entries = this.ensureGlobalList(gameId);
-      const updatedAt = this.globalUpdatedAt.get(gameId) ?? new Date(0).toISOString();
+      const updatedAt =
+        this.globalUpdatedAt.get(gameId) ?? new Date(0).toISOString();
       return this.buildState(gameId, 'global', entries, updatedAt);
     }
 
     if (scope === 'local') {
       const key = countryCode ?? 'ZZ';
       const entries = this.ensureLocalList(gameId, key);
-      const updatedAt = this.localUpdatedAt.get(gameId)?.get(key) ?? new Date(0).toISOString();
+      const updatedAt =
+        this.localUpdatedAt.get(gameId)?.get(key) ?? new Date(0).toISOString();
       return this.buildState(gameId, 'local', entries, updatedAt, key);
     }
 
     if (!userId) {
-      return this.buildState(gameId, 'personal', [], new Date(0).toISOString(), countryCode);
+      return this.buildState(
+        gameId,
+        'personal',
+        [],
+        new Date(0).toISOString(),
+        countryCode,
+      );
     }
 
     return this.buildPersonalState(gameId, userId);
@@ -96,7 +119,11 @@ export class LeaderboardStore {
     }
 
     if (state.scope === 'local' && state.countryCode) {
-      this.setLocalList(state.gameId, state.countryCode, this.withRanks(state.entries));
+      this.setLocalList(
+        state.gameId,
+        state.countryCode,
+        this.withRanks(state.entries),
+      );
       this.markLocalUpdated(state.gameId, state.countryCode, state.updatedAt);
     }
   }
@@ -106,15 +133,20 @@ export class LeaderboardStore {
 
     for (const gameId of this.dirtyGlobal) {
       const entries = this.ensureGlobalList(gameId);
-      const updatedAt = this.globalUpdatedAt.get(gameId) ?? new Date().toISOString();
+      const updatedAt =
+        this.globalUpdatedAt.get(gameId) ?? new Date().toISOString();
       snapshots.push(this.buildState(gameId, 'global', entries, updatedAt));
     }
 
     for (const key of this.dirtyLocal) {
       const [gameId, countryCode] = key.split('::');
       const entries = this.ensureLocalList(gameId, countryCode);
-      const updatedAt = this.localUpdatedAt.get(gameId)?.get(countryCode) ?? new Date().toISOString();
-      snapshots.push(this.buildState(gameId, 'local', entries, updatedAt, countryCode));
+      const updatedAt =
+        this.localUpdatedAt.get(gameId)?.get(countryCode) ??
+        new Date().toISOString();
+      snapshots.push(
+        this.buildState(gameId, 'local', entries, updatedAt, countryCode),
+      );
     }
 
     this.dirtyGlobal.clear();
@@ -123,12 +155,20 @@ export class LeaderboardStore {
     return snapshots;
   }
 
-  private upsertLeaderboard(gameId: string, entry: LeaderboardEntry, countryCode?: string): LeaderboardState {
-    const list = countryCode ? this.ensureLocalList(gameId, countryCode) : this.ensureGlobalList(gameId);
+  private upsertLeaderboard(
+    gameId: string,
+    entry: LeaderboardEntry,
+    countryCode?: string,
+  ): LeaderboardState {
+    const list = countryCode
+      ? this.ensureLocalList(gameId, countryCode)
+      : this.ensureGlobalList(gameId);
     const filtered = list.filter((row) => row.userId !== entry.userId);
     filtered.push({ ...entry });
     filtered.sort(compareEntries);
-    const trimmed = filtered.slice(0, TOP_N).map((row, index) => ({ ...row, rank: index + 1 }));
+    const trimmed = filtered
+      .slice(0, TOP_N)
+      .map((row, index) => ({ ...row, rank: index + 1 }));
 
     const updatedAt = new Date().toISOString();
 
@@ -147,15 +187,23 @@ export class LeaderboardStore {
 
   private buildPersonalState(gameId: string, userId: string): LeaderboardState {
     const entry = this.ensurePersonalMap(gameId).get(userId);
-    const updatedAt = this.personalUpdatedAt.get(gameId)?.get(userId) ?? new Date().toISOString();
+    const updatedAt =
+      this.personalUpdatedAt.get(gameId)?.get(userId) ??
+      new Date().toISOString();
     const entries = entry ? [{ ...entry, rank: 1 }] : [];
     return this.buildState(gameId, 'personal', entries, updatedAt);
   }
 
-  private isBetter(score: number, achievedAt: string, existing: LeaderboardEntry) {
+  private isBetter(
+    score: number,
+    achievedAt: string,
+    existing: LeaderboardEntry,
+  ) {
     if (score > existing.score) return true;
     if (score < existing.score) return false;
-    return new Date(achievedAt).getTime() < new Date(existing.achievedAt).getTime();
+    return (
+      new Date(achievedAt).getTime() < new Date(existing.achievedAt).getTime()
+    );
   }
 
   private buildState(
@@ -163,7 +211,7 @@ export class LeaderboardStore {
     scope: LeaderboardScope,
     entries: LeaderboardEntry[],
     updatedAt: string,
-    countryCode?: string
+    countryCode?: string,
   ): LeaderboardState {
     return {
       gameId,
@@ -188,7 +236,8 @@ export class LeaderboardStore {
   }
 
   private ensureLocalList(gameId: string, countryCode: string) {
-    const gameMap = this.localTop.get(gameId) ?? new Map<string, LeaderboardEntry[]>();
+    const gameMap =
+      this.localTop.get(gameId) ?? new Map<string, LeaderboardEntry[]>();
     if (!this.localTop.has(gameId)) this.localTop.set(gameId, gameMap);
 
     const existing = gameMap.get(countryCode);
@@ -199,27 +248,42 @@ export class LeaderboardStore {
     return list;
   }
 
-  private setLocalList(gameId: string, countryCode: string, entries: LeaderboardEntry[]) {
-    const gameMap = this.localTop.get(gameId) ?? new Map<string, LeaderboardEntry[]>();
+  private setLocalList(
+    gameId: string,
+    countryCode: string,
+    entries: LeaderboardEntry[],
+  ) {
+    const gameMap =
+      this.localTop.get(gameId) ?? new Map<string, LeaderboardEntry[]>();
     if (!this.localTop.has(gameId)) this.localTop.set(gameId, gameMap);
     gameMap.set(countryCode, entries);
   }
 
   private ensurePersonalMap(gameId: string) {
-    const map = this.personalBest.get(gameId) ?? new Map<string, LeaderboardEntry>();
+    const map =
+      this.personalBest.get(gameId) ?? new Map<string, LeaderboardEntry>();
     if (!this.personalBest.has(gameId)) this.personalBest.set(gameId, map);
     return map;
   }
 
-  private markLocalUpdated(gameId: string, countryCode: string, updatedAt: string) {
+  private markLocalUpdated(
+    gameId: string,
+    countryCode: string,
+    updatedAt: string,
+  ) {
     const map = this.localUpdatedAt.get(gameId) ?? new Map<string, string>();
     if (!this.localUpdatedAt.has(gameId)) this.localUpdatedAt.set(gameId, map);
     map.set(countryCode, updatedAt);
   }
 
-  private markPersonalUpdated(gameId: string, userId: string, updatedAt: string) {
+  private markPersonalUpdated(
+    gameId: string,
+    userId: string,
+    updatedAt: string,
+  ) {
     const map = this.personalUpdatedAt.get(gameId) ?? new Map<string, string>();
-    if (!this.personalUpdatedAt.has(gameId)) this.personalUpdatedAt.set(gameId, map);
+    if (!this.personalUpdatedAt.has(gameId))
+      this.personalUpdatedAt.set(gameId, map);
     map.set(userId, updatedAt);
   }
 }

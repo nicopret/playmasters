@@ -1,5 +1,9 @@
 import { randomUUID } from 'crypto';
-import { CopyObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+  CopyObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+} from '@aws-sdk/client-s3';
 import {
   TransactWriteCommand,
   QueryCommand,
@@ -14,7 +18,8 @@ import type { ImageAsset, ImageAssetVersion } from '@playmasters/types';
 import { countAssetUsage } from './assetUsage';
 import { imageSize } from 'image-size';
 
-export const IMAGE_TABLE = process.env.DDB_TABLE_IMAGE_EDITOR ?? 'PlaymastersImageEditor';
+export const IMAGE_TABLE =
+  process.env.DDB_TABLE_IMAGE_EDITOR ?? 'PlaymastersImageEditor';
 export const IMAGE_VERSIONS_TABLE =
   process.env.DDB_TABLE_IMAGE_EDITOR_VERSIONS ?? IMAGE_TABLE;
 export const PK_ATTR = process.env.DDB_PK_NAME || 'PK';
@@ -23,13 +28,23 @@ export const SK_ATTR = process.env.DDB_SK_NAME || 'SK';
 // Optional per-entity key overrides
 export const ASSET_PK_ATTR = process.env.DDB_PK_NAME_ASSETS || PK_ATTR;
 export const ASSET_SK_ATTR = process.env.DDB_SK_NAME_ASSETS || SK_ATTR;
-export const VERSION_PK_ATTR = process.env.DDB_PK_NAME_ASSET_VERSIONS || PK_ATTR;
-export const VERSION_SK_ATTR = process.env.DDB_SK_NAME_ASSET_VERSIONS || SK_ATTR;
+export const VERSION_PK_ATTR =
+  process.env.DDB_PK_NAME_ASSET_VERSIONS || PK_ATTR;
+export const VERSION_SK_ATTR =
+  process.env.DDB_SK_NAME_ASSET_VERSIONS || SK_ATTR;
 export const ASSETS_DRAFT_BUCKET = process.env.ASSETS_DRAFT_BUCKET ?? '';
-export const ASSETS_PUBLISHED_BUCKET = process.env.ASSETS_PUBLISHED_BUCKET ?? '';
+export const ASSETS_PUBLISHED_BUCKET =
+  process.env.ASSETS_PUBLISHED_BUCKET ?? '';
 export const ASSETS_PUBLIC_BASE_URL = process.env.ASSETS_PUBLIC_BASE_URL ?? '';
-export const MAX_BACKGROUND_DIM = Number(process.env.ASSETS_MAX_BACKGROUND_DIM ?? '4096');
-const ALLOWED_PUBLISH_MIME = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+export const MAX_BACKGROUND_DIM = Number(
+  process.env.ASSETS_MAX_BACKGROUND_DIM ?? '4096',
+);
+const ALLOWED_PUBLISH_MIME = [
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+];
 export const ALLOWED_ASSET_TYPES: ImageAsset['type'][] = [
   'background',
   'sprite',
@@ -63,7 +78,9 @@ export const buildVersionKeys = (assetId: string, versionId: string) => ({
   [VERSION_SK_ATTR]: versionId,
 });
 
-export const newAsset = (input: Omit<ImageAsset, 'assetId' | 'createdAt' | 'updatedAt'>): ImageAsset => {
+export const newAsset = (
+  input: Omit<ImageAsset, 'assetId' | 'createdAt' | 'updatedAt'>,
+): ImageAsset => {
   if (!ALLOWED_ASSET_TYPES.includes(input.type)) {
     throw new Error('invalid_asset_type');
   }
@@ -78,7 +95,7 @@ export const newAsset = (input: Omit<ImageAsset, 'assetId' | 'createdAt' | 'upda
 
 export const newVersion = (
   assetId: string,
-  input: Omit<ImageAssetVersion, 'versionId' | 'assetId' | 'createdAt'>
+  input: Omit<ImageAssetVersion, 'versionId' | 'assetId' | 'createdAt'>,
 ): ImageAssetVersion => ({
   versionId: randomUUID(),
   assetId,
@@ -88,7 +105,7 @@ export const newVersion = (
 
 export async function createAssetWithDraft(
   asset: ImageAsset,
-  version: ImageAssetVersion
+  version: ImageAssetVersion,
 ): Promise<void> {
   const assetItem: ImageAssetItem = {
     ...asset,
@@ -114,12 +131,16 @@ export async function createAssetWithDraft(
           Put: {
             TableName: IMAGE_VERSIONS_TABLE,
             Item: versionItem,
-            ConditionExpression: 'attribute_not_exists(#pk) AND attribute_not_exists(#sk)',
-            ExpressionAttributeNames: { '#pk': VERSION_PK_ATTR, '#sk': VERSION_SK_ATTR },
+            ConditionExpression:
+              'attribute_not_exists(#pk) AND attribute_not_exists(#sk)',
+            ExpressionAttributeNames: {
+              '#pk': VERSION_PK_ATTR,
+              '#sk': VERSION_SK_ATTR,
+            },
           },
         },
       ],
-    })
+    }),
   );
 }
 
@@ -130,7 +151,7 @@ export async function listAssets(): Promise<ImageAsset[]> {
       FilterExpression: 'begins_with(#pk, :prefix)',
       ExpressionAttributeNames: { '#pk': ASSET_PK_ATTR },
       ExpressionAttributeValues: { ':prefix': 'ASSET#' },
-    })
+    }),
   );
   const items = (res.Items ?? []) as ImageAssetItem[];
   return items
@@ -141,14 +162,21 @@ export async function listAssets(): Promise<ImageAsset[]> {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-export async function listPublishedBackgroundCatalog(): Promise<BackgroundCatalogItem[]> {
+export async function listPublishedBackgroundCatalog(): Promise<
+  BackgroundCatalogItem[]
+> {
   const res = await ddbDocClient.send(
     new ScanCommand({
       TableName: IMAGE_TABLE,
-      FilterExpression: 'begins_with(#pk, :prefix) AND #type = :type AND attribute_exists(#pub)',
-      ExpressionAttributeNames: { '#pk': ASSET_PK_ATTR, '#type': 'type', '#pub': 'currentPublishedVersionId' },
+      FilterExpression:
+        'begins_with(#pk, :prefix) AND #type = :type AND attribute_exists(#pub)',
+      ExpressionAttributeNames: {
+        '#pk': ASSET_PK_ATTR,
+        '#type': 'type',
+        '#pub': 'currentPublishedVersionId',
+      },
       ExpressionAttributeValues: { ':prefix': 'ASSET#', ':type': 'background' },
-    })
+    }),
   );
   const assets = (res.Items ?? []) as ImageAssetItem[];
   if (!assets.length) return [];
@@ -173,9 +201,10 @@ export async function listPublishedBackgroundCatalog(): Promise<BackgroundCatalo
             Keys: keys,
           },
         },
-      })
+      }),
     );
-    versions = (versionRes.Responses?.[IMAGE_VERSIONS_TABLE] ?? []) as ImageAssetVersionItem[];
+    versions = (versionRes.Responses?.[IMAGE_VERSIONS_TABLE] ??
+      []) as ImageAssetVersionItem[];
   }
   const versionMap = new Map<string, ImageAssetVersionItem>();
   versions.forEach((v) => versionMap.set(v.versionId, v));
@@ -206,7 +235,7 @@ export async function listPublishedBackgroundCatalog(): Promise<BackgroundCatalo
   });
 
   return (mapped.filter(Boolean) as BackgroundCatalogItem[]).sort((a, b) =>
-    b.updatedAt.localeCompare(a.updatedAt)
+    b.updatedAt.localeCompare(a.updatedAt),
   );
 }
 
@@ -215,22 +244,24 @@ export async function getAsset(assetId: string): Promise<ImageAsset | null> {
     new GetCommand({
       TableName: IMAGE_TABLE,
       Key: buildAssetKeys(assetId),
-    })
+    }),
   );
-  
+
   if (!res.Item) return null;
   const { [ASSET_PK_ATTR]: _pk, ...rest } = res.Item as ImageAssetItem;
   return rest as ImageAsset;
 }
 
-export async function listVersions(assetId: string): Promise<ImageAssetVersion[]> {
+export async function listVersions(
+  assetId: string,
+): Promise<ImageAssetVersion[]> {
   const res = await ddbDocClient.send(
     new QueryCommand({
       TableName: IMAGE_VERSIONS_TABLE,
       KeyConditionExpression: `${VERSION_PK_ATTR} = :pk`,
       ExpressionAttributeValues: { ':pk': `ASSET#${assetId}` },
       ScanIndexForward: false,
-    })
+    }),
   );
   const items = (res.Items ?? []) as ImageAssetVersionItem[];
   return items
@@ -241,14 +272,20 @@ export async function listVersions(assetId: string): Promise<ImageAssetVersion[]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function getVersion(assetId: string, versionId: string): Promise<ImageAssetVersion | null> {
+export async function getVersion(
+  assetId: string,
+  versionId: string,
+): Promise<ImageAssetVersion | null> {
   if (!versionId) throw new Error('version_id_required');
   const res = await ddbDocClient.send(
     new QueryCommand({
       TableName: IMAGE_VERSIONS_TABLE,
       KeyConditionExpression: `${VERSION_PK_ATTR} = :pk AND ${VERSION_SK_ATTR} = :sk`,
-      ExpressionAttributeValues: { ':pk': `ASSET#${assetId}`, ':sk': versionId },
-    })
+      ExpressionAttributeValues: {
+        ':pk': `ASSET#${assetId}`,
+        ':sk': versionId,
+      },
+    }),
   );
 
   const item = (res.Items ?? [])?.[0] as ImageAssetVersionItem | undefined;
@@ -274,7 +311,11 @@ export const publicUrlForVersion = (assetId: string, versionId: string) => {
   return `${base}/published/images/${assetId}/${versionId}.png`;
 };
 
-export const getPublishedUrl = (assetId: string, versionId: string, ext = 'png') => {
+export const getPublishedUrl = (
+  assetId: string,
+  versionId: string,
+  ext = 'png',
+) => {
   if (!ASSETS_PUBLIC_BASE_URL) return '';
   const base = ASSETS_PUBLIC_BASE_URL.replace(/\/$/, '');
   return `${base}/images/${assetId}/${versionId}.${ext.replace(/^\./, '')}`;
@@ -289,7 +330,10 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
   });
 }
 
-async function validateDraftBinary(asset: ImageAsset, draft: ImageAssetVersion) {
+async function validateDraftBinary(
+  asset: ImageAsset,
+  draft: ImageAssetVersion,
+) {
   if (!ASSETS_DRAFT_BUCKET) return; // skip in dev/no bucket
   if (!draft.storageKey) throw new Error('draft_missing_storage_key');
 
@@ -300,7 +344,7 @@ async function validateDraftBinary(asset: ImageAsset, draft: ImageAssetVersion) 
       new HeadObjectCommand({
         Bucket: ASSETS_DRAFT_BUCKET,
         Key: draft.storageKey,
-      })
+      }),
     );
   } catch (err) {
     throw new Error('draft_binary_missing');
@@ -311,16 +355,24 @@ async function validateDraftBinary(asset: ImageAsset, draft: ImageAssetVersion) 
     throw new Error('draft_invalid_content_type');
   }
 
-  if (asset.type === 'background' || asset.type === 'splash' || asset.type === 'sprite') {
+  if (
+    asset.type === 'background' ||
+    asset.type === 'splash' ||
+    asset.type === 'sprite'
+  ) {
     // fetch once to read dimensions
     try {
       const obj = await s3Client.send(
-        new GetObjectCommand({ Bucket: ASSETS_DRAFT_BUCKET, Key: draft.storageKey })
+        new GetObjectCommand({
+          Bucket: ASSETS_DRAFT_BUCKET,
+          Key: draft.storageKey,
+        }),
       );
       const body = obj.Body as any;
       const buf = await streamToBuffer(body);
       const dims = imageSize(buf);
-      if (!dims.width || !dims.height) throw new Error('draft_invalid_dimensions');
+      if (!dims.width || !dims.height)
+        throw new Error('draft_invalid_dimensions');
       if (dims.width > MAX_BACKGROUND_DIM || dims.height > MAX_BACKGROUND_DIM) {
         throw new Error('background_too_large');
       }
@@ -341,15 +393,22 @@ export async function createDraftFromPublished({
   assetId,
   createdBy,
   changeNotes,
-}: CreateDraftFromPublishedInput): Promise<{ asset: ImageAsset; version: ImageAssetVersion }> {
+}: CreateDraftFromPublishedInput): Promise<{
+  asset: ImageAsset;
+  version: ImageAssetVersion;
+}> {
   const asset = await getAsset(assetId);
   if (!asset) throw new Error('asset_not_found');
   if (!asset.currentPublishedVersionId) throw new Error('no_published_version');
   if (asset.currentDraftVersionId) throw new Error('draft_already_exists');
 
-  const publishedVersion = await getVersion(assetId, asset.currentPublishedVersionId);
+  const publishedVersion = await getVersion(
+    assetId,
+    asset.currentPublishedVersionId,
+  );
   if (!publishedVersion) throw new Error('published_version_not_found');
-  if (publishedVersion.state !== 'Published') throw new Error('version_not_published');
+  if (publishedVersion.state !== 'Published')
+    throw new Error('version_not_published');
 
   const version = newVersion(assetId, {
     state: 'Draft',
@@ -368,7 +427,7 @@ export async function createDraftFromPublished({
         Key: version.storageKey,
         CopySource: `${ASSETS_PUBLISHED_BUCKET}/${publishedVersion.storageKey}`,
         MetadataDirective: 'COPY',
-      })
+      }),
     );
   } else if (process.env.NODE_ENV !== 'development') {
     throw new Error('draft_or_published_bucket_missing');
@@ -393,8 +452,12 @@ export async function createDraftFromPublished({
           Put: {
             TableName: IMAGE_VERSIONS_TABLE,
             Item: versionItem,
-            ConditionExpression: 'attribute_not_exists(#pk) AND attribute_not_exists(#sk)',
-            ExpressionAttributeNames: { '#pk': VERSION_PK_ATTR, '#sk': VERSION_SK_ATTR },
+            ConditionExpression:
+              'attribute_not_exists(#pk) AND attribute_not_exists(#sk)',
+            ExpressionAttributeNames: {
+              '#pk': VERSION_PK_ATTR,
+              '#sk': VERSION_SK_ATTR,
+            },
           },
         },
         {
@@ -418,21 +481,26 @@ export async function createDraftFromPublished({
           },
         },
       ],
-    })
+    }),
   );
 
   return { asset: updatedAsset, version };
 }
 
-export async function archiveVersion(assetId: string, versionId: string): Promise<ImageAssetVersion> {
+export async function archiveVersion(
+  assetId: string,
+  versionId: string,
+): Promise<ImageAssetVersion> {
   const asset = await getAsset(assetId);
   if (!asset) throw new Error('asset_not_found');
 
   const version = await getVersion(assetId, versionId);
   if (!version) throw new Error('version_not_found');
   if (version.state === 'Archived') return version;
-  if (asset.currentDraftVersionId === versionId) throw new Error('cannot_archive_current_draft');
-  if (asset.currentPublishedVersionId === versionId) throw new Error('cannot_archive_current_published');
+  if (asset.currentDraftVersionId === versionId)
+    throw new Error('cannot_archive_current_draft');
+  if (asset.currentPublishedVersionId === versionId)
+    throw new Error('cannot_archive_current_published');
   if (version.state === 'Published') {
     const usageCount = await countAssetUsage(assetId);
     if (usageCount > 0) throw new Error('version_in_use');
@@ -460,12 +528,15 @@ export async function archiveVersion(assetId: string, versionId: string): Promis
             Key: buildAssetKeys(assetId),
             UpdateExpression: 'SET #updatedAt = :updatedAt',
             ConditionExpression: 'attribute_exists(#pk)',
-            ExpressionAttributeNames: { '#updatedAt': 'updatedAt', '#pk': ASSET_PK_ATTR },
+            ExpressionAttributeNames: {
+              '#updatedAt': 'updatedAt',
+              '#pk': ASSET_PK_ATTR,
+            },
             ExpressionAttributeValues: { ':updatedAt': now },
           },
         },
       ],
-    })
+    }),
   );
 
   return { ...version, state: 'Archived' };
@@ -481,13 +552,18 @@ export async function publishDraft({
   assetId,
   versionId,
   changeNotes,
-}: PublishDraftInput): Promise<{ asset: ImageAsset; version: ImageAssetVersion }> {
+}: PublishDraftInput): Promise<{
+  asset: ImageAsset;
+  version: ImageAssetVersion;
+}> {
   const asset = await getAsset(assetId);
 
   if (!asset) throw new Error('asset_not_found');
   if (!asset.currentDraftVersionId) throw new Error('no_draft');
-  if (asset.currentDraftVersionId !== versionId) throw new Error('version_not_current_draft');
-  if (!ALLOWED_ASSET_TYPES.includes(asset.type)) throw new Error('invalid_asset_type');
+  if (asset.currentDraftVersionId !== versionId)
+    throw new Error('version_not_current_draft');
+  if (!ALLOWED_ASSET_TYPES.includes(asset.type))
+    throw new Error('invalid_asset_type');
 
   const draft = await getVersion(assetId, versionId);
   if (!draft) throw new Error('version_not_found');
@@ -511,7 +587,8 @@ export async function publishDraft({
   }
 
   if (!ASSETS_DRAFT_BUCKET || !ASSETS_PUBLISHED_BUCKET) {
-    if (process.env.NODE_ENV !== 'development') throw new Error('storage_not_configured');
+    if (process.env.NODE_ENV !== 'development')
+      throw new Error('storage_not_configured');
   }
 
   const previousPublishedId = asset.currentPublishedVersionId;
@@ -525,7 +602,7 @@ export async function publishDraft({
         Key: publishedKey,
         CopySource: `${ASSETS_DRAFT_BUCKET}/${draft.storageKey}`,
         MetadataDirective: 'COPY',
-      })
+      }),
     );
   }
 
@@ -536,7 +613,8 @@ export async function publishDraft({
       Update: {
         TableName: IMAGE_VERSIONS_TABLE,
         Key: draftKey,
-        UpdateExpression: 'SET #state = :published, #storageKey = :storageKey, #changeNotes = :changeNotes',
+        UpdateExpression:
+          'SET #state = :published, #storageKey = :storageKey, #changeNotes = :changeNotes',
         ConditionExpression: '#state = :draft',
         ExpressionAttributeNames: {
           '#state': 'state',
@@ -582,13 +660,18 @@ export async function publishDraft({
           UpdateExpression: 'SET #state = :archived',
           ConditionExpression: '#state = :published',
           ExpressionAttributeNames: { '#state': 'state' },
-          ExpressionAttributeValues: { ':archived': 'Archived', ':published': 'Published' },
+          ExpressionAttributeValues: {
+            ':archived': 'Archived',
+            ':published': 'Published',
+          },
         },
       });
     }
   }
 
-  await ddbDocClient.send(new TransactWriteCommand({ TransactItems: transactItems }));
+  await ddbDocClient.send(
+    new TransactWriteCommand({ TransactItems: transactItems }),
+  );
 
   return {
     asset: {
@@ -597,7 +680,12 @@ export async function publishDraft({
       currentPublishedVersionId: versionId,
       updatedAt: now,
     },
-    version: { ...draft, state: 'Published', storageKey: publishedKey, changeNotes },
+    version: {
+      ...draft,
+      state: 'Published',
+      storageKey: publishedKey,
+      changeNotes,
+    },
   };
 }
 
@@ -640,7 +728,7 @@ export async function rollbackPublished({
           },
         },
       ],
-    })
+    }),
   );
 
   return {

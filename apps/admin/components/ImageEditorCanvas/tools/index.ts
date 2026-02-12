@@ -38,7 +38,12 @@ export function toolFor(id: ToolId): ToolHandlers {
   return map[id];
 }
 
-function paintSquare(x: number, y: number, ctx: ToolContext, rgba: [number, number, number, number]) {
+function paintSquare(
+  x: number,
+  y: number,
+  ctx: ToolContext,
+  rgba: [number, number, number, number],
+) {
   const half = Math.floor(ctx.brushSize / 2);
   for (let dy = -half; dy < -half + ctx.brushSize; dy++) {
     for (let dx = -half; dx < -half + ctx.brushSize; dx++) {
@@ -50,7 +55,12 @@ function paintSquare(x: number, y: number, ctx: ToolContext, rgba: [number, numb
   }
 }
 
-function floodFill(sx: number, sy: number, ctx: ToolContext, targetColor: [number, number, number, number]) {
+function floodFill(
+  sx: number,
+  sy: number,
+  ctx: ToolContext,
+  targetColor: [number, number, number, number],
+) {
   const start = ctx.getPixel(sx, sy);
   if (equalsColor(start, targetColor)) return;
   const stack: Array<[number, number]> = [[sx, sy]];
@@ -67,7 +77,10 @@ function floodFill(sx: number, sy: number, ctx: ToolContext, targetColor: [numbe
   }
 }
 
-function equalsColor(a: [number, number, number, number], b: [number, number, number, number]) {
+function equalsColor(
+  a: [number, number, number, number],
+  b: [number, number, number, number],
+) {
   return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
 }
 

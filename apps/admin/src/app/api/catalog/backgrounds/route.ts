@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '../../../../../auth';
+import { auth } from '../../../../auth';
 import { listPublishedBackgroundCatalog } from '../../../../../lib/imageAssets';
 
 export const runtime = 'nodejs';
@@ -20,7 +20,7 @@ export async function GET() {
         headers: {
           'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
         },
-      }
+      },
     );
   } catch (err) {
     console.error('catalog_backgrounds_error', err);

@@ -18,7 +18,15 @@ export type WorldMapPanelProps = {
 
 type TooltipState = { x: number; y: number; text: string } | null;
 
-const colorRamp = ['#eaf4ec', '#c9e4d5', '#a6d3bb', '#7fbf9b', '#5aa17f', '#3c8b66', '#1f6c4d'];
+const colorRamp = [
+  '#eaf4ec',
+  '#c9e4d5',
+  '#a6d3bb',
+  '#7fbf9b',
+  '#5aa17f',
+  '#3c8b66',
+  '#1f6c4d',
+];
 
 const WorldMapPanel: React.FC<WorldMapPanelProps> = ({
   title,
@@ -31,7 +39,10 @@ const WorldMapPanel: React.FC<WorldMapPanelProps> = ({
 
   const geoFeatures = useMemo(() => {
     try {
-      const raw = (feature(worldData as any, (worldData as any).objects.countries).features || []) as any[];
+      const raw = (feature(
+        worldData as any,
+        (worldData as any).objects.countries,
+      ).features || []) as any[];
       return raw.filter((f) => f.properties?.NAME !== 'Antarctica');
     } catch (e) {
       return [];
@@ -43,7 +54,7 @@ const WorldMapPanel: React.FC<WorldMapPanelProps> = ({
       type: 'FeatureCollection',
       features: geoFeatures as any[],
     }),
-    [geoFeatures]
+    [geoFeatures],
   );
 
   const dataMap = useMemo(() => {
@@ -54,17 +65,21 @@ const WorldMapPanel: React.FC<WorldMapPanelProps> = ({
 
   const maxVal = useMemo(
     () => Math.max(...data.map((d) => d.value), 1),
-    [data]
+    [data],
   );
 
   const quantize = useMemo(
-    () => scaleQuantize<string>().domain([0, maxVal]).range(colorRamp),
-    [maxVal]
+    () => scaleQuantize().domain([0, maxVal]).range(colorRamp),
+    [maxVal],
   );
 
   const footerColumns = useMemo(() => {
     const perCol = Math.ceil(data.length / 3);
-    return [data.slice(0, perCol), data.slice(perCol, perCol * 2), data.slice(perCol * 2)];
+    return [
+      data.slice(0, perCol),
+      data.slice(perCol, perCol * 2),
+      data.slice(perCol * 2),
+    ];
   }, [data]);
 
   const handleEnter = (evt: React.MouseEvent<SVGPathElement>, code: string) => {
@@ -92,11 +107,16 @@ const WorldMapPanel: React.FC<WorldMapPanelProps> = ({
       <div className={styles.body} style={{ backgroundColor: bodyBgColor }}>
         {geoFeatures.length ? (
           <>
-            <ComposableMap className={styles.map} projectionConfig={{ scale: 160 }}>
+            <ComposableMap
+              className={styles.map}
+              projectionConfig={{ scale: 160 }}
+            >
               <Geographies geography={geoCollection}>
-                {({ geographies }) =>
+                {({ geographies }: { geographies: any[] }) =>
                   geographies.map((geo) => {
-                    const code = (geo.properties.ISO_A2 || geo.id || '').toString().toUpperCase();
+                    const code = (geo.properties.ISO_A2 || geo.id || '')
+                      .toString()
+                      .toUpperCase();
                     const val = dataMap.get(code);
                     const fill = val !== undefined ? quantize(val) : '#d9d9d9';
                     return (
@@ -106,7 +126,9 @@ const WorldMapPanel: React.FC<WorldMapPanelProps> = ({
                         fill={fill}
                         stroke="#4a4a4a"
                         strokeWidth={0.6}
-                        onMouseEnter={(e) => handleEnter(e, code)}
+                        onMouseEnter={(e: React.MouseEvent<SVGPathElement>) =>
+                          handleEnter(e, code)
+                        }
                         onMouseLeave={handleLeave}
                       />
                     );

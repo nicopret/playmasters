@@ -4,8 +4,10 @@ import { ddbDocClient } from '../../../../lib/ddb';
 
 export const runtime = 'nodejs';
 
-const IMAGE_TABLE = process.env.DDB_TABLE_IMAGE_EDITOR ?? 'PlaymastersImageEditor';
-const IMAGE_VERSIONS_TABLE = process.env.DDB_TABLE_IMAGE_EDITOR_VERSIONS ?? IMAGE_TABLE;
+const IMAGE_TABLE =
+  process.env.DDB_TABLE_IMAGE_EDITOR ?? 'PlaymastersImageEditor';
+const IMAGE_VERSIONS_TABLE =
+  process.env.DDB_TABLE_IMAGE_EDITOR_VERSIONS ?? IMAGE_TABLE;
 const PK_ATTR = process.env.DDB_PK_NAME || 'PK';
 const SK_ATTR = process.env.DDB_SK_NAME || 'SK';
 const ASSET_PK_ATTR = process.env.DDB_PK_NAME_ASSETS || PK_ATTR;
@@ -48,7 +50,8 @@ export async function GET() {
     const res = await ddbDocClient.send(
       new ScanCommand({
         TableName: IMAGE_TABLE,
-        FilterExpression: 'begins_with(#pk, :prefix) AND #type = :type AND attribute_exists(#pub)',
+        FilterExpression:
+          'begins_with(#pk, :prefix) AND #type = :type AND attribute_exists(#pub)',
         ExpressionAttributeNames: {
           '#pk': ASSET_PK_ATTR,
           '#type': 'type',
@@ -58,14 +61,18 @@ export async function GET() {
           ':prefix': 'ASSET#',
           ':type': 'background',
         },
-      })
+      }),
     );
 
     const assets = (res.Items ?? []) as AssetRecord[];
     if (!assets.length) {
       return NextResponse.json(
         { backgrounds: [] },
-        { headers: { 'Cache-Control': 'public, max-age=120, stale-while-revalidate=600' } }
+        {
+          headers: {
+            'Cache-Control': 'public, max-age=120, stale-while-revalidate=600',
+          },
+        },
       );
     }
 
@@ -85,9 +92,10 @@ export async function GET() {
       const vRes = await ddbDocClient.send(
         new BatchGetCommand({
           RequestItems: { [IMAGE_VERSIONS_TABLE]: { Keys: keys } },
-        })
+        }),
       );
-      const versions = (vRes.Responses?.[IMAGE_VERSIONS_TABLE] ?? []) as VersionRecord[];
+      const versions = (vRes.Responses?.[IMAGE_VERSIONS_TABLE] ??
+        []) as VersionRecord[];
       versionMap = new Map(versions.map((v) => [v.versionId, v]));
     }
 
@@ -119,12 +127,16 @@ export async function GET() {
       .filter(Boolean) as BackgroundItem[];
 
     const sortedBackgrounds = backgrounds.sort((a, b) =>
-      b.updatedAt.localeCompare(a.updatedAt)
+      b.updatedAt.localeCompare(a.updatedAt),
     );
 
     return NextResponse.json(
       { backgrounds: sortedBackgrounds },
-      { headers: { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=120' } }
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=30, stale-while-revalidate=120',
+        },
+      },
     );
   } catch (err) {
     console.error('public_catalog_backgrounds_error', err);

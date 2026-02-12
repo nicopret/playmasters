@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { auth } from '../../../../../../auth';
-import { getLevelConfig, saveLevelConfig } from '../../../../../../lib/levelConfig';
+import {
+  getLevelConfig,
+  saveLevelConfig,
+} from '../../../../../../../lib/levelConfig';
+import { LevelConfig } from '@playmasters/types';
 
 export const runtime = 'nodejs';
 const bad = (message: string, status = 400) =>
@@ -8,9 +12,15 @@ const bad = (message: string, status = 400) =>
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ gameId: string; levelId: string }> }
+  { params }: { params: Promise<{ gameId: string; levelId: string }> },
 ) {
-  const session = await auth();
+  let session;
+  try {
+    session = await auth();
+  } catch (err) {
+    console.error('auth_error_level_get', err);
+    return bad('auth_failed', 500);
+  }
   if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin)
     return bad('unauthorized', 401);
   const { gameId, levelId } = await params;
@@ -33,26 +43,78 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ gameId: string; levelId: string }> }
+  { params }: { params: Promise<{ gameId: string; levelId: string }> },
 ) {
-  const session = await auth();
+  let session;
+  try {
+    session = await auth();
+  } catch (err) {
+    console.error('auth_error_level_post', err);
+    return bad('auth_failed', 500);
+  }
   if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin)
     return bad('unauthorized', 401);
   const { gameId, levelId } = await params;
 
   const body = (await req.json().catch(() => ({}))) as {
+    layoutId?: string;
     backgroundAssetId?: string;
     backgroundVersionId?: string;
     pinToVersion?: boolean;
+    waves?: unknown[];
+    fleetSpeed?: number;
+    rampFactor?: number;
+    descendStep?: number;
+    maxConcurrentDivers?: number;
+    maxConcurrentShots?: number;
+    attackTickMs?: number;
+    diveChancePerTick?: number;
+    divePattern?: string;
+    turnRate?: number;
+    fireTickMs?: number;
+    fireChancePerTick?: number;
   };
 
   try {
     const saved = await saveLevelConfig({
       gameId,
       levelId,
+      layoutId: body.layoutId?.trim() || undefined,
       backgroundAssetId: body.backgroundAssetId?.trim() || undefined,
       backgroundVersionId: body.backgroundVersionId?.trim() || undefined,
       pinToVersion: !!body.pinToVersion,
+      waves: Array.isArray(body.waves)
+        ? (body.waves as LevelConfig['waves'])
+        : [],
+      fleetSpeed:
+        typeof body.fleetSpeed === 'number' ? body.fleetSpeed : undefined,
+      rampFactor:
+        typeof body.rampFactor === 'number' ? body.rampFactor : undefined,
+      descendStep:
+        typeof body.descendStep === 'number' ? body.descendStep : undefined,
+      maxConcurrentDivers:
+        typeof body.maxConcurrentDivers === 'number'
+          ? body.maxConcurrentDivers
+          : undefined,
+      maxConcurrentShots:
+        typeof body.maxConcurrentShots === 'number'
+          ? body.maxConcurrentShots
+          : undefined,
+      attackTickMs:
+        typeof body.attackTickMs === 'number' ? body.attackTickMs : undefined,
+      diveChancePerTick:
+        typeof body.diveChancePerTick === 'number'
+          ? body.diveChancePerTick
+          : undefined,
+      divePattern:
+        typeof body.divePattern === 'string' ? body.divePattern : undefined,
+      turnRate: typeof body.turnRate === 'number' ? body.turnRate : undefined,
+      fireTickMs:
+        typeof body.fireTickMs === 'number' ? body.fireTickMs : undefined,
+      fireChancePerTick:
+        typeof body.fireChancePerTick === 'number'
+          ? body.fireChancePerTick
+          : undefined,
     });
     return NextResponse.json({ config: saved });
   } catch (err) {

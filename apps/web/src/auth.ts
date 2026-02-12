@@ -6,8 +6,10 @@ const adminEmails = (process.env.PLAYMASTERS_ADMIN_EMAILS ?? '')
   .map((email) => email.trim().toLowerCase())
   .filter(Boolean);
 
-const googleClientId = process.env.GOOGLE_CLIENT_ID ?? 'placeholder-google-client-id';
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET ?? 'placeholder-google-client-secret';
+const googleClientId =
+  process.env.GOOGLE_CLIENT_ID ?? 'placeholder-google-client-id';
+const googleClientSecret =
+  process.env.GOOGLE_CLIENT_SECRET ?? 'placeholder-google-client-secret';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
