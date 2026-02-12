@@ -10,16 +10,23 @@ export type AuditAction =
   | 'PUBLISH_VERSION'
   | 'ROLLBACK_PUBLISHED'
   | 'ARCHIVE_VERSION'
-  | 'UPDATE_METADATA';
+  | 'UPDATE_METADATA'
+  | 'PUBLISH_BUNDLE';
 
 export type AuditLog = {
   id: string;
-  entityType: 'ImageAsset' | 'ImageAssetVersion';
+  entityType: string;
   entityId: string;
   action: AuditAction;
   actorUserId?: string;
   actorEmail?: string;
   timestamp: string;
+  env?: string;
+  domain?: string;
+  prevVersion?: string | null;
+  newVersion?: string;
+  status?: 'success' | 'failure';
+  requestId?: string;
   details?: Record<string, any>;
 };
 
