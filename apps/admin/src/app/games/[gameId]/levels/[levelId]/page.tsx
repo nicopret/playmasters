@@ -46,6 +46,10 @@ type LevelConfig = {
   descendStep?: number;
   maxConcurrentDivers?: number;
   maxConcurrentShots?: number;
+  attackTickMs?: number;
+  diveChancePerTick?: number;
+  divePattern?: 'straight' | 'sine' | 'track';
+  turnRate?: number;
 };
 
 export default function LevelConfigPage() {
@@ -67,10 +71,22 @@ export default function LevelConfigPage() {
     descendStep: 0,
     maxConcurrentDivers: 0,
     maxConcurrentShots: 0,
+    attackTickMs: 1000,
+    diveChancePerTick: 0,
+    divePattern: 'straight',
+    turnRate: 0,
   });
   const [originalKnobs, setOriginalKnobs] = useState<Pick<
     LevelConfig,
-    'fleetSpeed' | 'rampFactor' | 'descendStep' | 'maxConcurrentDivers' | 'maxConcurrentShots'
+    | 'fleetSpeed'
+    | 'rampFactor'
+    | 'descendStep'
+    | 'maxConcurrentDivers'
+    | 'maxConcurrentShots'
+    | 'attackTickMs'
+    | 'diveChancePerTick'
+    | 'divePattern'
+    | 'turnRate'
   > | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -106,6 +122,10 @@ export default function LevelConfigPage() {
               descendStep: 0,
               maxConcurrentDivers: 0,
               maxConcurrentShots: 0,
+              attackTickMs: 1000,
+              diveChancePerTick: 0,
+              divePattern: 'straight',
+              turnRate: 0,
             } as LevelConfig);
           setConfig({
             ...cfgData,
@@ -115,6 +135,10 @@ export default function LevelConfigPage() {
             descendStep: cfgData.descendStep ?? 0,
             maxConcurrentDivers: cfgData.maxConcurrentDivers ?? 0,
             maxConcurrentShots: cfgData.maxConcurrentShots ?? 0,
+            attackTickMs: cfgData.attackTickMs ?? 1000,
+            diveChancePerTick: cfgData.diveChancePerTick ?? 0,
+            divePattern: (cfgData.divePattern as any) ?? 'straight',
+            turnRate: cfgData.turnRate ?? 0,
           });
           setOriginalKnobs({
             fleetSpeed: cfgData.fleetSpeed ?? 0,
@@ -122,6 +146,10 @@ export default function LevelConfigPage() {
             descendStep: cfgData.descendStep ?? 0,
             maxConcurrentDivers: cfgData.maxConcurrentDivers ?? 0,
             maxConcurrentShots: cfgData.maxConcurrentShots ?? 0,
+            attackTickMs: cfgData.attackTickMs ?? 1000,
+            diveChancePerTick: cfgData.diveChancePerTick ?? 0,
+            divePattern: (cfgData.divePattern as any) ?? 'straight',
+            turnRate: cfgData.turnRate ?? 0,
           });
           setBackgrounds(bgJson.backgrounds ?? []);
           setLayouts(layoutJson.layouts ?? []);
@@ -180,10 +208,27 @@ export default function LevelConfigPage() {
   if ((config.descendStep ?? 0) < 0) knobErrors.descendStep = 'Must be >= 0';
   if ((config.maxConcurrentDivers ?? 0) < 0) knobErrors.maxConcurrentDivers = 'Must be >= 0';
   if ((config.maxConcurrentShots ?? 0) < 0) knobErrors.maxConcurrentShots = 'Must be >= 0';
+  if ((config.attackTickMs ?? 0) < 1) knobErrors.attackTickMs = 'Must be at least 1 ms';
+  if ((config.diveChancePerTick ?? 0) < 0 || (config.diveChancePerTick ?? 0) > 1)
+    knobErrors.diveChancePerTick = 'Must be between 0 and 1';
+  if (config.divePattern && !['straight', 'sine', 'track'].includes(config.divePattern))
+    knobErrors.divePattern = 'Invalid pattern';
+  const trackingEnabled = config.divePattern === 'track';
+  const MAX_TURN_RATE = 10;
+  if (trackingEnabled) {
+    if ((config.turnRate ?? 0) < 0 || (config.turnRate ?? 0) > MAX_TURN_RATE) {
+      knobErrors.turnRate = `Must be between 0 and ${MAX_TURN_RATE}`;
+    }
+  }
 
   const knobChanged =
     originalKnobs &&
     ['fleetSpeed', 'rampFactor', 'descendStep', 'maxConcurrentDivers', 'maxConcurrentShots'].some(
+      (k) => (config as any)[k] !== (originalKnobs as any)[k],
+    );
+  const diveKnobChanged =
+    originalKnobs &&
+    ['attackTickMs', 'diveChancePerTick', 'divePattern', 'turnRate', 'maxConcurrentDivers'].some(
       (k) => (config as any)[k] !== (originalKnobs as any)[k],
     );
 
@@ -338,6 +383,83 @@ export default function LevelConfigPage() {
               <div className={styles.error}>{knobErrors.maxConcurrentShots}</div>
             )}
           </label>
+        </div>
+      </section>
+
+      <section className={styles.card}>
+        <h2>Dive / Attack</h2>
+        {diveKnobChanged && (
+          <div className={styles.warning}>
+            Warning: Changing dive/attack tuning affects difficulty and leaderboard comparability.
+          </div>
+        )}
+        <div className={styles.grid2}>
+          <label className={styles.label}>
+            attackTickMs
+            <input
+              className={styles.input}
+              type="number"
+              min={1}
+              step={1}
+              value={config.attackTickMs ?? 1}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, attackTickMs: Number(e.target.value) }))
+              }
+            />
+            {knobErrors.attackTickMs && (
+              <div className={styles.error}>{knobErrors.attackTickMs}</div>
+            )}
+          </label>
+          <label className={styles.label}>
+            diveChancePerTick
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              max={1}
+              step={0.01}
+              value={config.diveChancePerTick ?? 0}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, diveChancePerTick: Number(e.target.value) }))
+              }
+            />
+            {knobErrors.diveChancePerTick && (
+              <div className={styles.error}>{knobErrors.diveChancePerTick}</div>
+            )}
+          </label>
+          <label className={styles.label}>
+            Pattern
+            <select
+              className={styles.select}
+              value={config.divePattern ?? 'straight'}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, divePattern: e.target.value as any }))
+              }
+            >
+              <option value="straight">Straight</option>
+              <option value="sine">Sine</option>
+              <option value="track">Track</option>
+            </select>
+            {knobErrors.divePattern && <div className={styles.error}>{knobErrors.divePattern}</div>}
+          </label>
+          {trackingEnabled && (
+            <label className={styles.label}>
+              turnRate
+              <input
+                className={styles.input}
+                type="number"
+                min={0}
+                max={10}
+                step={0.1}
+                value={config.turnRate ?? 0}
+                onChange={(e) =>
+                  setConfig((c) => ({ ...c, turnRate: Number(e.target.value) }))
+                }
+              />
+              <div className={styles.helper}>Capped to prevent perfect tracking.</div>
+              {knobErrors.turnRate && <div className={styles.error}>{knobErrors.turnRate}</div>}
+            </label>
+          )}
         </div>
       </section>
 

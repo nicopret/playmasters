@@ -63,6 +63,10 @@ export async function POST(
     descendStep?: number;
     maxConcurrentDivers?: number;
     maxConcurrentShots?: number;
+    attackTickMs?: number;
+    diveChancePerTick?: number;
+    divePattern?: string;
+    turnRate?: number;
   };
 
   try {
@@ -81,6 +85,11 @@ export async function POST(
         typeof body.maxConcurrentDivers === 'number' ? body.maxConcurrentDivers : undefined,
       maxConcurrentShots:
         typeof body.maxConcurrentShots === 'number' ? body.maxConcurrentShots : undefined,
+      attackTickMs: typeof body.attackTickMs === 'number' ? body.attackTickMs : undefined,
+      diveChancePerTick:
+        typeof body.diveChancePerTick === 'number' ? body.diveChancePerTick : undefined,
+      divePattern: typeof body.divePattern === 'string' ? body.divePattern : undefined,
+      turnRate: typeof body.turnRate === 'number' ? body.turnRate : undefined,
     });
     return NextResponse.json({ config: saved });
   } catch (err) {

@@ -37,6 +37,9 @@ export async function getLevelConfig(
   if (cfg.descendStep === undefined) cfg.descendStep = 0;
   if (cfg.maxConcurrentDivers === undefined) cfg.maxConcurrentDivers = 0;
   if (cfg.maxConcurrentShots === undefined) cfg.maxConcurrentShots = 0;
+  if (cfg.attackTickMs === undefined) cfg.attackTickMs = 0;
+  if (cfg.diveChancePerTick === undefined) cfg.diveChancePerTick = 0;
+  if (cfg.turnRate === undefined) cfg.turnRate = 0;
   return cfg;
 }
 
@@ -53,6 +56,10 @@ export async function saveLevelConfig(input: {
   descendStep?: number;
   maxConcurrentDivers?: number;
   maxConcurrentShots?: number;
+  attackTickMs?: number;
+  diveChancePerTick?: number;
+  divePattern?: string;
+  turnRate?: number;
 }): Promise<LevelConfig> {
   const {
     gameId,
@@ -67,6 +74,10 @@ export async function saveLevelConfig(input: {
     descendStep,
     maxConcurrentDivers,
     maxConcurrentShots,
+    attackTickMs,
+    diveChancePerTick,
+    divePattern,
+    turnRate,
   } = input;
   const now = new Date().toISOString();
 
@@ -97,6 +108,10 @@ export async function saveLevelConfig(input: {
     descendStep,
     maxConcurrentDivers,
     maxConcurrentShots,
+    attackTickMs,
+    diveChancePerTick,
+    divePattern,
+    turnRate,
     updatedAt: now,
   };
 
