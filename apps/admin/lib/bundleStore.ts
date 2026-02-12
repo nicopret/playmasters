@@ -2,9 +2,13 @@ import { GetCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from './ddb';
 
 const BUNDLE_TABLE =
-  process.env.DDB_TABLE_SB_BUNDLES ?? process.env.DDB_TABLE_SPACE_BLASTER ?? 'PlaymastersSpaceBlasterBundles';
-const PK_ATTR = process.env.DDB_PK_NAME_SB_BUNDLES || process.env.DDB_PK_NAME || 'PK';
-const SK_ATTR = process.env.DDB_SK_NAME_SB_BUNDLES || process.env.DDB_SK_NAME || 'SK';
+  process.env.DDB_TABLE_SB_BUNDLES ??
+  process.env.DDB_TABLE_SPACE_BLASTER ??
+  'PlaymastersSpaceBlasterBundles';
+const PK_ATTR =
+  process.env.DDB_PK_NAME_SB_BUNDLES || process.env.DDB_PK_NAME || 'PK';
+const SK_ATTR =
+  process.env.DDB_SK_NAME_SB_BUNDLES || process.env.DDB_SK_NAME || 'SK';
 
 export type PublishedBundle = {
   env: string;
@@ -24,7 +28,9 @@ const versionKey = (env: string, versionId: string) => ({
   [SK_ATTR]: `VERSION#${versionId}`,
 });
 
-export async function getCurrentBundle(env: string): Promise<PublishedBundle | null> {
+export async function getCurrentBundle(
+  env: string,
+): Promise<PublishedBundle | null> {
   const pointer = await ddbDocClient.send(
     new GetCommand({
       TableName: BUNDLE_TABLE,

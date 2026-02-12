@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { auth } from '../../../../auth';
 import fs from 'fs';
 import path from 'path';
-import { publishBundle, getCurrentBundle } from '../../../../../lib/bundleStore';
+import {
+  publishBundle,
+  getCurrentBundle,
+} from '../../../../../lib/bundleStore';
 import { logAudit } from '../../../../../lib/audit';
 import { createHash } from 'crypto';
 
@@ -19,8 +22,8 @@ function loadJson(relPath: string) {
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map((v) => canonicalize(v));
   if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-      a < b ? -1 : a > b ? 1 : 0,
+    const entries = Object.entries(value as Record<string, unknown>).sort(
+      ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
     );
     const obj: Record<string, unknown> = {};
     for (const [k, v] of entries) obj[k] = canonicalize(v);
@@ -35,12 +38,22 @@ function computeConfigHashLocal(bundle: unknown): string {
 }
 
 function buildBundle() {
-  const base = path.join(process.cwd(), 'packages', 'types', 'src', 'space-blaster', 'samples', 'v1');
+  const base = path.join(
+    process.cwd(),
+    'packages',
+    'types',
+    'src',
+    'space-blaster',
+    'samples',
+    'v1',
+  );
   const gameConfig = loadJson(path.join(base, 'game-config.v1.json'));
   const enemyCatalog = loadJson(path.join(base, 'enemy-catalog.v1.json'));
   const heroCatalog = loadJson(path.join(base, 'hero-catalog.v1.json'));
   const ammoCatalog = loadJson(path.join(base, 'ammo-catalog.v1.json'));
-  const formationLayouts = loadJson(path.join(base, 'formation-layouts.v1.json'));
+  const formationLayouts = loadJson(
+    path.join(base, 'formation-layouts.v1.json'),
+  );
   const scoreConfig = loadJson(path.join(base, 'score-config.v1.json'));
   const levels = [
     loadJson(path.join(base, 'level-1.v1.json')),
@@ -92,5 +105,8 @@ export async function POST(req: Request) {
     details: { configHash: published.configHash },
   });
 
-  return NextResponse.json({ versionId: published.versionId, configHash: published.configHash });
+  return NextResponse.json({
+    versionId: published.versionId,
+    configHash: published.configHash,
+  });
 }
