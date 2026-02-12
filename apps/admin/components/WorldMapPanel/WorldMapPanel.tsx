@@ -68,7 +68,10 @@ const WorldMapPanel: React.FC<WorldMapPanelProps> = ({
     [data],
   );
 
-  const quantize = useMemo(() => scaleQuantize().domain([0, maxVal]).range(colorRamp), [maxVal]);
+  const quantize = useMemo(
+    () => scaleQuantize().domain([0, maxVal]).range(colorRamp),
+    [maxVal],
+  );
 
   const footerColumns = useMemo(() => {
     const perCol = Math.ceil(data.length / 3);
