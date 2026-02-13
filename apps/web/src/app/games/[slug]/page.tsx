@@ -26,7 +26,9 @@ const GameDetailPage = async ({ params }: PageProps) => {
   }
 
   const realtimeWsUrl = process.env.NEXT_PUBLIC_REALTIME_WS_URL ?? 'ws://localhost:4000';
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
+  const apiBaseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '');
   const countryCode =
     process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ??
     process.env.DEFAULT_COUNTRY_CODE ??
