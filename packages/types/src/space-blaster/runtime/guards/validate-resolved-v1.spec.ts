@@ -92,4 +92,47 @@ describe('validateResolvedGameConfigV1', () => {
       ).toBe(true);
     }
   });
+
+  it('fails when hero defaultAmmoId is missing from ammo catalog', () => {
+    const result = validateResolvedGameConfigV1({
+      ...validConfig,
+      heroCatalog: {
+        entries: [{ heroId: 'hero-1', defaultAmmoId: 'ammo-missing' }],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(
+        result.errors.some(
+          (e) =>
+            e.domain === 'AmmoCatalog' &&
+            e.path === 'heroCatalog.entries[0].defaultAmmoId' &&
+            e.message.includes("defaultAmmoId 'ammo-missing'"),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it('fails when scoreConfig references an unknown enemy id', () => {
+    const result = validateResolvedGameConfigV1({
+      ...validConfig,
+      scoreConfig: {
+        ...validConfig.scoreConfig,
+        baseEnemyScores: [{ enemyId: 'enemy-missing', score: 100 }],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(
+        result.errors.some(
+          (e) =>
+            e.domain === 'ScoreConfig' &&
+            e.path === 'scoreConfig.baseEnemyScores[0].enemyId' &&
+            e.message.includes("enemyId 'enemy-missing'"),
+        ),
+      ).toBe(true);
+    }
+  });
 });

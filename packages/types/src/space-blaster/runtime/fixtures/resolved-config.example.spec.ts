@@ -4,6 +4,9 @@ import { resolvedConfigExample } from './resolved-config.example';
 describe('resolvedConfigExample', () => {
   it('conforms to ResolvedGameConfigV1 runtime guard checks', () => {
     const result = validateResolvedGameConfigV1(resolvedConfigExample);
+    if (!result.ok) {
+      throw new Error(result.errors.map((error) => error.message).join('\n'));
+    }
     expect(result.ok).toBe(true);
   });
 

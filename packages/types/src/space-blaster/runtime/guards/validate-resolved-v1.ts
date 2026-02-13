@@ -152,15 +152,29 @@ export function validateResolvedGameConfigV1(cfg: unknown): ValidationResult {
         );
       }
     });
+
+    const enemyTypes = level['enemyTypes'];
+    if (Array.isArray(enemyTypes)) {
+      enemyTypes.forEach((enemyType, enemyTypeIdx) => {
+        if (typeof enemyType === 'string' && enemyType.length > 0) {
+          referencedEnemyIds.add(enemyType);
+        } else {
+          pushError(
+            errors,
+            'LevelConfig',
+            `levelConfigs[${levelIdx}].enemyTypes[${enemyTypeIdx}]`,
+            'enemyTypes entries must be non-empty strings.',
+          );
+        }
+      });
+    }
   });
 
   const formationLayouts = isRecord(cfg['formationLayouts'])
     ? cfg['formationLayouts']
     : undefined;
   const rawLayoutEntries = formationLayouts?.['entries'];
-  const layoutEntries = Array.isArray(rawLayoutEntries)
-    ? rawLayoutEntries
-    : [];
+  const layoutEntries = Array.isArray(rawLayoutEntries) ? rawLayoutEntries : [];
   const layoutIdSet = new Set(
     layoutEntries
       .filter(isRecord)
@@ -183,9 +197,7 @@ export function validateResolvedGameConfigV1(cfg: unknown): ValidationResult {
     ? cfg['enemyCatalog']
     : undefined;
   const rawEnemyEntries = enemyCatalog?.['entries'];
-  const enemyEntries = Array.isArray(rawEnemyEntries)
-    ? rawEnemyEntries
-    : [];
+  const enemyEntries = Array.isArray(rawEnemyEntries) ? rawEnemyEntries : [];
   const enemyIdSet = new Set(
     enemyEntries
       .filter(isRecord)
@@ -200,6 +212,94 @@ export function validateResolvedGameConfigV1(cfg: unknown): ValidationResult {
         'EnemyCatalog',
         'enemyCatalog.entries',
         `enemyId '${enemyId}' referenced by waves is missing in EnemyCatalog.`,
+      );
+    }
+  });
+
+  const heroCatalog = isRecord(cfg['heroCatalog'])
+    ? cfg['heroCatalog']
+    : undefined;
+  const rawHeroEntries = heroCatalog?.['entries'];
+  const heroEntries = Array.isArray(rawHeroEntries) ? rawHeroEntries : [];
+  if (heroEntries.length === 0) {
+    pushError(
+      errors,
+      'HeroCatalog',
+      'heroCatalog.entries',
+      'heroCatalog must contain at least 1 hero entry.',
+    );
+  }
+
+  const ammoCatalog = isRecord(cfg['ammoCatalog'])
+    ? cfg['ammoCatalog']
+    : undefined;
+  const rawAmmoEntries = ammoCatalog?.['entries'];
+  const ammoEntries = Array.isArray(rawAmmoEntries) ? rawAmmoEntries : [];
+  const ammoIdSet = new Set(
+    ammoEntries
+      .filter(isRecord)
+      .map((entry) => getStringField(entry, 'ammoId'))
+      .filter((ammoId): ammoId is string => Boolean(ammoId)),
+  );
+
+  heroEntries.forEach((entry, heroIdx) => {
+    if (!isRecord(entry)) {
+      pushError(
+        errors,
+        'HeroCatalog',
+        `heroCatalog.entries[${heroIdx}]`,
+        'HeroCatalog entry must be an object.',
+      );
+      return;
+    }
+
+    const heroId = getStringField(entry, 'heroId');
+    if (!heroId) {
+      pushError(
+        errors,
+        'HeroCatalog',
+        `heroCatalog.entries[${heroIdx}].heroId`,
+        'Missing heroId (string).',
+      );
+    }
+
+    const defaultAmmoId = getStringField(entry, 'defaultAmmoId');
+    if (!defaultAmmoId) {
+      pushError(
+        errors,
+        'HeroCatalog',
+        `heroCatalog.entries[${heroIdx}].defaultAmmoId`,
+        'Missing defaultAmmoId (string).',
+      );
+      return;
+    }
+
+    if (!ammoIdSet.has(defaultAmmoId)) {
+      pushError(
+        errors,
+        'AmmoCatalog',
+        `heroCatalog.entries[${heroIdx}].defaultAmmoId`,
+        `defaultAmmoId '${defaultAmmoId}' referenced by hero '${heroId ?? heroIdx}' is missing in AmmoCatalog.`,
+      );
+    }
+  });
+
+  const scoreConfig = isRecord(cfg['scoreConfig'])
+    ? cfg['scoreConfig']
+    : undefined;
+  const rawBaseEnemyScores = scoreConfig?.['baseEnemyScores'];
+  const baseEnemyScores = Array.isArray(rawBaseEnemyScores)
+    ? rawBaseEnemyScores
+    : [];
+  baseEnemyScores.forEach((entry, entryIdx) => {
+    if (!isRecord(entry)) return;
+    const enemyId = getStringField(entry, 'enemyId');
+    if (enemyId && !enemyIdSet.has(enemyId)) {
+      pushError(
+        errors,
+        'ScoreConfig',
+        `scoreConfig.baseEnemyScores[${entryIdx}].enemyId`,
+        `enemyId '${enemyId}' in baseEnemyScores is missing in EnemyCatalog.`,
       );
     }
   });
