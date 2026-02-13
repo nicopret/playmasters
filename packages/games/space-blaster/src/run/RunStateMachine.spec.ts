@@ -6,12 +6,17 @@ import { RunStateMachine } from './RunStateMachine';
 const createMachine = (bus: RunEventBus) =>
   new RunStateMachine(
     bus,
-    { countdownMs: 1000, respawnDelayMs: 500, runEndingDelayMs: 300 },
+    {
+      countdownMs: 1000,
+      respawnDelayMs: 500,
+      waveClearMs: 250,
+      runEndingDelayMs: 300,
+    },
     {},
   );
 
 describe('RunStateMachine', () => {
-  it('runs BOOT -> READY -> COUNTDOWN -> PLAYING deterministically', () => {
+  it('runs BOOT -> READY -> COUNTDOWN -> PLAYING -> RUN_ENDING -> RESULTS deterministically', () => {
     const bus = new RunEventBus();
     const machine = createMachine(bus);
     const sequence: string[] = [];
@@ -32,11 +37,18 @@ describe('RunStateMachine', () => {
     expect(machine.state).toBe(RunState.COUNTDOWN);
     machine.update(1);
     expect(machine.state).toBe(RunState.PLAYING);
+    machine.requestEndRun('normal_finish');
+    machine.update(0);
+    expect(machine.state).toBe(RunState.RUN_ENDING);
+    machine.update(300);
+    expect(machine.state).toBe(RunState.RESULTS);
 
     expect(sequence).toEqual([
       'BOOT->READY',
       'READY->COUNTDOWN',
       'COUNTDOWN->PLAYING',
+      'PLAYING->RUN_ENDING',
+      'RUN_ENDING->RESULTS',
     ]);
   });
 
@@ -61,7 +73,28 @@ describe('RunStateMachine', () => {
     expect(machine.state).toBe(RunState.PLAYING);
   });
 
-  it('reaches RUN_ENDING and terminates in RUN_ENDED', () => {
+  it('reaches WAVE_CLEAR and loops back to PLAYING', () => {
+    const bus = new RunEventBus();
+    const machine = createMachine(bus);
+
+    machine.requestBootComplete();
+    machine.update(0);
+    machine.requestStart();
+    machine.update(0);
+    machine.update(1000);
+    expect(machine.state).toBe(RunState.PLAYING);
+
+    machine.requestWaveClear();
+    machine.update(0);
+    expect(machine.state).toBe(RunState.WAVE_CLEAR);
+
+    machine.update(250);
+    expect(machine.state).toBe(RunState.COUNTDOWN);
+    machine.update(1000);
+    expect(machine.state).toBe(RunState.PLAYING);
+  });
+
+  it('reaches RUN_ENDING and terminates in RESULTS', () => {
     const bus = new RunEventBus();
     const machine = createMachine(bus);
 
@@ -77,7 +110,38 @@ describe('RunStateMachine', () => {
     expect(machine.state).toBe(RunState.RUN_ENDING);
 
     machine.update(300);
-    expect(machine.state).toBe(RunState.RUN_ENDED);
+    expect(machine.state).toBe(RunState.RESULTS);
+  });
+
+  it('always reaches RESULTS even when result side-effects fail', () => {
+    const bus = new RunEventBus();
+    const machine = new RunStateMachine(
+      bus,
+      {
+        countdownMs: 1000,
+        respawnDelayMs: 500,
+        waveClearMs: 250,
+        runEndingDelayMs: 300,
+      },
+      {
+        onEnterState: (state) => {
+          if (state === RunState.RESULTS) {
+            throw new Error('submission failed');
+          }
+        },
+      },
+    );
+
+    machine.requestBootComplete();
+    machine.update(0);
+    machine.requestStart();
+    machine.update(0);
+    machine.update(1000);
+    machine.requestEndRun('manual_stop');
+    machine.update(0);
+
+    expect(() => machine.update(300)).toThrow('submission failed');
+    expect(machine.state).toBe(RunState.RESULTS);
   });
 
   it('throws on illegal transitions', () => {

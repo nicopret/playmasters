@@ -16,13 +16,19 @@ describe('RunTransitions', () => {
     expect(isAllowedTransition(RunState.PLAYING, RunState.PLAYER_RESPAWN)).toBe(
       true,
     );
+    expect(isAllowedTransition(RunState.PLAYING, RunState.WAVE_CLEAR)).toBe(
+      true,
+    );
     expect(
       isAllowedTransition(RunState.PLAYER_RESPAWN, RunState.COUNTDOWN),
     ).toBe(true);
+    expect(isAllowedTransition(RunState.WAVE_CLEAR, RunState.COUNTDOWN)).toBe(
+      true,
+    );
     expect(isAllowedTransition(RunState.PLAYING, RunState.RUN_ENDING)).toBe(
       true,
     );
-    expect(isAllowedTransition(RunState.RUN_ENDING, RunState.RUN_ENDED)).toBe(
+    expect(isAllowedTransition(RunState.RUN_ENDING, RunState.RESULTS)).toBe(
       true,
     );
   });
@@ -32,8 +38,6 @@ describe('RunTransitions', () => {
     expect(isAllowedTransition(RunState.READY, RunState.RUN_ENDING)).toBe(
       false,
     );
-    expect(isAllowedTransition(RunState.RUN_ENDED, RunState.PLAYING)).toBe(
-      false,
-    );
+    expect(isAllowedTransition(RunState.RESULTS, RunState.PLAYING)).toBe(false);
   });
 });

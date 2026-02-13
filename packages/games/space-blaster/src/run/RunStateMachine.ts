@@ -7,11 +7,13 @@ type RunIntent =
   | { type: 'BOOT_COMPLETE' }
   | { type: 'START_REQUESTED' }
   | { type: 'RESPAWN_REQUESTED' }
+  | { type: 'WAVE_CLEAR_REQUESTED' }
   | { type: 'RUN_END_REQUESTED'; reason: string };
 
 export type RunStateMachineConfig = {
   countdownMs: number;
   respawnDelayMs: number;
+  waveClearMs: number;
   runEndingDelayMs: number;
 };
 
@@ -50,6 +52,9 @@ export class RunStateMachine {
       this.bus.on(RUN_EVENT.REQUEST_RESPAWN, () => {
         this.intents.push({ type: 'RESPAWN_REQUESTED' });
       }),
+      this.bus.on(RUN_EVENT.REQUEST_WAVE_CLEAR, () => {
+        this.intents.push({ type: 'WAVE_CLEAR_REQUESTED' });
+      }),
       this.bus.on(RUN_EVENT.REQUEST_END, ({ reason }) => {
         this.intents.push({ type: 'RUN_END_REQUESTED', reason });
       }),
@@ -87,6 +92,10 @@ export class RunStateMachine {
     this.bus.emit(RUN_EVENT.REQUEST_END, { reason });
   }
 
+  requestWaveClear(): void {
+    this.bus.emit(RUN_EVENT.REQUEST_WAVE_CLEAR, undefined);
+  }
+
   update(dtMs: number): void {
     if (dtMs < 0) {
       throw new Error('RunStateMachine requires non-negative dtMs.');
@@ -114,9 +123,15 @@ export class RunStateMachine {
         }
         break;
       }
+      case RunState.WAVE_CLEAR: {
+        if (this.elapsedInStateMs >= this.config.waveClearMs) {
+          this.transition(RunState.COUNTDOWN, 'wave_clear_complete');
+        }
+        break;
+      }
       case RunState.RUN_ENDING: {
         if (this.elapsedInStateMs >= this.config.runEndingDelayMs) {
-          this.transition(RunState.RUN_ENDED, 'run_end_complete');
+          this.transition(RunState.RESULTS, 'run_end_complete');
         }
         break;
       }
@@ -138,7 +153,7 @@ export class RunStateMachine {
         case 'START_REQUESTED':
           if (
             this._state === RunState.READY ||
-            this._state === RunState.RUN_ENDED
+            this._state === RunState.RESULTS
           ) {
             this.transition(RunState.COUNTDOWN, 'start_requested');
           }
@@ -148,11 +163,17 @@ export class RunStateMachine {
             this.transition(RunState.PLAYER_RESPAWN, 'player_died');
           }
           break;
+        case 'WAVE_CLEAR_REQUESTED':
+          if (this._state === RunState.PLAYING) {
+            this.transition(RunState.WAVE_CLEAR, 'wave_clear');
+          }
+          break;
         case 'RUN_END_REQUESTED':
           if (
             this._state === RunState.PLAYING ||
             this._state === RunState.PLAYER_RESPAWN ||
-            this._state === RunState.COUNTDOWN
+            this._state === RunState.COUNTDOWN ||
+            this._state === RunState.WAVE_CLEAR
           ) {
             this.transition(RunState.RUN_ENDING, 'run_end_requested');
           }
@@ -186,11 +207,14 @@ export class RunStateMachine {
       case RunState.PLAYER_RESPAWN:
         this.bus.emit(RUN_EVENT.PLAYER_RESPAWN, undefined);
         break;
+      case RunState.WAVE_CLEAR:
+        this.bus.emit(RUN_EVENT.WAVE_CLEAR, undefined);
+        break;
       case RunState.RUN_ENDING:
         this.bus.emit(RUN_EVENT.ENDING, undefined);
         break;
-      case RunState.RUN_ENDED:
-        this.bus.emit(RUN_EVENT.ENDED, undefined);
+      case RunState.RESULTS:
+        this.bus.emit(RUN_EVENT.RESULTS, undefined);
         break;
       case RunState.ERROR:
         this.bus.emit(RUN_EVENT.ERROR, { message: 'Run entered ERROR state.' });
