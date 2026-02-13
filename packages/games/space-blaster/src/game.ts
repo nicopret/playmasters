@@ -9,6 +9,7 @@ import {
   type SpaceBlasterBootstrapDeps,
 } from './bootstrap';
 import { DisposableBag, createRunContext } from './runtime';
+import { RunEventBus, RunState, RunStateMachine } from './run';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -17,11 +18,12 @@ type MountOptions = {
   disposables: DisposableBag;
 };
 
-type GameState = 'idle' | 'playing' | 'gameover';
-
 const GAME_ID = 'game-space-blaster';
 const WORLD_WIDTH = 800;
 const WORLD_HEIGHT = 450;
+const COUNTDOWN_MS = 1200;
+const RESPAWN_DELAY_MS = 650;
+const RUN_ENDING_DELAY_MS = 900;
 
 class SpaceBlasterScene extends Phaser.Scene {
   private deps: SpaceBlasterBootstrapDeps;
@@ -39,9 +41,10 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private score = 0;
   private startTime: number | null = null;
-  private state: GameState = 'idle';
+  private remainingLives = 0;
   private canSubmitScore = true;
   private submitting = false;
+  private runStarted = false;
 
   private scoreText!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
@@ -50,6 +53,19 @@ class SpaceBlasterScene extends Phaser.Scene {
   private lastManualShotAt = 0;
   private keyboardSpaceHandler?: () => void;
   private pointerDownHandler?: () => void;
+  private runBus = new RunEventBus();
+  private runStateMachine = new RunStateMachine(
+    this.runBus,
+    {
+      countdownMs: COUNTDOWN_MS,
+      respawnDelayMs: RESPAWN_DELAY_MS,
+      runEndingDelayMs: RUN_ENDING_DELAY_MS,
+    },
+    {
+      onEnterState: (state, from) => this.onEnterRunState(state, from),
+      onCountdownTick: (remainingMs) => this.onCountdownTick(remainingMs),
+    },
+  );
 
   constructor(opts: MountOptions) {
     super('space-blaster');
@@ -147,16 +163,17 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.physics.add.overlap(
       this.enemies,
       this.player,
-      () => this.finishRun(),
+      () => this.handlePlayerHit(),
       undefined,
       this,
     );
-
-    this.onReady?.();
+    this.runStateMachine.requestBootComplete();
+    this.runStateMachine.update(0);
   }
 
-  override update() {
-    if (this.state !== 'playing') return;
+  override update(_time: number, delta: number) {
+    this.runStateMachine.update(delta);
+    if (this.runStateMachine.state !== RunState.PLAYING) return;
 
     const velocity = 380;
     if (this.cursors.left?.isDown) {
@@ -174,7 +191,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.enemies.children.each((enemy) => {
       const e = enemy as Phaser.GameObjects.Rectangle;
       if (e.y > WORLD_HEIGHT - 12) {
-        this.finishRun();
+        this.runStateMachine.requestEndRun('enemy_breach');
       }
       return false;
     });
@@ -187,48 +204,14 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private handleSpace() {
-    if (this.state === 'idle') {
-      this.startGame();
+    if (
+      this.runStateMachine.state === RunState.READY ||
+      this.runStateMachine.state === RunState.RUN_ENDED
+    ) {
+      this.runStateMachine.requestStart();
       return;
     }
-    if (this.state === 'gameover') {
-      this.restartGame();
-      return;
-    }
-    this.fireManualShot();
-  }
-
-  private async startGame() {
-    if (this.state === 'playing') return;
-
-    this.resetEntities();
-    this.state = 'playing';
-    this.score = 0;
-    this.startTime = Date.now();
-    this.scoreText.setText('Score: 0');
-    this.statusText.setText('Starting run...');
-    this.playAgainBtn.setVisible(false);
-    this.canSubmitScore = true;
-
-    try {
-      await this.deps.sdk.startRun();
-      this.statusText.setText('Run live - survive and score!');
-    } catch {
-      this.canSubmitScore = false;
-      this.statusText.setText('Sign in to submit score');
-    }
-
-    this.spawnTimer = this.time.addEvent({
-      delay: 1000,
-      loop: true,
-      callback: () => this.spawnEnemy(),
-    });
-
-    this.autoFireTimer = this.time.addEvent({
-      delay: 480,
-      loop: true,
-      callback: () => this.fireBullet(),
-    });
+    if (this.runStateMachine.state === RunState.PLAYING) this.fireManualShot();
   }
 
   private resetEntities() {
@@ -239,7 +222,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private fireManualShot() {
-    if (this.state !== 'playing') return;
+    if (this.runStateMachine.state !== RunState.PLAYING) return;
     const now = Date.now();
     if (now - this.lastManualShotAt < 200) return;
     this.lastManualShotAt = now;
@@ -247,7 +230,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private fireBullet() {
-    if (this.state !== 'playing') return;
+    if (this.runStateMachine.state !== RunState.PLAYING) return;
     const bullet = this.add.rectangle(
       this.player.x,
       this.player.y - 20,
@@ -264,7 +247,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private spawnEnemy() {
-    if (this.state !== 'playing') return;
+    if (this.runStateMachine.state !== RunState.PLAYING) return;
     const x = Phaser.Math.Between(30, WORLD_WIDTH - 30);
     const enemy = this.add.rectangle(x, -16, 34, 24, 0xe94b5a);
     this.physics.add.existing(enemy);
@@ -280,15 +263,14 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.scoreText.setText(`Score: ${this.score}`);
   }
 
-  private async finishRun() {
-    if (this.state !== 'playing') return;
-    this.state = 'gameover';
-
+  private stopActiveTimers() {
     this.spawnTimer?.destroy();
     this.autoFireTimer?.destroy();
     this.spawnTimer = undefined;
     this.autoFireTimer = undefined;
+  }
 
+  private freezeEnemies() {
     this.enemies.setVelocityY(0);
     this.enemies.children.each((enemy) => {
       const body = (enemy as Phaser.GameObjects.Rectangle)
@@ -296,10 +278,19 @@ class SpaceBlasterScene extends Phaser.Scene {
       body.setVelocity(0);
       return false;
     });
+  }
 
-    this.statusText.setText('Run over');
-    this.playAgainBtn.setVisible(true);
+  private handlePlayerHit() {
+    if (this.runStateMachine.state !== RunState.PLAYING) return;
+    this.remainingLives -= 1;
+    if (this.remainingLives > 0) {
+      this.runStateMachine.requestRespawn();
+      return;
+    }
+    this.runStateMachine.requestEndRun('player_death');
+  }
 
+  private async submitScoreIfNeeded() {
     if (!this.canSubmitScore || this.submitting) {
       this.onGameOver?.(this.score);
       return;
@@ -325,23 +316,105 @@ class SpaceBlasterScene extends Phaser.Scene {
     }
   }
 
+  private beginNewRunSession() {
+    this.runStarted = false;
+    this.score = 0;
+    this.remainingLives =
+      this.deps.gameConfig.defaultLives && this.deps.gameConfig.defaultLives > 0
+        ? this.deps.gameConfig.defaultLives
+        : 3;
+    this.startTime = null;
+    this.scoreText.setText('Score: 0');
+    this.canSubmitScore = true;
+  }
+
+  private async ensureRunStarted() {
+    if (this.runStarted) return;
+    this.runStarted = true;
+    this.startTime = Date.now();
+    try {
+      await this.deps.sdk.startRun();
+    } catch {
+      this.canSubmitScore = false;
+      this.statusText.setText('Sign in to submit score');
+    }
+  }
+
+  private onCountdownTick(remainingMs: number) {
+    const seconds = Math.max(1, Math.ceil(remainingMs / 1000));
+    this.statusText.setText(`Starting in ${seconds}...`);
+  }
+
+  private onEnterRunState(state: RunState, from: RunState) {
+    switch (state) {
+      case RunState.READY:
+        this.resetEntities();
+        this.beginNewRunSession();
+        this.playAgainBtn.setVisible(false);
+        this.statusText.setText('Press space or tap to start');
+        this.onReady?.();
+        break;
+      case RunState.COUNTDOWN:
+        this.stopActiveTimers();
+        this.resetEntities();
+        if (from === RunState.READY || from === RunState.RUN_ENDED) {
+          this.beginNewRunSession();
+        }
+        void this.ensureRunStarted();
+        break;
+      case RunState.PLAYING:
+        this.statusText.setText(`Run live - ${this.remainingLives} lives left`);
+        this.spawnTimer = this.time.addEvent({
+          delay: 1000,
+          loop: true,
+          callback: () => this.spawnEnemy(),
+        });
+        this.autoFireTimer = this.time.addEvent({
+          delay: 480,
+          loop: true,
+          callback: () => this.fireBullet(),
+        });
+        break;
+      case RunState.PLAYER_RESPAWN:
+        this.stopActiveTimers();
+        this.resetEntities();
+        this.statusText.setText(
+          `Respawning (${this.remainingLives} lives left)`,
+        );
+        break;
+      case RunState.RUN_ENDING:
+        this.stopActiveTimers();
+        this.freezeEnemies();
+        this.statusText.setText('Run over');
+        break;
+      case RunState.RUN_ENDED:
+        this.playAgainBtn.setVisible(true);
+        void this.submitScoreIfNeeded();
+        break;
+      case RunState.ERROR:
+        this.stopActiveTimers();
+        this.statusText.setText('Runtime error');
+        break;
+      default:
+        break;
+    }
+  }
+
   private restartGame() {
     if (this.submitting) return;
-    this.state = 'idle';
-    this.statusText.setText('Press space or tap to start');
-    this.playAgainBtn.setVisible(false);
     this.resetEntities();
+    this.playAgainBtn.setVisible(false);
+    this.runStateMachine.requestStart();
   }
 
   destroyResources() {
-    this.spawnTimer?.destroy();
-    this.autoFireTimer?.destroy();
-    this.spawnTimer = undefined;
-    this.autoFireTimer = undefined;
+    this.stopActiveTimers();
     this.enemies.clear(true, true);
     this.bullets.clear(true, true);
     this.sound?.stopAll();
     this.sound?.removeAll();
+    this.runStateMachine.dispose();
+    this.runBus.clear();
     this.disposables.disposeAll();
   }
 }

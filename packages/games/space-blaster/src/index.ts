@@ -1,4 +1,5 @@
 export { mount, unmount, spaceBlaster } from './game';
 export type { SpaceBlasterMountHandle, SpaceBlasterMountInput } from './game';
 export * from './bootstrap';
+export * from './run';
 export * from './runtime';
