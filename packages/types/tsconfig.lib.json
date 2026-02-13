@@ -4,9 +4,10 @@
     "outDir": "../../dist/packages/types",
     "declaration": true,
     "emitDeclarationOnly": false,
+    "module": "ESNext",
     "types": ["node"],
     "paths": {
-      "@playmasters/game-sdk": ["dist/packages/games-sdk/src/index.d.ts"]
+      "@playmasters/game-sdk": ["packages/games-sdk/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.json"],

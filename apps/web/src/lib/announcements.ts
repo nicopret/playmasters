@@ -77,11 +77,12 @@ export async function getActiveAnnouncements(max = 5): Promise<Announcement[]> {
       })
       .slice(0, max);
   } catch (err) {
-    // Dynamo may be unreachable during local dev; fail soft and avoid noisy source-map warnings
+    // Dynamo may be unreachable during local dev; fail soft with a compact message.
     if (process.env.NODE_ENV === 'development') {
+      const message =
+        err instanceof Error ? err.message : 'Unknown announcements error';
       console.debug(
-        'Announcements fallback (Dynamo unavailable or schema mismatch)',
-        err,
+        `Announcements fallback (Dynamo unavailable or schema mismatch): ${message}`,
       );
     }
     return [];

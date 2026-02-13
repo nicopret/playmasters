@@ -55,7 +55,7 @@ function buildBundle() {
     path.join(base, 'formation-layouts.v1.json'),
   );
   const scoreConfig = loadJson(path.join(base, 'score-config.v1.json'));
-  const levels = [
+  const levelConfigs = [
     loadJson(path.join(base, 'level-1.v1.json')),
     loadJson(path.join(base, 'level-2.v1.json')),
     loadJson(path.join(base, 'level-3.v1.json')),
