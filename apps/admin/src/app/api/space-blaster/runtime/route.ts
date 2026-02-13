@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { SpaceBlasterRuntimeResolverResponseV1 } from '@playmasters/types';
 import {
   getCurrentBundle,
   getBundleVersion,
@@ -17,9 +18,10 @@ export async function GET(req: Request) {
     ? await getBundleVersion(env, versionId)
     : await getCurrentBundle(env);
   if (!bundle) return bad('no_published_bundle', 404);
-  return NextResponse.json({
+  const response: SpaceBlasterRuntimeResolverResponseV1 = {
     versionId: bundle.versionId,
     configHash: bundle.configHash,
-    bundle: bundle.bundle,
-  });
+    bundle: bundle.bundle as SpaceBlasterRuntimeResolverResponseV1['bundle'],
+  };
+  return NextResponse.json(response);
 }
