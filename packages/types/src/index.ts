@@ -4,3 +4,4 @@ export * from './realtime';
 export * from './game';
 export * from './image-editor';
 export * from './space-blaster/publish/hash';
+export * from './space-blaster/runtime';

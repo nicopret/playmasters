@@ -9,6 +9,20 @@ export const runtime = 'nodejs';
 const bad = (message: string, status = 400) =>
   NextResponse.json({ error: message }, { status });
 
+const normalizeRuntimeBundle = (bundle: unknown): unknown => {
+  if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) {
+    return bundle;
+  }
+  const record = bundle as Record<string, unknown>;
+  if (!Array.isArray(record.levelConfigs) && Array.isArray(record.levels)) {
+    return {
+      ...record,
+      levelConfigs: record.levels,
+    };
+  }
+  return bundle;
+};
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const env = url.searchParams.get('env') ?? 'dev';
@@ -20,6 +34,6 @@ export async function GET(req: Request) {
   return NextResponse.json({
     versionId: bundle.versionId,
     configHash: bundle.configHash,
-    bundle: bundle.bundle,
+    bundle: normalizeRuntimeBundle(bundle.bundle),
   });
 }

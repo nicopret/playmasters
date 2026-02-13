@@ -1,47 +1,28 @@
-import type { EmbeddedGameSdk } from '@playmasters/types';
+import type { EmbeddedGameSdk, ResolvedGameConfigV1 } from '@playmasters/types';
 
-export type RuntimeConfigError = {
+type RuntimeConfigError = {
   code: 'CONFIG_INVALID';
   domain: string;
   path: string;
   message: string;
 };
 
-export type ResolvedGameConfig = {
-  configHash: string;
-  gameConfig: Record<string, unknown>;
-  levelConfigs: unknown[];
-  heroCatalog: Record<string, unknown>;
-  enemyCatalog: Record<string, unknown>;
-  ammoCatalog: Record<string, unknown>;
-  formationLayouts: Record<string, unknown>;
-  scoreConfig: Record<string, unknown>;
-  versionHash?: string;
-  versionId?: string;
-  publishedAt?: string;
-};
-
-export type RunContext = {
-  readonly sdk: EmbeddedGameSdk;
-  readonly resolvedConfig: ResolvedGameConfig;
-  readonly configHash: string;
-  readonly versionHash?: string;
-  readonly versionId?: string;
-  readonly publishedAt?: string;
-  readonly mountedAt: string;
-  pendingResolvedConfig?: ResolvedGameConfig;
-  pendingConfigHash?: string;
-  pendingVersionHash?: string;
-  hasPendingUpdate: boolean;
+type LegacyResolvedShape = {
+  levels?: ResolvedGameConfigV1['levelConfigs'];
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const formatRuntimeConfigErrors = (errors: RuntimeConfigError[]): string =>
+  errors
+    .map((error) => `${error.domain} ${error.path}: ${error.message}`)
+    .join('\n');
+
 const validateResolvedConfig = (
   value: unknown,
 ):
-  | { ok: true; config: ResolvedGameConfig }
+  | { ok: true; config: ResolvedGameConfigV1 }
   | { ok: false; errors: RuntimeConfigError[] } => {
   const errors: RuntimeConfigError[] = [];
   if (!isRecord(value)) {
@@ -58,6 +39,24 @@ const validateResolvedConfig = (
     };
   }
 
+  const normalized: Record<string, unknown> = { ...value };
+  if (!Array.isArray(normalized['levelConfigs'])) {
+    const legacyLevels = (value as LegacyResolvedShape).levels;
+    if (Array.isArray(legacyLevels)) normalized['levelConfigs'] = legacyLevels;
+  }
+
+  if (
+    typeof normalized['configHash'] !== 'string' ||
+    normalized['configHash'].length === 0
+  ) {
+    errors.push({
+      code: 'CONFIG_INVALID',
+      domain: 'Root',
+      path: 'configHash',
+      message: 'Missing configHash (string).',
+    });
+  }
+
   const requiredDomains = [
     'gameConfig',
     'levelConfigs',
@@ -68,21 +67,9 @@ const validateResolvedConfig = (
     'scoreConfig',
   ] as const;
 
-  if (
-    typeof value['configHash'] !== 'string' ||
-    value['configHash'].length === 0
-  ) {
-    errors.push({
-      code: 'CONFIG_INVALID',
-      domain: 'Root',
-      path: 'configHash',
-      message: 'Missing configHash (string).',
-    });
-  }
-
   requiredDomains.forEach((key) => {
     if (key === 'levelConfigs') {
-      if (!Array.isArray(value[key])) {
+      if (!Array.isArray(normalized[key])) {
         errors.push({
           code: 'CONFIG_INVALID',
           domain: 'Root',
@@ -93,7 +80,7 @@ const validateResolvedConfig = (
       return;
     }
 
-    if (!isRecord(value[key])) {
+    if (!isRecord(normalized[key])) {
       errors.push({
         code: 'CONFIG_INVALID',
         domain: 'Root',
@@ -104,15 +91,22 @@ const validateResolvedConfig = (
   });
 
   if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, config: value as ResolvedGameConfig };
+  return { ok: true, config: normalized as unknown as ResolvedGameConfigV1 };
 };
 
-export const formatRuntimeConfigErrors = (
-  errors: RuntimeConfigError[],
-): string =>
-  errors
-    .map((error) => `${error.domain} ${error.path}: ${error.message}`)
-    .join('\n');
+export type RunContext = {
+  readonly sdk: EmbeddedGameSdk;
+  readonly resolvedConfig: ResolvedGameConfigV1;
+  readonly configHash: string;
+  readonly versionHash?: string;
+  readonly versionId?: string;
+  readonly publishedAt?: string;
+  readonly mountedAt: string;
+  pendingResolvedConfig?: ResolvedGameConfigV1;
+  pendingConfigHash?: string;
+  pendingVersionHash?: string;
+  hasPendingUpdate: boolean;
+};
 
 export const createRunContext = (opts: {
   sdk: EmbeddedGameSdk;
@@ -163,7 +157,7 @@ export const applyIncomingConfigUpdate = (
 
 export const resolveConfigForNextRun = (
   ctx: RunContext,
-): ResolvedGameConfig => {
+): ResolvedGameConfigV1 => {
   if (ctx.pendingResolvedConfig) return ctx.pendingResolvedConfig;
   return ctx.resolvedConfig;
 };

@@ -67,7 +67,7 @@ function buildBundle() {
     ammoCatalog,
     formationLayouts,
     scoreConfig,
-    levels,
+    levelConfigs: levels,
   };
 }
 

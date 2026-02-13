@@ -1,4 +1,8 @@
-import type { EmbeddedGameSdk } from '@playmasters/types';
+import {
+  resolvedConfigExampleV1,
+  type EmbeddedGameSdk,
+  validateResolvedGameConfigV1,
+} from '@playmasters/types';
 import {
   applyIncomingConfigUpdate,
   createRunContext,
@@ -13,18 +17,21 @@ const createSdkMock = (): EmbeddedGameSdk => ({
   submitScore: jest.fn(async () => undefined),
 });
 
-const resolvedConfigExample = {
-  configHash: 'f'.repeat(64),
-  gameConfig: { defaultLives: 3 },
-  levelConfigs: [{ layoutId: 'layout-a', waves: [{ enemyId: 'enemy-a' }] }],
-  heroCatalog: { entries: [{ heroId: 'hero-a', defaultAmmoId: 'ammo-a' }] },
-  enemyCatalog: { entries: [{ enemyId: 'enemy-a' }] },
-  ammoCatalog: { entries: [{ ammoId: 'ammo-a' }] },
-  formationLayouts: { entries: [{ layoutId: 'layout-a' }] },
-  scoreConfig: { baseEnemyScores: [{ enemyId: 'enemy-a', score: 100 }] },
-};
+const cloneFixture = () =>
+  JSON.parse(
+    JSON.stringify(resolvedConfigExampleV1),
+  ) as typeof resolvedConfigExampleV1;
 
 describe('createRunContext', () => {
+  it('keeps resolved example aligned with runtime validator', () => {
+    const result = validateResolvedGameConfigV1(cloneFixture());
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.levelConfigs.length).toBeGreaterThan(0);
+    expect(result.value.enemyCatalog.entries.length).toBeGreaterThan(0);
+    expect(result.value.scoreConfig.baseEnemyScores.length).toBeGreaterThan(0);
+  });
+
   it('boots with only sdk + resolvedConfig and does not fetch config', () => {
     const sdk = createSdkMock();
     const originalFetch = globalThis.fetch;
@@ -34,11 +41,11 @@ describe('createRunContext', () => {
     try {
       const context = createRunContext({
         sdk,
-        resolvedConfig: resolvedConfigExample,
+        resolvedConfig: cloneFixture(),
       });
 
-      expect(context.configHash).toBe(resolvedConfigExample.configHash);
-      expect(context.versionHash).toBeUndefined();
+      expect(context.configHash).toBe(resolvedConfigExampleV1.configHash);
+      expect(context.versionHash).toBe(resolvedConfigExampleV1.versionHash);
       expect(context.hasPendingUpdate).toBe(false);
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
@@ -50,8 +57,8 @@ describe('createRunContext', () => {
     const sdkA = createSdkMock();
     const sdkB = createSdkMock();
 
-    const cfgA = { ...resolvedConfigExample, configHash: 'a'.repeat(64) };
-    const cfgB = { ...resolvedConfigExample, configHash: 'b'.repeat(64) };
+    const cfgA = { ...cloneFixture(), configHash: 'a'.repeat(64) };
+    const cfgB = { ...cloneFixture(), configHash: 'b'.repeat(64) };
 
     const runA = createRunContext({ sdk: sdkA, resolvedConfig: cfgA });
     const runB = createRunContext({ sdk: sdkB, resolvedConfig: cfgB });
@@ -74,14 +81,14 @@ describe('createRunContext', () => {
     const ctx = createRunContext({
       sdk: createSdkMock(),
       resolvedConfig: {
-        ...resolvedConfigExample,
+        ...cloneFixture(),
         configHash: '1'.repeat(64),
       },
     });
     const activeRef = ctx.resolvedConfig;
 
     const updated = applyIncomingConfigUpdate(ctx, {
-      ...resolvedConfigExample,
+      ...cloneFixture(),
       configHash: '2'.repeat(64),
     });
 
@@ -96,10 +103,10 @@ describe('createRunContext', () => {
   it('ignores same-hash incoming config updates', () => {
     const ctx = createRunContext({
       sdk: createSdkMock(),
-      resolvedConfig: resolvedConfigExample,
+      resolvedConfig: cloneFixture(),
     });
 
-    const updated = applyIncomingConfigUpdate(ctx, resolvedConfigExample);
+    const updated = applyIncomingConfigUpdate(ctx, cloneFixture());
     expect(updated).toBe(false);
     expect(ctx.hasPendingUpdate).toBe(false);
     expect(ctx.pendingResolvedConfig).toBeUndefined();
@@ -108,14 +115,14 @@ describe('createRunContext', () => {
   it('notifies optional pending-update hook when new hash is staged', () => {
     const ctx = createRunContext({
       sdk: createSdkMock(),
-      resolvedConfig: resolvedConfigExample,
+      resolvedConfig: cloneFixture(),
     });
     const notify = jest.fn();
 
     const updated = applyIncomingConfigUpdate(
       ctx,
       {
-        ...resolvedConfigExample,
+        ...cloneFixture(),
         configHash: '3'.repeat(64),
       },
       notify,
@@ -123,7 +130,7 @@ describe('createRunContext', () => {
 
     expect(updated).toBe(true);
     expect(notify).toHaveBeenCalledWith({
-      currentHash: resolvedConfigExample.configHash,
+      currentHash: resolvedConfigExampleV1.configHash,
       nextHash: '3'.repeat(64),
     });
   });

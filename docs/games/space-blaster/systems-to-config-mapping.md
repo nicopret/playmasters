@@ -6,6 +6,7 @@ This is the first-pass mapping from runtime systems to canonical config fields.
 
 - Canonical domains: `GameConfig`, `LevelConfig`, `HeroCatalog`, `EnemyCatalog`, `AmmoCatalog`, `FormationLayouts`, `ScoreConfig`
 - Field paths are based on the current schemas and resolved bundle structure (`ResolvedGameConfigV1` style: `gameConfig`, `levelConfigs[]`, catalogs, layouts, `scoreConfig`)
+- Canonical TS contract source: `packages/types/src/space-blaster/runtime/resolved-v1.ts`
 - Status notes:
   - **implemented** = consumed or validated by current runtime/bootstrap
   - **planned** = present in schema/types and intended for gameplay wiring, but not yet fully consumed by current scene logic
@@ -112,5 +113,8 @@ If no override field exists in schema/types, override location is `none`.
   - `packages/games/space-blaster/src/runtime/run-context.ts`
 - Runtime freeze tests:
   - `packages/games/space-blaster/src/runtime/run-context.spec.ts`
+- Resolved config validator + fixture:
+  - `packages/types/src/space-blaster/runtime/validate-resolved-v1.ts`
+  - `packages/types/src/space-blaster/runtime/fixtures/resolved-config.example.ts`
 - Canonical schemas:
   - `packages/types/src/space-blaster/schemas/*.schema.json`
