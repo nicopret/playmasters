@@ -90,23 +90,25 @@ export const GameHost = ({
 
         gameRef.current?.destroy();
         let resolvedConfig: unknown;
-        if (
-          (gameId === 'space-blaster' || gameId === 'game-space-blaster') &&
-          apiBaseUrl
-        ) {
-          const runtimeRes = await fetch(
-            `${apiBaseUrl}/api/space-blaster/runtime?env=dev`,
-            {
-              cache: 'no-store',
-            },
-          );
-          if (!runtimeRes.ok) {
+        if (gameId === 'space-blaster' || gameId === 'game-space-blaster') {
+          if (!apiBaseUrl) {
             throw new Error(
-              `Runtime config fetch failed (${runtimeRes.status})`,
+              'Missing NEXT_PUBLIC_API_BASE_URL for Space Blaster runtime config.',
             );
           }
-          const runtimeJson = (await runtimeRes.json()) as { bundle?: unknown };
-          resolvedConfig = runtimeJson.bundle;
+          const runtimeResp = await fetch(
+            `${apiBaseUrl}/api/space-blaster/runtime?env=dev`,
+            { cache: 'no-store' },
+          );
+          if (!runtimeResp.ok) {
+            throw new Error(
+              `Failed to load runtime config (${runtimeResp.status}).`,
+            );
+          }
+          const runtimePayload = (await runtimeResp.json()) as {
+            bundle?: unknown;
+          };
+          resolvedConfig = runtimePayload.bundle;
         }
 
         gameRef.current = game.mount({

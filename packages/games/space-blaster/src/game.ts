@@ -1,14 +1,9 @@
 import * as Phaser from 'phaser';
-import {
-  formatRuntimeConfigErrors,
-  validateResolvedGameConfigV1,
-  type EmbeddedGame,
-} from '@playmasters/types';
-import type { GameSdk } from '@playmasters/game-sdk';
+import type { EmbeddedGame, EmbeddedGameSdk } from '@playmasters/types';
+import { createRunContext, type RunContext } from './runtime/run-context';
 
 type MountOptions = {
-  sdk: GameSdk;
-  resolvedConfig?: unknown;
+  runContext: RunContext;
   onReady?: () => void;
   onGameOver?: (finalScore: number) => void;
 };
@@ -20,7 +15,7 @@ const WORLD_WIDTH = 800;
 const WORLD_HEIGHT = 450;
 
 class SpaceBlasterScene extends Phaser.Scene {
-  private sdk: GameSdk;
+  private runContext: RunContext;
   private onReady?: () => void;
   private onGameOver?: (score: number) => void;
 
@@ -46,7 +41,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   constructor(opts: MountOptions) {
     super('space-blaster');
-    this.sdk = opts.sdk;
+    this.runContext = opts.runContext;
     this.onReady = opts.onReady;
     this.onGameOver = opts.onGameOver;
   }
@@ -109,7 +104,6 @@ class SpaceBlasterScene extends Phaser.Scene {
     if (!keyboard) {
       throw new Error('Keyboard input is unavailable');
     }
-
     this.cursors = keyboard.createCursorKeys();
     keyboard.on('keydown-SPACE', () => this.handleSpace());
     this.input.on('pointerdown', () => this.handleSpace());
@@ -193,7 +187,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.canSubmitScore = true;
 
     try {
-      await this.sdk.startRun();
+      await this.runContext.sdk.startRun();
       this.statusText.setText('Run live - survive and score!');
     } catch {
       this.canSubmitScore = false;
@@ -292,7 +286,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
     try {
       this.statusText.setText('Submitting...');
-      await this.sdk.submitScore({ score: this.score, durationMs });
+      await this.runContext.sdk.submitScore({ score: this.score, durationMs });
       this.statusText.setText('Score submitted');
       window.dispatchEvent(
         new CustomEvent('playmasters:refresh-leaderboard', {
@@ -344,16 +338,22 @@ const createGameInstance = (opts: MountOptions, el: HTMLElement) => {
   };
 };
 
+// Public mount contract: pass a container element via `el` and keep `resolvedConfig`
+// stable for the full mounted run; call `destroy()` to unmount.
 export const spaceBlaster: EmbeddedGame = {
   mount({ el, sdk, resolvedConfig, onReady, onGameOver }) {
-    if (resolvedConfig !== undefined) {
-      const result = validateResolvedGameConfigV1(resolvedConfig);
-      if (!result.ok) {
-        throw new Error(formatRuntimeConfigErrors(result.errors));
-      }
+    if (!resolvedConfig) {
+      throw new Error('Missing resolvedConfig for Space Blaster mount.');
     }
 
-    const instance = createGameInstance({ sdk, onReady, onGameOver }, el);
+    const runContext = createRunContext({
+      sdk: sdk as EmbeddedGameSdk,
+      resolvedConfig,
+    });
+    const instance = createGameInstance(
+      { runContext, onReady, onGameOver },
+      el,
+    );
     return {
       destroy() {
         instance.destroy();

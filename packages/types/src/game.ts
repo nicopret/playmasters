@@ -1,4 +1,4 @@
-export type GameSdkContract = {
+export type EmbeddedGameSdk = {
   startRun(): Promise<{
     run: { runId: string; startedAt: string };
     sessionToken: string;
@@ -9,7 +9,7 @@ export type GameSdkContract = {
 export type EmbeddedGame = {
   mount: (opts: {
     el: HTMLElement;
-    sdk: GameSdkContract;
+    sdk: EmbeddedGameSdk;
     resolvedConfig?: unknown;
     onReady?: () => void;
     onGameOver?: (finalScore: number) => void;

@@ -31,7 +31,12 @@
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm exec eslint apps/admin/src apps/admin/components apps/admin/lib apps/admin/*.ts --ignore-pattern apps/admin/next-env.d.ts --no-warn-ignored --max-warnings=0"
+        "lintFilePatterns": [
+          "apps/admin/src/**/*.{ts,tsx,js,jsx}",
+          "apps/admin/components/**/*.{ts,tsx,js,jsx}",
+          "apps/admin/lib/**/*.{ts,tsx,js,jsx}",
+          "apps/admin/middleware.ts"
+        ]
       }
     }
   }
