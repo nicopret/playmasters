@@ -94,8 +94,13 @@ class SpaceBlasterScene extends Phaser.Scene {
 
     this.playAgainBtn.on('pointerup', () => this.restartGame());
 
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.input.keyboard!.on('keydown-SPACE', () => this.handleSpace());
+    const keyboard = this.input.keyboard;
+    if (!keyboard) {
+      throw new Error('Keyboard input is unavailable');
+    }
+
+    this.cursors = keyboard.createCursorKeys();
+    keyboard.on('keydown-SPACE', () => this.handleSpace());
     this.input.on('pointerdown', () => this.handleSpace());
 
     this.physics.add.overlap(
@@ -179,7 +184,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     try {
       await this.sdk.startRun();
       this.statusText.setText('Run live - survive and score!');
-    } catch (err) {
+    } catch {
       this.canSubmitScore = false;
       this.statusText.setText('Sign in to submit score');
     }
@@ -274,7 +279,7 @@ class SpaceBlasterScene extends Phaser.Scene {
       window.dispatchEvent(
         new CustomEvent('playmasters:refresh-leaderboard', { detail: { gameId: GAME_ID } })
       );
-    } catch (err) {
+    } catch {
       this.statusText.setText('Error submitting score');
     } finally {
       this.submitting = false;
