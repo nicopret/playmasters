@@ -10,6 +10,7 @@ import {
 } from './bootstrap';
 import { DisposableBag, createRunContext } from './runtime';
 import { PlayerController } from './systems/PlayerController';
+import { PlayerLifeSystem } from './systems/PlayerLifeSystem';
 import { WeaponSystem } from './systems/WeaponSystem';
 
 type MountOptions = {
@@ -19,11 +20,18 @@ type MountOptions = {
   disposables: DisposableBag;
 };
 
-type GameState = 'idle' | 'playing' | 'gameover';
+type GameState =
+  | 'idle'
+  | 'playing'
+  | 'player_respawn'
+  | 'run_ending'
+  | 'gameover';
 
 const GAME_ID = 'game-space-blaster';
 const WORLD_WIDTH = 800;
 const WORLD_HEIGHT = 450;
+const DEFAULT_RESPAWN_INVULNERABILITY_MS = 1200;
+const RESPAWN_DELAY_MS = 700;
 
 class SpaceBlasterScene extends Phaser.Scene {
   private deps: SpaceBlasterBootstrapDeps;
@@ -34,10 +42,12 @@ class SpaceBlasterScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Rectangle;
   private playerBody!: Phaser.Physics.Arcade.Body;
   private playerController!: PlayerController;
+  private lifeSystem!: PlayerLifeSystem;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private weaponSystem!: WeaponSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
   private spawnTimer?: Phaser.Time.TimerEvent;
+  private respawnTimer?: Phaser.Time.TimerEvent;
 
   private score = 0;
   private startTime: number | null = null;
@@ -46,6 +56,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   private submitting = false;
 
   private scoreText!: Phaser.GameObjects.Text;
+  private livesText!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
   private playAgainBtn!: Phaser.GameObjects.Text;
 
@@ -88,6 +99,15 @@ class SpaceBlasterScene extends Phaser.Scene {
       this.deps.heroCatalog.entries[0].moveSpeed > 0
         ? this.deps.heroCatalog.entries[0].moveSpeed
         : 380;
+    const heroEntry = this.deps.heroCatalog.entries[0];
+    const initialLives =
+      heroEntry?.maxLives && heroEntry.maxLives > 0
+        ? heroEntry.maxLives
+        : this.deps.gameConfig.defaultLives;
+    this.lifeSystem = new PlayerLifeSystem(
+      initialLives,
+      DEFAULT_RESPAWN_INVULNERABILITY_MS,
+    );
     this.playerController = new PlayerController(
       this.player,
       this.playerBody,
@@ -98,7 +118,6 @@ class SpaceBlasterScene extends Phaser.Scene {
       moveSpeed,
     );
 
-    const heroEntry = this.deps.heroCatalog.entries[0];
     const ammoEntry = this.deps.ammoCatalog.entries.find(
       (entry) => entry.ammoId === heroEntry?.defaultAmmoId,
     );
@@ -126,8 +145,13 @@ class SpaceBlasterScene extends Phaser.Scene {
       fontSize: '18px',
       color: '#f9d65c',
     });
+    this.livesText = this.add.text(16, 34, `Lives: ${this.lifeSystem.lives}`, {
+      fontFamily: 'Montserrat, Arial, sans-serif',
+      fontSize: '16px',
+      color: '#d5d8e0',
+    });
 
-    this.statusText = this.add.text(16, 40, 'Press space or tap to start', {
+    this.statusText = this.add.text(16, 58, 'Press space or tap to start', {
       fontFamily: 'Montserrat, Arial, sans-serif',
       fontSize: '14px',
       color: '#d5d8e0',
@@ -183,36 +207,45 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.physics.add.overlap(
       this.enemies,
       this.player,
-      () => this.finishRun(),
+      () => this.handlePlayerHit(),
       undefined,
       this,
     );
 
+    this.setState('idle');
     this.onReady?.();
   }
 
   override update(_time: number, delta: number) {
-    if (this.state !== 'playing') return;
+    if (this.state === 'playing') {
+      this.lifeSystem.update(delta);
+      const inputAxis = this.cursors.left?.isDown
+        ? -1
+        : this.cursors.right?.isDown
+          ? 1
+          : 0;
+      this.playerController.update(delta, inputAxis);
 
-    const inputAxis = this.cursors.left?.isDown
-      ? -1
-      : this.cursors.right?.isDown
-        ? 1
-        : 0;
-    this.playerController.update(delta, inputAxis);
+      if (this.cursors.space?.isDown) {
+        this.fireManualShot();
+      }
 
-    if (this.cursors.space?.isDown) {
-      this.fireManualShot();
+      this.enemies.children.each((enemy) => {
+        const e = enemy as Phaser.GameObjects.Rectangle;
+        if (e.y > WORLD_HEIGHT - 12) {
+          this.finishRun('ENEMY_REACHED_BOTTOM');
+        }
+        return false;
+      });
+      this.weaponSystem.update(delta);
     }
 
-    this.enemies.children.each((enemy) => {
-      const e = enemy as Phaser.GameObjects.Rectangle;
-      if (e.y > WORLD_HEIGHT - 12) {
-        this.finishRun();
-      }
-      return false;
-    });
-    this.weaponSystem.update(delta);
+    if (this.lifeSystem.invulnerable) {
+      const flashVisible = Math.floor(_time / 80) % 2 === 0;
+      this.player.setAlpha(flashVisible ? 0.5 : 1);
+      return;
+    }
+    this.player.setAlpha(1);
   }
 
   private handleSpace() {
@@ -231,10 +264,12 @@ class SpaceBlasterScene extends Phaser.Scene {
     if (this.state === 'playing') return;
 
     this.resetEntities();
-    this.state = 'playing';
+    this.setState('playing');
     this.score = 0;
     this.startTime = Date.now();
     this.scoreText.setText('Score: 0');
+    this.lifeSystem.reset();
+    this.updateLivesDisplay();
     this.statusText.setText('Starting run...');
     this.playAgainBtn.setVisible(false);
     this.canSubmitScore = true;
@@ -257,9 +292,14 @@ class SpaceBlasterScene extends Phaser.Scene {
   private resetEntities() {
     this.enemies.clear(true, true);
     this.weaponSystem.clear();
+    this.respawnTimer?.destroy();
+    this.respawnTimer = undefined;
     this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT - 60);
     this.playerController.resetPosition(WORLD_WIDTH / 2);
     this.playerBody.setVelocity(0);
+    this.playerBody.enable = true;
+    this.player.setVisible(true);
+    this.player.setAlpha(1);
   }
 
   private fireManualShot() {
@@ -284,12 +324,51 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.scoreText.setText(`Score: ${this.score}`);
   }
 
-  private async finishRun() {
+  private updateLivesDisplay() {
+    this.livesText.setText(`Lives: ${this.lifeSystem.lives}`);
+  }
+
+  private handlePlayerHit() {
     if (this.state !== 'playing') return;
-    this.state = 'gameover';
+    const hitResult = this.lifeSystem.onPlayerHit();
+    if (hitResult.kind === 'ignored') {
+      return;
+    }
+
+    this.updateLivesDisplay();
+    if (hitResult.kind === 'end_run') {
+      void this.finishRun('GAME_OVER');
+      return;
+    }
+
+    this.startRespawnSequence();
+  }
+
+  private startRespawnSequence() {
+    this.setState('player_respawn');
+    this.playerBody.setVelocity(0);
+    this.playerBody.enable = false;
+    this.player.setVisible(false);
+    this.statusText.setText('Respawning...');
+    this.respawnTimer?.destroy();
+    this.respawnTimer = this.time.delayedCall(RESPAWN_DELAY_MS, () => {
+      this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT - 60);
+      this.playerController.resetPosition(WORLD_WIDTH / 2);
+      this.playerBody.enable = true;
+      this.player.setVisible(true);
+      this.setState('playing');
+      this.statusText.setText('Run live - survive and score!');
+    });
+  }
+
+  private async finishRun(reason: 'GAME_OVER' | 'ENEMY_REACHED_BOTTOM') {
+    if (this.state !== 'playing') return;
+    this.setState('run_ending');
 
     this.spawnTimer?.destroy();
     this.spawnTimer = undefined;
+    this.respawnTimer?.destroy();
+    this.respawnTimer = undefined;
 
     this.enemies.setVelocityY(0);
     this.enemies.children.each((enemy) => {
@@ -299,10 +378,11 @@ class SpaceBlasterScene extends Phaser.Scene {
       return false;
     });
 
-    this.statusText.setText('Run over');
+    this.statusText.setText(reason === 'GAME_OVER' ? 'Game over' : 'Run over');
     this.playAgainBtn.setVisible(true);
 
     if (!this.canSubmitScore || this.submitting) {
+      this.setState('gameover');
       this.onGameOver?.(this.score);
       return;
     }
@@ -323,21 +403,31 @@ class SpaceBlasterScene extends Phaser.Scene {
       this.statusText.setText('Error submitting score');
     } finally {
       this.submitting = false;
+      this.setState('gameover');
       this.onGameOver?.(this.score);
     }
   }
 
   private restartGame() {
     if (this.submitting) return;
-    this.state = 'idle';
+    this.setState('idle');
     this.statusText.setText('Press space or tap to start');
     this.playAgainBtn.setVisible(false);
+    this.lifeSystem.reset();
+    this.updateLivesDisplay();
     this.resetEntities();
+  }
+
+  private setState(nextState: GameState) {
+    this.state = nextState;
+    this.physics.world.isPaused = nextState !== 'playing';
   }
 
   destroyResources() {
     this.spawnTimer?.destroy();
     this.spawnTimer = undefined;
+    this.respawnTimer?.destroy();
+    this.respawnTimer = undefined;
     this.enemies.clear(true, true);
     this.weaponSystem.clear();
     this.sound?.stopAll();
