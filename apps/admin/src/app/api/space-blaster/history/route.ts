@@ -69,7 +69,9 @@ export async function GET(req: Request) {
   const history: HistoryEntry[] = items
     .filter(
       (i: AuditItem) =>
-        i.action === 'PUBLISH_BUNDLE' || i.details?.action === 'rollback',
+        i.action === 'PUBLISH_BUNDLE' ||
+        i.action === 'ROLLBACK_BUNDLE' ||
+        i.details?.action === 'rollback',
     )
     .map((i: AuditItem) => ({
       versionId: i.newVersion ?? i.details?.configHash ?? i.versionId ?? '',

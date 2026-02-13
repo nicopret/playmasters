@@ -11,7 +11,8 @@ export type AuditAction =
   | 'ROLLBACK_PUBLISHED'
   | 'ARCHIVE_VERSION'
   | 'UPDATE_METADATA'
-  | 'PUBLISH_BUNDLE';
+  | 'PUBLISH_BUNDLE'
+  | 'ROLLBACK_BUNDLE';
 
 export type AuditLog = {
   id: string;

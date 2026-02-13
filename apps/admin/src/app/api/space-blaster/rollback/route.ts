@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     await logAudit({
       entityType: 'SpaceBlasterBundle',
       entityId: env,
-      action: 'PUBLISH_BUNDLE',
+      action: 'ROLLBACK_BUNDLE',
       actorUserId: session?.user?.id,
       actorEmail: session?.user?.email ?? undefined,
       env,
