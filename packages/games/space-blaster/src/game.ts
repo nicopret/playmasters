@@ -55,11 +55,17 @@ class SpaceBlasterScene extends Phaser.Scene {
       WORLD_HEIGHT / 2,
       WORLD_WIDTH,
       WORLD_HEIGHT,
-      0x101628
+      0x101628,
     );
     backdrop.setStrokeStyle(2, 0x3aa9e0, 0.35);
 
-    this.player = this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT - 60, 52, 26, 0x3aa9e0);
+    this.player = this.add.rectangle(
+      WORLD_WIDTH / 2,
+      WORLD_HEIGHT - 60,
+      52,
+      26,
+      0x3aa9e0,
+    );
     this.physics.add.existing(this.player);
     this.playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     this.playerBody.setCollideWorldBounds(true);
@@ -94,8 +100,12 @@ class SpaceBlasterScene extends Phaser.Scene {
 
     this.playAgainBtn.on('pointerup', () => this.restartGame());
 
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.input.keyboard!.on('keydown-SPACE', () => this.handleSpace());
+    const keyboard = this.input.keyboard;
+    if (!keyboard) {
+      throw new Error('Keyboard input is unavailable');
+    }
+    this.cursors = keyboard.createCursorKeys();
+    keyboard.on('keydown-SPACE', () => this.handleSpace());
     this.input.on('pointerdown', () => this.handleSpace());
 
     this.physics.add.overlap(
@@ -107,7 +117,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.addScore(10);
       },
       undefined,
-      this
+      this,
     );
 
     this.physics.add.overlap(
@@ -115,7 +125,7 @@ class SpaceBlasterScene extends Phaser.Scene {
       this.player,
       () => this.finishRun(),
       undefined,
-      this
+      this,
     );
 
     this.onReady?.();
@@ -179,7 +189,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     try {
       await this.sdk.startRun();
       this.statusText.setText('Run live - survive and score!');
-    } catch (err) {
+    } catch {
       this.canSubmitScore = false;
       this.statusText.setText('Sign in to submit score');
     }
@@ -214,7 +224,13 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private fireBullet() {
     if (this.state !== 'playing') return;
-    const bullet = this.add.rectangle(this.player.x, this.player.y - 20, 6, 16, 0xf9d65c);
+    const bullet = this.add.rectangle(
+      this.player.x,
+      this.player.y - 20,
+      6,
+      16,
+      0xf9d65c,
+    );
     this.physics.add.existing(bullet);
     const body = bullet.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
@@ -251,7 +267,8 @@ class SpaceBlasterScene extends Phaser.Scene {
 
     this.enemies.setVelocityY(0);
     this.enemies.children.each((enemy) => {
-      const body = (enemy as Phaser.GameObjects.Rectangle).body as Phaser.Physics.Arcade.Body;
+      const body = (enemy as Phaser.GameObjects.Rectangle)
+        .body as Phaser.Physics.Arcade.Body;
       body.setVelocity(0);
       return false;
     });
@@ -272,9 +289,11 @@ class SpaceBlasterScene extends Phaser.Scene {
       await this.sdk.submitScore({ score: this.score, durationMs });
       this.statusText.setText('Score submitted');
       window.dispatchEvent(
-        new CustomEvent('playmasters:refresh-leaderboard', { detail: { gameId: GAME_ID } })
+        new CustomEvent('playmasters:refresh-leaderboard', {
+          detail: { gameId: GAME_ID },
+        }),
       );
-    } catch (err) {
+    } catch {
       this.statusText.setText('Error submitting score');
     } finally {
       this.submitting = false;
@@ -319,6 +338,8 @@ const createGameInstance = (opts: MountOptions, el: HTMLElement) => {
   };
 };
 
+// Public mount contract: pass a container element via `el` and keep `resolvedConfig`
+// stable for the full mounted run; call `destroy()` to unmount.
 export const spaceBlaster: EmbeddedGame = {
   mount({ el, sdk, onReady, onGameOver }) {
     const instance = createGameInstance({ sdk, onReady, onGameOver }, el);
