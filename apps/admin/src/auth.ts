@@ -12,9 +12,11 @@ const googleClientId =
 const googleClientSecret =
   process.env.GOOGLE_CLIENT_SECRET ?? 'placeholder-google-client-secret';
 
+// Keep Auth.js operational in local/preview environments when env vars are not set.
 const authSecret =
+  process.env.AUTH_SECRET ??
   process.env.NEXTAUTH_SECRET ??
-  (process.env.NODE_ENV === 'development' ? 'dev-nextauth-secret' : undefined);
+  'playmasters-local-auth-secret';
 
 const nextAuth = NextAuth({
   providers: [

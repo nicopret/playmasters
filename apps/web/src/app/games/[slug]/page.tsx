@@ -25,8 +25,11 @@ const GameDetailPage = async ({ params }: PageProps) => {
     return notFound();
   }
 
-  const realtimeWsUrl = process.env.NEXT_PUBLIC_REALTIME_WS_URL ?? 'ws://localhost:4000';
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
+  const realtimeWsUrl =
+    process.env.NEXT_PUBLIC_REALTIME_WS_URL ?? 'ws://localhost:4000';
+  const apiBaseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '');
   const countryCode =
     process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ??
     process.env.DEFAULT_COUNTRY_CODE ??
@@ -46,7 +49,9 @@ const GameDetailPage = async ({ params }: PageProps) => {
           <h1 className={styles.title}>{game.title}</h1>
           <p className={styles.description}>{game.description}</p>
           <div className={styles.meta}>
-            <Badge variant={statusBadgeVariant(game.status)}>{statusLabel(game.status)}</Badge>
+            <Badge variant={statusBadgeVariant(game.status)}>
+              {statusLabel(game.status)}
+            </Badge>
             {game.tags.map((tag) => (
               <Badge key={tag} variant="info" size="sm">
                 {tag}

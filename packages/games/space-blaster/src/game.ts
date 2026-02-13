@@ -1,11 +1,20 @@
 import * as Phaser from 'phaser';
-import type { EmbeddedGame, EmbeddedGameSdk } from '@playmasters/types';
-import { createRunContext, type RunContext } from './runtime/run-context';
+import type {
+  EmbeddedGame,
+  EmbeddedGameSdk,
+  ResolvedGameConfigV1,
+} from '@playmasters/types';
+import {
+  createBootstrapDependencies,
+  type SpaceBlasterBootstrapDeps,
+} from './bootstrap';
+import { DisposableBag, createRunContext } from './runtime';
 
 type MountOptions = {
-  runContext: RunContext;
+  deps: SpaceBlasterBootstrapDeps;
   onReady?: () => void;
   onGameOver?: (finalScore: number) => void;
+  disposables: DisposableBag;
 };
 
 type GameState = 'idle' | 'playing' | 'gameover';
@@ -15,9 +24,10 @@ const WORLD_WIDTH = 800;
 const WORLD_HEIGHT = 450;
 
 class SpaceBlasterScene extends Phaser.Scene {
-  private runContext: RunContext;
+  private deps: SpaceBlasterBootstrapDeps;
   private onReady?: () => void;
   private onGameOver?: (score: number) => void;
+  private disposables: DisposableBag;
 
   private player!: Phaser.GameObjects.Rectangle;
   private playerBody!: Phaser.Physics.Arcade.Body;
@@ -38,12 +48,15 @@ class SpaceBlasterScene extends Phaser.Scene {
   private playAgainBtn!: Phaser.GameObjects.Text;
 
   private lastManualShotAt = 0;
+  private keyboardSpaceHandler?: () => void;
+  private pointerDownHandler?: () => void;
 
   constructor(opts: MountOptions) {
     super('space-blaster');
-    this.runContext = opts.runContext;
+    this.deps = opts.deps;
     this.onReady = opts.onReady;
     this.onGameOver = opts.onGameOver;
+    this.disposables = opts.disposables;
   }
 
   create() {
@@ -105,8 +118,19 @@ class SpaceBlasterScene extends Phaser.Scene {
       throw new Error('Keyboard input is unavailable');
     }
     this.cursors = keyboard.createCursorKeys();
-    keyboard.on('keydown-SPACE', () => this.handleSpace());
-    this.input.on('pointerdown', () => this.handleSpace());
+    this.keyboardSpaceHandler = () => this.handleSpace();
+    this.pointerDownHandler = () => this.handleSpace();
+    keyboard.on('keydown-SPACE', this.keyboardSpaceHandler);
+    this.input.on('pointerdown', this.pointerDownHandler);
+
+    this.disposables.add(() => {
+      if (this.keyboardSpaceHandler) {
+        keyboard.off('keydown-SPACE', this.keyboardSpaceHandler);
+      }
+      if (this.pointerDownHandler) {
+        this.input.off('pointerdown', this.pointerDownHandler);
+      }
+    });
 
     this.physics.add.overlap(
       this.bullets,
@@ -187,7 +211,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.canSubmitScore = true;
 
     try {
-      await this.runContext.sdk.startRun();
+      await this.deps.sdk.startRun();
       this.statusText.setText('Run live - survive and score!');
     } catch {
       this.canSubmitScore = false;
@@ -286,7 +310,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
     try {
       this.statusText.setText('Submitting...');
-      await this.runContext.sdk.submitScore({ score: this.score, durationMs });
+      await this.deps.sdk.submitScore({ score: this.score, durationMs });
       this.statusText.setText('Score submitted');
       window.dispatchEvent(
         new CustomEvent('playmasters:refresh-leaderboard', {
@@ -308,7 +332,29 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.playAgainBtn.setVisible(false);
     this.resetEntities();
   }
+
+  destroyResources() {
+    this.spawnTimer?.destroy();
+    this.autoFireTimer?.destroy();
+    this.spawnTimer = undefined;
+    this.autoFireTimer = undefined;
+    this.enemies.clear(true, true);
+    this.bullets.clear(true, true);
+    this.sound?.stopAll();
+    this.sound?.removeAll();
+    this.disposables.disposeAll();
+  }
 }
+
+export type SpaceBlasterMountHandle = {
+  unmount: () => void;
+  destroy: () => void;
+  getDiagnostics: () => {
+    disposed: boolean;
+    activeCanvasCount: number;
+    activeDisposables: number;
+  };
+};
 
 const createGameInstance = (opts: MountOptions, el: HTMLElement) => {
   const scene = new SpaceBlasterScene(opts);
@@ -331,32 +377,87 @@ const createGameInstance = (opts: MountOptions, el: HTMLElement) => {
     scene: [scene],
   });
 
-  return {
-    destroy: () => {
-      game.destroy(true);
-    },
+  let disposed = false;
+  const teardown = () => {
+    if (disposed) return;
+    disposed = true;
+    try {
+      scene.destroyResources();
+    } catch {
+      // Continue teardown even if resource cleanup throws.
+    }
+    game.destroy(true);
+    while (el.firstChild) {
+      el.removeChild(el.firstChild);
+    }
   };
+
+  return {
+    unmount: () => {
+      teardown();
+    },
+    destroy: () => {
+      teardown();
+    },
+    getDiagnostics: () => ({
+      disposed,
+      activeCanvasCount: el.querySelectorAll('canvas').length,
+      activeDisposables: opts.disposables.size(),
+    }),
+  };
+};
+
+export type SpaceBlasterMountInput = {
+  sdk: EmbeddedGameSdk;
+  resolvedConfig: ResolvedGameConfigV1;
+  onReady?: () => void;
+  onGameOver?: (finalScore: number) => void;
+};
+
+export const mount = (
+  container: HTMLElement,
+  input: SpaceBlasterMountInput,
+): SpaceBlasterMountHandle => {
+  if (!container) {
+    throw new Error('Missing mount container for Space Blaster.');
+  }
+  if (!input.resolvedConfig) {
+    throw new Error('Missing resolvedConfig for Space Blaster mount.');
+  }
+  const runContext = createRunContext({
+    sdk: input.sdk,
+    resolvedConfig: input.resolvedConfig,
+  });
+  const deps = createBootstrapDependencies(runContext);
+  const disposables = new DisposableBag();
+  return createGameInstance(
+    {
+      deps,
+      onReady: input.onReady,
+      onGameOver: input.onGameOver,
+      disposables,
+    },
+    container,
+  );
+};
+
+export const unmount = (handle: SpaceBlasterMountHandle | null | undefined) => {
+  handle?.unmount();
 };
 
 // Public mount contract: pass a container element via `el` and keep `resolvedConfig`
 // stable for the full mounted run; call `destroy()` to unmount.
 export const spaceBlaster: EmbeddedGame = {
   mount({ el, sdk, resolvedConfig, onReady, onGameOver }) {
-    if (!resolvedConfig) {
-      throw new Error('Missing resolvedConfig for Space Blaster mount.');
-    }
-
-    const runContext = createRunContext({
+    const instance = mount(el, {
       sdk: sdk as EmbeddedGameSdk,
-      resolvedConfig,
+      resolvedConfig: resolvedConfig as ResolvedGameConfigV1,
+      onReady,
+      onGameOver,
     });
-    const instance = createGameInstance(
-      { runContext, onReady, onGameOver },
-      el,
-    );
     return {
       destroy() {
-        instance.destroy();
+        instance.unmount();
       },
     };
   },
