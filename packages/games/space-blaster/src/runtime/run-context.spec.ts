@@ -1,5 +1,9 @@
 import type { EmbeddedGameSdk } from '@playmasters/types';
-import { createRunContext } from './run-context';
+import {
+  applyIncomingConfigUpdate,
+  createRunContext,
+  resolveConfigForNextRun,
+} from './run-context';
 
 const createSdkMock = (): EmbeddedGameSdk => ({
   startRun: jest.fn(async () => ({
@@ -34,6 +38,8 @@ describe('createRunContext', () => {
       });
 
       expect(context.configHash).toBe(resolvedConfigExample.configHash);
+      expect(context.versionHash).toBeUndefined();
+      expect(context.hasPendingUpdate).toBe(false);
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       Object.assign(globalThis, { fetch: originalFetch });
@@ -62,5 +68,63 @@ describe('createRunContext', () => {
         resolvedConfig: { configHash: 123 },
       }),
     ).toThrow('Root configHash: Missing configHash (string).');
+  });
+
+  it('keeps active config frozen and stores pending update only for next run', () => {
+    const ctx = createRunContext({
+      sdk: createSdkMock(),
+      resolvedConfig: {
+        ...resolvedConfigExample,
+        configHash: '1'.repeat(64),
+      },
+    });
+    const activeRef = ctx.resolvedConfig;
+
+    const updated = applyIncomingConfigUpdate(ctx, {
+      ...resolvedConfigExample,
+      configHash: '2'.repeat(64),
+    });
+
+    expect(updated).toBe(true);
+    expect(ctx.resolvedConfig).toBe(activeRef);
+    expect(ctx.configHash).toBe('1'.repeat(64));
+    expect(ctx.hasPendingUpdate).toBe(true);
+    expect(ctx.pendingConfigHash).toBe('2'.repeat(64));
+    expect(resolveConfigForNextRun(ctx).configHash).toBe('2'.repeat(64));
+  });
+
+  it('ignores same-hash incoming config updates', () => {
+    const ctx = createRunContext({
+      sdk: createSdkMock(),
+      resolvedConfig: resolvedConfigExample,
+    });
+
+    const updated = applyIncomingConfigUpdate(ctx, resolvedConfigExample);
+    expect(updated).toBe(false);
+    expect(ctx.hasPendingUpdate).toBe(false);
+    expect(ctx.pendingResolvedConfig).toBeUndefined();
+  });
+
+  it('notifies optional pending-update hook when new hash is staged', () => {
+    const ctx = createRunContext({
+      sdk: createSdkMock(),
+      resolvedConfig: resolvedConfigExample,
+    });
+    const notify = jest.fn();
+
+    const updated = applyIncomingConfigUpdate(
+      ctx,
+      {
+        ...resolvedConfigExample,
+        configHash: '3'.repeat(64),
+      },
+      notify,
+    );
+
+    expect(updated).toBe(true);
+    expect(notify).toHaveBeenCalledWith({
+      currentHash: resolvedConfigExample.configHash,
+      nextHash: '3'.repeat(64),
+    });
   });
 });

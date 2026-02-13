@@ -22,7 +22,7 @@ type EmbeddedGame = {
   mount: (opts: {
     el: HTMLElement;
     sdk: GameSdk;
-    resolvedConfig?: unknown;
+    resolvedConfig?: unknown; // Space Blaster requires this at runtime
     onReady?: () => void;
     onGameOver?: (finalScore: number) => void;
   }) => { destroy: () => void };
@@ -50,7 +50,7 @@ const unmount = () => instance.destroy();
 
 - `el` (required): owned host container where Phaser mounts.
 - `sdk` (required): runtime SDK for `startRun()` and `submitScore(...)`.
-- `resolvedConfig` (optional but recommended): resolved runtime bundle payload. If provided, Space Blaster validates it at mount before booting.
+- `resolvedConfig` (required by Space Blaster runtime): resolved runtime bundle payload. Mount throws if missing.
 - `onReady` (optional): callback when scene create lifecycle completes.
 - `onGameOver` (optional): callback with `finalScore`.
 
@@ -71,9 +71,13 @@ Reference type: `ResolvedGameConfigV1`.
 
 ### When config is captured
 
-- Config is captured by the host at mount input time (`resolvedConfig` passed into `mount(...)`).
-- Space Blaster validates this payload once at mount (`validateResolvedGameConfigV1`).
+- Config is captured at mount input time into a per-mount `RunContext`.
+- `RunContext` captures immutable active identifiers:
+  - `configHash` (required)
+  - `versionHash` (if provided)
+  - `versionId` / `publishedAt` (if provided)
 - Space Blaster does not re-resolve config pointers during an active mounted run.
+- Source: `packages/games/space-blaster/src/runtime/run-context.ts`.
 
 ### Frozen per run (operational definition)
 
@@ -81,6 +85,7 @@ For an active run/session:
 
 - Use the same resolved config version/hash captured for that mount/run lifecycle.
 - Do not mutate the resolved config object at runtime.
+- Incoming updates are staged as pending for next run and never swap active config.
 - Publish/rollback pointer changes affect only future mounts/runs, not already-active runs.
 
 This matches the runtime and docs contract used for competitive integrity.
@@ -90,18 +95,31 @@ This matches the runtime and docs contract used for competitive integrity.
 - Active run inputs are treated as immutable.
 - `resolvedConfig` should be treated as read-only by host and game systems.
 - If a new bundle is published or rollback happens mid-session, active runs continue on their captured config; only new runs should use the new bundle.
+- Active reference is frozen: `ctx.resolvedConfig` and `ctx.configHash` stay unchanged for the mounted run.
+
+### Pending update hook (next-run UX)
+
+Space Blaster exposes helper APIs for hosts that receive “new config available” events:
+
+- `applyIncomingConfigUpdate(ctx, nextResolvedConfig, onPendingUpdateDetected?)`
+  - If hash differs, records `pendingResolvedConfig` / `pendingConfigHash`.
+  - Does **not** replace active `resolvedConfig`.
+- `resolveConfigForNextRun(ctx)`
+  - Returns pending config when present; otherwise current config.
+
+This enables a host UX message like: “New update available next run.”
 
 ## Error handling
 
-If `resolvedConfig` is provided and fails validation:
+If `resolvedConfig` is missing or fails validation:
 
 - mount throws an error (formatted from validation issues)
 - error includes actionable domain/path/message details
 - host must catch and render an ERROR UI state
 
-Validator source:
+Validation source:
 
-- `packages/types/src/space-blaster/runtime/guards/validate-resolved-v1.ts`
+- `packages/games/space-blaster/src/runtime/run-context.ts`
 
 ## Example host integration
 

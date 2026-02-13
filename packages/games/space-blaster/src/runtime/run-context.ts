@@ -22,11 +22,17 @@ export type ResolvedGameConfig = {
 };
 
 export type RunContext = {
-  sdk: EmbeddedGameSdk;
-  resolvedConfig: ResolvedGameConfig;
-  configHash: string;
-  versionId?: string;
-  mountedAt: string;
+  readonly sdk: EmbeddedGameSdk;
+  readonly resolvedConfig: ResolvedGameConfig;
+  readonly configHash: string;
+  readonly versionHash?: string;
+  readonly versionId?: string;
+  readonly publishedAt?: string;
+  readonly mountedAt: string;
+  pendingResolvedConfig?: ResolvedGameConfig;
+  pendingConfigHash?: string;
+  pendingVersionHash?: string;
+  hasPendingUpdate: boolean;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -122,7 +128,42 @@ export const createRunContext = (opts: {
     sdk,
     resolvedConfig: validation.config,
     configHash: validation.config.configHash,
+    versionHash: validation.config.versionHash,
     versionId: validation.config.versionId,
+    publishedAt: validation.config.publishedAt,
     mountedAt: new Date().toISOString(),
+    hasPendingUpdate: false,
   };
+};
+
+export const applyIncomingConfigUpdate = (
+  ctx: RunContext,
+  nextResolvedConfig: unknown,
+  onPendingUpdateDetected?: (info: {
+    currentHash: string;
+    nextHash: string;
+  }) => void,
+): boolean => {
+  const validation = validateResolvedConfig(nextResolvedConfig);
+  if (!validation.ok) return false;
+
+  const next = validation.config;
+  if (next.configHash === ctx.configHash) return false;
+
+  ctx.pendingResolvedConfig = next;
+  ctx.pendingConfigHash = next.configHash;
+  ctx.pendingVersionHash = next.versionHash;
+  ctx.hasPendingUpdate = true;
+  onPendingUpdateDetected?.({
+    currentHash: ctx.configHash,
+    nextHash: next.configHash,
+  });
+  return true;
+};
+
+export const resolveConfigForNextRun = (
+  ctx: RunContext,
+): ResolvedGameConfig => {
+  if (ctx.pendingResolvedConfig) return ctx.pendingResolvedConfig;
+  return ctx.resolvedConfig;
 };
