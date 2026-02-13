@@ -5,7 +5,7 @@ This checklist verifies that each gameplay system can run from a single `Resolve
 References used for verification:
 
 - Types: `packages/types/src/space-blaster/runtime/resolved-v1.ts`
-- Runtime validator: `packages/types/src/space-blaster/runtime/validate-resolved-v1.ts`
+- Runtime validator: `packages/types/src/space-blaster/runtime/guards/validate-resolved-v1.ts`
 - Example fixture: `packages/types/src/space-blaster/runtime/fixtures/resolved-config.example.ts`
 - System mapping: `docs/games/space-blaster/systems-to-config-mapping.md`
 - Runtime mount context: `packages/games/space-blaster/src/runtime/run-context.ts`
@@ -85,9 +85,11 @@ References used for verification:
 
 - [x] Runtime mount accepts `resolvedConfig` and stores it in `RunContext` (`packages/games/space-blaster/src/runtime/run-context.ts`).
 - [x] Runtime validation checks domain presence + cross references (`layoutId`, `enemyId`, `defaultAmmoId`, score enemy ids).
-- [x] Legacy `levels` payloads are normalized into `levelConfigs` in `validateResolvedGameConfigV1`.
+- [x] Legacy `levels` payloads are normalized into `levelConfigs` in `createRunContext` validation path.
 - [x] Active runs keep a frozen config reference; updates only stage pending config for next run.
 
 ## Drift guard
 
-- [x] Automated check: `packages/games/space-blaster/src/runtime/run-context.spec.ts` validates `resolvedConfigExampleV1` with `validateResolvedGameConfigV1`.
+- [x] Automated checks:
+  - `packages/types/src/space-blaster/runtime/fixtures/resolved-config.example.spec.ts` validates fixture against `validateResolvedGameConfigV1`.
+  - `packages/games/space-blaster/src/runtime/run-context.spec.ts` validates runtime mount-time guards and freeze semantics.

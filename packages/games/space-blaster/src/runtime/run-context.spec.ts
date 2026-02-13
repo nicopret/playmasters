@@ -16,7 +16,13 @@ const createSdkMock = (): EmbeddedGameSdk => ({
 const resolvedConfigExample = {
   configHash: 'f'.repeat(64),
   gameConfig: { defaultLives: 3 },
-  levelConfigs: [{ layoutId: 'layout-a', waves: [{ enemyId: 'enemy-a' }] }],
+  levelConfigs: [
+    {
+      layoutId: 'layout-a',
+      enemyTypes: ['enemy-a'],
+      waves: [{ enemyId: 'enemy-a', count: 1 }],
+    },
+  ],
   heroCatalog: { entries: [{ heroId: 'hero-a', defaultAmmoId: 'ammo-a' }] },
   enemyCatalog: { entries: [{ enemyId: 'enemy-a' }] },
   ammoCatalog: { entries: [{ ammoId: 'ammo-a' }] },
@@ -68,6 +74,63 @@ describe('createRunContext', () => {
         resolvedConfig: { configHash: 123 },
       }),
     ).toThrow('Root configHash: Missing configHash (string).');
+  });
+
+  it('rejects unresolved layout references', () => {
+    expect(() =>
+      createRunContext({
+        sdk: createSdkMock(),
+        resolvedConfig: {
+          ...resolvedConfigExample,
+          levelConfigs: [
+            {
+              layoutId: 'layout-missing',
+              waves: [{ enemyId: 'enemy-a', count: 1 }],
+            },
+          ],
+        },
+      }),
+    ).toThrow(
+      "FormationLayouts levelConfigs[0].layoutId: layoutId 'layout-missing' referenced by levelConfigs is missing in FormationLayouts.",
+    );
+  });
+
+  it('rejects unresolved enemy references from waves and score config', () => {
+    expect(() =>
+      createRunContext({
+        sdk: createSdkMock(),
+        resolvedConfig: {
+          ...resolvedConfigExample,
+          levelConfigs: [
+            {
+              layoutId: 'layout-a',
+              waves: [{ enemyId: 'enemy-missing', count: 1 }],
+            },
+          ],
+          scoreConfig: {
+            baseEnemyScores: [{ enemyId: 'enemy-missing', score: 100 }],
+          },
+        },
+      }),
+    ).toThrow(
+      "EnemyCatalog levelConfigs[0].waves[0].enemyId: enemyId 'enemy-missing' referenced by waves is missing in EnemyCatalog.",
+    );
+  });
+
+  it('rejects unresolved hero default ammo references', () => {
+    expect(() =>
+      createRunContext({
+        sdk: createSdkMock(),
+        resolvedConfig: {
+          ...resolvedConfigExample,
+          heroCatalog: {
+            entries: [{ heroId: 'hero-a', defaultAmmoId: 'ammo-missing' }],
+          },
+        },
+      }),
+    ).toThrow(
+      "AmmoCatalog heroCatalog.entries[0].defaultAmmoId: defaultAmmoId 'ammo-missing' referenced by hero is missing in AmmoCatalog.",
+    );
   });
 
   it('keeps active config frozen and stores pending update only for next run', () => {

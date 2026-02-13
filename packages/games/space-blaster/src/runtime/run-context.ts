@@ -1,4 +1,4 @@
-import type { EmbeddedGameSdk } from '@playmasters/types';
+import type { EmbeddedGameSdk, ResolvedGameConfigV1 } from '@playmasters/types';
 
 export type RuntimeConfigError = {
   code: 'CONFIG_INVALID';
@@ -7,29 +7,15 @@ export type RuntimeConfigError = {
   message: string;
 };
 
-export type ResolvedGameConfig = {
-  configHash: string;
-  gameConfig: Record<string, unknown>;
-  levelConfigs: unknown[];
-  heroCatalog: Record<string, unknown>;
-  enemyCatalog: Record<string, unknown>;
-  ammoCatalog: Record<string, unknown>;
-  formationLayouts: Record<string, unknown>;
-  scoreConfig: Record<string, unknown>;
-  versionHash?: string;
-  versionId?: string;
-  publishedAt?: string;
-};
-
 export type RunContext = {
   readonly sdk: EmbeddedGameSdk;
-  readonly resolvedConfig: ResolvedGameConfig;
+  readonly resolvedConfig: ResolvedGameConfigV1;
   readonly configHash: string;
   readonly versionHash?: string;
   readonly versionId?: string;
   readonly publishedAt?: string;
   readonly mountedAt: string;
-  pendingResolvedConfig?: ResolvedGameConfig;
+  pendingResolvedConfig?: ResolvedGameConfigV1;
   pendingConfigHash?: string;
   pendingVersionHash?: string;
   hasPendingUpdate: boolean;
@@ -38,10 +24,19 @@ export type RunContext = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const toIdSet = (entries: unknown, key: string): Set<string> => {
+  if (!Array.isArray(entries)) return new Set<string>();
+  return new Set(
+    entries
+      .filter((entry) => isRecord(entry) && typeof entry[key] === 'string')
+      .map((entry) => (entry as Record<string, unknown>)[key] as string),
+  );
+};
+
 const validateResolvedConfig = (
   value: unknown,
 ):
-  | { ok: true; config: ResolvedGameConfig }
+  | { ok: true; config: ResolvedGameConfigV1 }
   | { ok: false; errors: RuntimeConfigError[] } => {
   const errors: RuntimeConfigError[] = [];
   if (!isRecord(value)) {
@@ -58,6 +53,14 @@ const validateResolvedConfig = (
     };
   }
 
+  const normalized: Record<string, unknown> = { ...value };
+  if (
+    !Array.isArray(normalized['levelConfigs']) &&
+    Array.isArray(normalized['levels'])
+  ) {
+    normalized['levelConfigs'] = normalized['levels'];
+  }
+
   const requiredDomains = [
     'gameConfig',
     'levelConfigs',
@@ -69,8 +72,8 @@ const validateResolvedConfig = (
   ] as const;
 
   if (
-    typeof value['configHash'] !== 'string' ||
-    value['configHash'].length === 0
+    typeof normalized['configHash'] !== 'string' ||
+    normalized['configHash'].length === 0
   ) {
     errors.push({
       code: 'CONFIG_INVALID',
@@ -82,7 +85,7 @@ const validateResolvedConfig = (
 
   requiredDomains.forEach((key) => {
     if (key === 'levelConfigs') {
-      if (!Array.isArray(value[key])) {
+      if (!Array.isArray(normalized[key])) {
         errors.push({
           code: 'CONFIG_INVALID',
           domain: 'Root',
@@ -93,7 +96,7 @@ const validateResolvedConfig = (
       return;
     }
 
-    if (!isRecord(value[key])) {
+    if (!isRecord(normalized[key])) {
       errors.push({
         code: 'CONFIG_INVALID',
         domain: 'Root',
@@ -103,8 +106,172 @@ const validateResolvedConfig = (
     }
   });
 
+  const levelConfigs = Array.isArray(normalized['levelConfigs'])
+    ? normalized['levelConfigs']
+    : [];
+  if (levelConfigs.length === 0) {
+    errors.push({
+      code: 'CONFIG_INVALID',
+      domain: 'LevelConfig',
+      path: 'levelConfigs',
+      message: 'levelConfigs must contain at least 1 level.',
+    });
+  }
+
+  const layoutIds = toIdSet(
+    isRecord(normalized['formationLayouts'])
+      ? normalized['formationLayouts']['entries']
+      : undefined,
+    'layoutId',
+  );
+  const enemyIds = toIdSet(
+    isRecord(normalized['enemyCatalog'])
+      ? normalized['enemyCatalog']['entries']
+      : undefined,
+    'enemyId',
+  );
+  const ammoIds = toIdSet(
+    isRecord(normalized['ammoCatalog'])
+      ? normalized['ammoCatalog']['entries']
+      : undefined,
+    'ammoId',
+  );
+
+  levelConfigs.forEach((level, levelIdx) => {
+    if (!isRecord(level)) {
+      errors.push({
+        code: 'CONFIG_INVALID',
+        domain: 'LevelConfig',
+        path: `levelConfigs[${levelIdx}]`,
+        message: 'LevelConfig entry must be an object.',
+      });
+      return;
+    }
+
+    const layoutId = level['layoutId'];
+    if (typeof layoutId !== 'string' || layoutId.length === 0) {
+      errors.push({
+        code: 'CONFIG_INVALID',
+        domain: 'LevelConfig',
+        path: `levelConfigs[${levelIdx}].layoutId`,
+        message: 'Missing layoutId (string).',
+      });
+    } else if (!layoutIds.has(layoutId)) {
+      errors.push({
+        code: 'CONFIG_INVALID',
+        domain: 'FormationLayouts',
+        path: `levelConfigs[${levelIdx}].layoutId`,
+        message: `layoutId '${layoutId}' referenced by levelConfigs is missing in FormationLayouts.`,
+      });
+    }
+
+    const waves = level['waves'];
+    if (!Array.isArray(waves) || waves.length === 0) {
+      errors.push({
+        code: 'CONFIG_INVALID',
+        domain: 'LevelConfig',
+        path: `levelConfigs[${levelIdx}].waves`,
+        message: 'LevelConfig must have at least 1 wave.',
+      });
+      return;
+    }
+
+    waves.forEach((wave, waveIdx) => {
+      if (!isRecord(wave)) {
+        errors.push({
+          code: 'CONFIG_INVALID',
+          domain: 'LevelConfig',
+          path: `levelConfigs[${levelIdx}].waves[${waveIdx}]`,
+          message: 'Wave entry must be an object.',
+        });
+        return;
+      }
+
+      const enemyId = wave['enemyId'];
+      if (typeof enemyId !== 'string' || enemyId.length === 0) {
+        errors.push({
+          code: 'CONFIG_INVALID',
+          domain: 'LevelConfig',
+          path: `levelConfigs[${levelIdx}].waves[${waveIdx}].enemyId`,
+          message: 'Missing enemyId (string).',
+        });
+      } else if (!enemyIds.has(enemyId)) {
+        errors.push({
+          code: 'CONFIG_INVALID',
+          domain: 'EnemyCatalog',
+          path: `levelConfigs[${levelIdx}].waves[${waveIdx}].enemyId`,
+          message: `enemyId '${enemyId}' referenced by waves is missing in EnemyCatalog.`,
+        });
+      }
+
+      const count = wave['count'];
+      if (count !== undefined && (typeof count !== 'number' || count < 1)) {
+        errors.push({
+          code: 'CONFIG_INVALID',
+          domain: 'LevelConfig',
+          path: `levelConfigs[${levelIdx}].waves[${waveIdx}].count`,
+          message: 'Wave count must be a number >= 1 when provided.',
+        });
+      }
+    });
+  });
+
+  const heroEntries = isRecord(normalized['heroCatalog'])
+    ? normalized['heroCatalog']['entries']
+    : undefined;
+  if (!Array.isArray(heroEntries) || heroEntries.length === 0) {
+    errors.push({
+      code: 'CONFIG_INVALID',
+      domain: 'HeroCatalog',
+      path: 'heroCatalog.entries',
+      message: 'heroCatalog must contain at least 1 hero entry.',
+    });
+  } else {
+    heroEntries.forEach((hero, heroIdx) => {
+      if (!isRecord(hero)) return;
+      const defaultAmmoId = hero['defaultAmmoId'];
+      if (typeof defaultAmmoId !== 'string' || defaultAmmoId.length === 0) {
+        errors.push({
+          code: 'CONFIG_INVALID',
+          domain: 'HeroCatalog',
+          path: `heroCatalog.entries[${heroIdx}].defaultAmmoId`,
+          message: 'Missing defaultAmmoId (string).',
+        });
+      } else if (!ammoIds.has(defaultAmmoId)) {
+        errors.push({
+          code: 'CONFIG_INVALID',
+          domain: 'AmmoCatalog',
+          path: `heroCatalog.entries[${heroIdx}].defaultAmmoId`,
+          message: `defaultAmmoId '${defaultAmmoId}' referenced by hero is missing in AmmoCatalog.`,
+        });
+      }
+    });
+  }
+
+  const baseEnemyScores = isRecord(normalized['scoreConfig'])
+    ? normalized['scoreConfig']['baseEnemyScores']
+    : undefined;
+  if (Array.isArray(baseEnemyScores)) {
+    baseEnemyScores.forEach((entry, entryIdx) => {
+      if (!isRecord(entry)) return;
+      const enemyId = entry['enemyId'];
+      if (
+        typeof enemyId === 'string' &&
+        enemyId.length > 0 &&
+        !enemyIds.has(enemyId)
+      ) {
+        errors.push({
+          code: 'CONFIG_INVALID',
+          domain: 'ScoreConfig',
+          path: `scoreConfig.baseEnemyScores[${entryIdx}].enemyId`,
+          message: `enemyId '${enemyId}' in baseEnemyScores is missing in EnemyCatalog.`,
+        });
+      }
+    });
+  }
+
   if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, config: value as ResolvedGameConfig };
+  return { ok: true, config: normalized as unknown as ResolvedGameConfigV1 };
 };
 
 export const formatRuntimeConfigErrors = (
@@ -163,7 +330,7 @@ export const applyIncomingConfigUpdate = (
 
 export const resolveConfigForNextRun = (
   ctx: RunContext,
-): ResolvedGameConfig => {
+): ResolvedGameConfigV1 => {
   if (ctx.pendingResolvedConfig) return ctx.pendingResolvedConfig;
   return ctx.resolvedConfig;
 };
