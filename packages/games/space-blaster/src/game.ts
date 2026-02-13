@@ -9,7 +9,12 @@ import {
   type SpaceBlasterBootstrapDeps,
 } from './bootstrap';
 import { DisposableBag, createRunContext } from './runtime';
-import { RunEventBus, RunState, RunStateMachine } from './run';
+import {
+  orchestrateRunFrame,
+  RunEventBus,
+  RunState,
+  RunStateMachine,
+} from './run';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -53,6 +58,10 @@ class SpaceBlasterScene extends Phaser.Scene {
   private lastManualShotAt = 0;
   private keyboardSpaceHandler?: () => void;
   private pointerDownHandler?: () => void;
+  private visibilityChangeHandler?: () => void;
+  private blurHandler?: () => void;
+  private focusHandler?: () => void;
+  private overlayBlockingGameplay = false;
   private runBus = new RunEventBus();
   private runStateMachine = new RunStateMachine(
     this.runBus,
@@ -148,6 +157,43 @@ class SpaceBlasterScene extends Phaser.Scene {
       }
     });
 
+    if (typeof document !== 'undefined') {
+      this.overlayBlockingGameplay = document.hidden;
+      this.visibilityChangeHandler = () => {
+        this.overlayBlockingGameplay = document.hidden;
+      };
+      document.addEventListener(
+        'visibilitychange',
+        this.visibilityChangeHandler,
+      );
+      this.disposables.add(() => {
+        if (this.visibilityChangeHandler) {
+          document.removeEventListener(
+            'visibilitychange',
+            this.visibilityChangeHandler,
+          );
+        }
+      });
+    }
+
+    if (typeof window !== 'undefined') {
+      this.blurHandler = () => {
+        this.overlayBlockingGameplay = true;
+      };
+      this.focusHandler = () => {
+        this.overlayBlockingGameplay = false;
+      };
+      window.addEventListener('blur', this.blurHandler);
+      window.addEventListener('focus', this.focusHandler);
+      this.disposables.add(() => {
+        if (this.blurHandler)
+          window.removeEventListener('blur', this.blurHandler);
+        if (this.focusHandler) {
+          window.removeEventListener('focus', this.focusHandler);
+        }
+      });
+    }
+
     this.physics.add.overlap(
       this.bullets,
       this.enemies,
@@ -172,34 +218,44 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number) {
-    this.runStateMachine.update(delta);
-    if (this.runStateMachine.state !== RunState.PLAYING) return;
+    orchestrateRunFrame({
+      deltaMs: delta,
+      overlayBlockingGameplay: this.overlayBlockingGameplay,
+      getState: () => this.runStateMachine.state,
+      advanceRunStateMachine: (dtMs) => this.runStateMachine.update(dtMs),
+      setPhysicsPaused: (paused) => {
+        if (this.physics.world.isPaused !== paused) {
+          this.physics.world.isPaused = paused;
+        }
+      },
+      advanceSimulation: () => {
+        const velocity = 380;
+        if (this.cursors.left?.isDown) {
+          this.playerBody.setVelocityX(-velocity);
+        } else if (this.cursors.right?.isDown) {
+          this.playerBody.setVelocityX(velocity);
+        } else {
+          this.playerBody.setVelocityX(0);
+        }
 
-    const velocity = 380;
-    if (this.cursors.left?.isDown) {
-      this.playerBody.setVelocityX(-velocity);
-    } else if (this.cursors.right?.isDown) {
-      this.playerBody.setVelocityX(velocity);
-    } else {
-      this.playerBody.setVelocityX(0);
-    }
+        if (this.cursors.space?.isDown) {
+          this.fireManualShot();
+        }
 
-    if (this.cursors.space?.isDown) {
-      this.fireManualShot();
-    }
+        this.enemies.children.each((enemy) => {
+          const e = enemy as Phaser.GameObjects.Rectangle;
+          if (e.y > WORLD_HEIGHT - 12) {
+            this.runStateMachine.requestEndRun('enemy_breach');
+          }
+          return false;
+        });
 
-    this.enemies.children.each((enemy) => {
-      const e = enemy as Phaser.GameObjects.Rectangle;
-      if (e.y > WORLD_HEIGHT - 12) {
-        this.runStateMachine.requestEndRun('enemy_breach');
-      }
-      return false;
-    });
-
-    this.bullets.children.each((bullet) => {
-      const b = bullet as Phaser.GameObjects.Rectangle;
-      if (b.y < -20) b.destroy();
-      return false;
+        this.bullets.children.each((bullet) => {
+          const b = bullet as Phaser.GameObjects.Rectangle;
+          if (b.y < -20) b.destroy();
+          return false;
+        });
+      },
     });
   }
 
