@@ -10,6 +10,7 @@ import {
 } from './bootstrap';
 import { DisposableBag, createRunContext } from './runtime';
 import { PlayerController } from './systems/PlayerController';
+import { WeaponSystem } from './systems/WeaponSystem';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -34,10 +35,9 @@ class SpaceBlasterScene extends Phaser.Scene {
   private playerBody!: Phaser.Physics.Arcade.Body;
   private playerController!: PlayerController;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private bullets!: Phaser.Physics.Arcade.Group;
+  private weaponSystem!: WeaponSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
   private spawnTimer?: Phaser.Time.TimerEvent;
-  private autoFireTimer?: Phaser.Time.TimerEvent;
 
   private score = 0;
   private startTime: number | null = null;
@@ -49,7 +49,6 @@ class SpaceBlasterScene extends Phaser.Scene {
   private statusText!: Phaser.GameObjects.Text;
   private playAgainBtn!: Phaser.GameObjects.Text;
 
-  private lastManualShotAt = 0;
   private keyboardSpaceHandler?: () => void;
   private pointerDownHandler?: () => void;
 
@@ -99,7 +98,27 @@ class SpaceBlasterScene extends Phaser.Scene {
       moveSpeed,
     );
 
-    this.bullets = this.physics.add.group({ runChildUpdate: true });
+    const heroEntry = this.deps.heroCatalog.entries[0];
+    const ammoEntry = this.deps.ammoCatalog.entries.find(
+      (entry) => entry.ammoId === heroEntry?.defaultAmmoId,
+    );
+    this.weaponSystem = new WeaponSystem(
+      this,
+      () => {
+        const world = this.physics.world.bounds;
+        return {
+          minX: world.x,
+          maxX: world.x + world.width,
+          minY: world.y,
+          maxY: world.y + world.height,
+        };
+      },
+      {
+        fireCooldownMs: ammoEntry?.fireCooldownMs ?? 200,
+        projectileSpeed: ammoEntry?.projectileSpeed ?? 560,
+        poolSize: 48,
+      },
+    );
     this.enemies = this.physics.add.group({ runChildUpdate: true });
 
     this.scoreText = this.add.text(16, 12, 'Score: 0', {
@@ -148,10 +167,12 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
 
     this.physics.add.overlap(
-      this.bullets,
+      this.weaponSystem.projectileGroup,
       this.enemies,
       (bullet, enemy) => {
-        bullet.destroy();
+        this.weaponSystem.releaseProjectile(
+          bullet as Phaser.GameObjects.Rectangle,
+        );
         enemy.destroy();
         this.addScore(10);
       },
@@ -191,12 +212,7 @@ class SpaceBlasterScene extends Phaser.Scene {
       }
       return false;
     });
-
-    this.bullets.children.each((bullet) => {
-      const b = bullet as Phaser.GameObjects.Rectangle;
-      if (b.y < -20) b.destroy();
-      return false;
-    });
+    this.weaponSystem.update(delta);
   }
 
   private handleSpace() {
@@ -236,17 +252,11 @@ class SpaceBlasterScene extends Phaser.Scene {
       loop: true,
       callback: () => this.spawnEnemy(),
     });
-
-    this.autoFireTimer = this.time.addEvent({
-      delay: 480,
-      loop: true,
-      callback: () => this.fireBullet(),
-    });
   }
 
   private resetEntities() {
     this.enemies.clear(true, true);
-    this.bullets.clear(true, true);
+    this.weaponSystem.clear();
     this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT - 60);
     this.playerController.resetPosition(WORLD_WIDTH / 2);
     this.playerBody.setVelocity(0);
@@ -254,27 +264,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private fireManualShot() {
     if (this.state !== 'playing') return;
-    const now = Date.now();
-    if (now - this.lastManualShotAt < 200) return;
-    this.lastManualShotAt = now;
-    this.fireBullet();
-  }
-
-  private fireBullet() {
-    if (this.state !== 'playing') return;
-    const bullet = this.add.rectangle(
-      this.player.x,
-      this.player.y - 20,
-      6,
-      16,
-      0xf9d65c,
-    );
-    this.physics.add.existing(bullet);
-    const body = bullet.body as Phaser.Physics.Arcade.Body;
-    body.setAllowGravity(false);
-    body.setVelocityY(-560);
-    body.setCircle(3);
-    this.bullets.add(bullet);
+    this.weaponSystem.tryFire(this.player.x, this.player.y - 20, -1);
   }
 
   private spawnEnemy() {
@@ -299,9 +289,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.state = 'gameover';
 
     this.spawnTimer?.destroy();
-    this.autoFireTimer?.destroy();
     this.spawnTimer = undefined;
-    this.autoFireTimer = undefined;
 
     this.enemies.setVelocityY(0);
     this.enemies.children.each((enemy) => {
@@ -349,11 +337,9 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   destroyResources() {
     this.spawnTimer?.destroy();
-    this.autoFireTimer?.destroy();
     this.spawnTimer = undefined;
-    this.autoFireTimer = undefined;
     this.enemies.clear(true, true);
-    this.bullets.clear(true, true);
+    this.weaponSystem.clear();
     this.sound?.stopAll();
     this.sound?.removeAll();
     this.disposables.disposeAll();
