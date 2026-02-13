@@ -31,7 +31,7 @@
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm exec eslint apps/admin/src apps/admin/components apps/admin/lib apps/admin/*.ts --ignore-pattern apps/admin/next-env.d.ts --max-warnings=0"
+        "command": "pnpm exec eslint apps/admin/src apps/admin/components apps/admin/lib apps/admin/*.ts --ignore-pattern apps/admin/next-env.d.ts --no-warn-ignored --max-warnings=0"
       }
     }
   }
