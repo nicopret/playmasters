@@ -21,8 +21,10 @@ type Props = {
 type MountedGame = { destroy: () => void };
 
 const gameLoaders: Record<string, () => Promise<EmbeddedGame>> = {
-  'space-blaster': async () => (await import('@playmasters/space-blaster')).spaceBlaster,
-  'game-space-blaster': async () => (await import('@playmasters/space-blaster')).spaceBlaster,
+  'space-blaster': async () =>
+    (await import('@playmasters/space-blaster')).spaceBlaster,
+  'game-space-blaster': async () =>
+    (await import('@playmasters/space-blaster')).spaceBlaster,
 };
 
 const createGuestSdk = (): GameSdk => ({
@@ -45,7 +47,9 @@ export const GameHost = ({
   const mountRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<MountedGame | null>(null);
 
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
+    'loading',
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [lastScore, setLastScore] = useState<number | null>(null);
 
@@ -66,7 +70,9 @@ export const GameHost = ({
       }
 
       setStatus('loading');
-      setMessage(user ? 'Loading game...' : 'Guest mode: sign in to submit scores');
+      setMessage(
+        user ? 'Loading game...' : 'Guest mode: sign in to submit scores',
+      );
 
       try {
         const game = await loader();
@@ -83,9 +89,30 @@ export const GameHost = ({
           : createGuestSdk();
 
         gameRef.current?.destroy();
+        let resolvedConfig: unknown;
+        if (
+          (gameId === 'space-blaster' || gameId === 'game-space-blaster') &&
+          apiBaseUrl
+        ) {
+          const runtimeRes = await fetch(
+            `${apiBaseUrl}/api/space-blaster/runtime?env=dev`,
+            {
+              cache: 'no-store',
+            },
+          );
+          if (!runtimeRes.ok) {
+            throw new Error(
+              `Runtime config fetch failed (${runtimeRes.status})`,
+            );
+          }
+          const runtimeJson = (await runtimeRes.json()) as { bundle?: unknown };
+          resolvedConfig = runtimeJson.bundle;
+        }
+
         gameRef.current = game.mount({
           el,
           sdk,
+          resolvedConfig,
           onReady: () => {
             if (!cancelled) setStatus('ready');
           },
@@ -113,31 +140,49 @@ export const GameHost = ({
       gameRef.current?.destroy();
       gameRef.current = null;
     };
-  }, [loader, apiBaseUrl, realtimeWsUrl, user?.id, displayName, gameId, countryCode]);
+  }, [
+    loader,
+    apiBaseUrl,
+    realtimeWsUrl,
+    user?.id,
+    displayName,
+    gameId,
+    countryCode,
+  ]);
 
   useEffect(() => {
     if (status === 'ready') {
       setMessage(
         user
           ? 'Ready to play. Scores submit automatically on game over.'
-          : 'Guest mode: play freely, sign in to submit scores.'
+          : 'Guest mode: play freely, sign in to submit scores.',
       );
     }
   }, [status, user]);
 
   const statusLabel =
-    status === 'ready' ? 'Ready' : status === 'loading' ? 'Loading...' : 'Error loading';
+    status === 'ready'
+      ? 'Ready'
+      : status === 'loading'
+        ? 'Loading...'
+        : 'Error loading';
 
   return (
     <Card className={styles.host} variant="surface" padding="lg">
       <div className={styles.hud}>
         <div className={styles.badges}>
           <span className={`${styles.pill} ${styles.status}`}>
-            <span className={`${styles.dot} ${status === 'ready' ? styles.dotOn : styles.dotOff}`} />
+            <span
+              className={`${styles.dot} ${status === 'ready' ? styles.dotOn : styles.dotOff}`}
+            />
             {statusLabel}
           </span>
-          <span className={`${styles.pill} ${user ? styles.pillOn : styles.pillOff}`}>
-            {user ? `Signed in as ${displayName}` : 'Guest play (scores not submitted)'}
+          <span
+            className={`${styles.pill} ${user ? styles.pillOn : styles.pillOff}`}
+          >
+            {user
+              ? `Signed in as ${displayName}`
+              : 'Guest play (scores not submitted)'}
           </span>
         </div>
         <div className={styles.instructions}>

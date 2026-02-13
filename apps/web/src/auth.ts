@@ -10,6 +10,10 @@ const googleClientId =
   process.env.GOOGLE_CLIENT_ID ?? 'placeholder-google-client-id';
 const googleClientSecret =
   process.env.GOOGLE_CLIENT_SECRET ?? 'placeholder-google-client-secret';
+const authSecret =
+  process.env.AUTH_SECRET ??
+  process.env.NEXTAUTH_SECRET ??
+  (process.env.NODE_ENV === 'development' ? 'dev-nextauth-secret' : undefined);
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -21,6 +25,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: 'jwt',
   },
+  secret: authSecret,
   callbacks: {
     async session({ session, token }) {
       if (session.user) {

@@ -10,6 +10,7 @@ export type EmbeddedGame = {
   mount: (opts: {
     el: HTMLElement;
     sdk: GameSdkContract;
+    resolvedConfig?: unknown;
     onReady?: () => void;
     onGameOver?: (finalScore: number) => void;
   }) => { destroy: () => void };

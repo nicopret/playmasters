@@ -14,9 +14,6 @@
   "include": ["src/**/*.ts", "src/**/*.json"],
   "references": [
     {
-      "path": "../games-sdk"
-    },
-    {
       "path": "./tsconfig.lib.json"
     },
     {
