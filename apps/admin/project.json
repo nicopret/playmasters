@@ -32,7 +32,12 @@
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": ["apps/admin/**/*.{ts,tsx,js,jsx}"]
+        "lintFilePatterns": [
+          "apps/admin/src/**/*.{ts,tsx,js,jsx}",
+          "apps/admin/components/**/*.{ts,tsx,js,jsx}",
+          "apps/admin/lib/**/*.{ts,tsx,js,jsx}",
+          "apps/admin/middleware.ts"
+        ]
       }
     }
   }

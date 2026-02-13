@@ -150,3 +150,12 @@ function mountSpaceBlaster(
 
 - Current runtime config contract: `ResolvedGameConfigV1`
 - Breaking changes should ship as `ResolvedGameConfigV2` while keeping V1 available for compatibility.
+
+## How to verify freeze semantics
+
+- Unit verification (automated):
+  - `packages/games/space-blaster/src/runtime/run-context.spec.ts`
+  - proves active run config/hash are frozen and pending updates are staged for next run only
+- Manual verification (reproducible ops flow):
+  - `docs/test-plans/space-blaster-immutability-semantics.md`
+  - covers A-run active, publish B, active run stays on A, restart picks B
