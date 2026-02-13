@@ -118,3 +118,11 @@ If no override field exists in schema/types, override location is `none`.
   - `packages/types/src/space-blaster/runtime/fixtures/resolved-config.example.ts`
 - Canonical schemas:
   - `packages/types/src/space-blaster/schemas/*.schema.json`
+
+## Coverage checklist (#96)
+
+- [x] Player mapped
+- [x] Enemy mapped
+- [x] Formation mapped
+- [x] Levels/Waves mapped
+- [x] Scoring mapped

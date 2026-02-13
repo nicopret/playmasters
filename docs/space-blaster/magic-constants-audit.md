@@ -3,8 +3,8 @@
 ## Summary
 
 - Runtime files scanned: `packages/games/space-blaster/src/game.ts`, `packages/games/space-blaster/src/runtime/run-context.ts`
-- Tuning-relevant constants identified: **18**
-- Classified as **must be config-driven**: **11**
+- Tuning-relevant constants identified: **19**
+- Classified as **must be config-driven**: **12**
 - Classified as **should remain constant**: **7**
 
 This audit is based on constants currently hardcoded in runtime gameplay code. It does not rename or break existing schema fields; proposed additions are optional and backward compatible.
@@ -20,6 +20,7 @@ This audit is based on constants currently hardcoded in runtime gameplay code. I
 | Player             | `packages/games/space-blaster/src/game.ts:238`          | Bullet collision radius     | `3` px                                       | Must be config-driven  | `gameConfig.player.projectileHitRadius` (additive, optional)                         | `3`                        | Hit detection tuning.                                              |
 | Player             | `packages/games/space-blaster/src/game.ts:72`           | Player drag X               | `650`                                        | Must be config-driven  | `gameConfig.player.dragX` (additive, optional)                                       | `650`                      | Movement feel tuning.                                              |
 | Enemy              | `packages/games/space-blaster/src/game.ts:198`          | Spawn interval              | `1000` ms                                    | Must be config-driven  | `levelConfigs[].spawnIntervalMs` (additive, optional)                                | `1000`                     | Core level pacing.                                                 |
+| Enemy              | `packages/games/space-blaster/src/game.ts:204`          | Auto-fire interval          | `480` ms                                     | Must be config-driven  | `ammoCatalog.entries[].fireCooldownMs` (existing)                                    | `480`                      | Should align automated fire cadence with selected ammo tuning.     |
 | Enemy              | `packages/games/space-blaster/src/game.ts:249`          | Enemy descent speed range   | `90..160` px/s                               | Must be config-driven  | `enemyCatalog.entries[].speed` (existing) + `levelConfigs[].speed` (existing scalar) | `90..160`                  | Difficulty/fairness-sensitive.                                     |
 | Enemy              | `packages/games/space-blaster/src/game.ts:244`          | Spawn X padding from bounds | `30` px                                      | Must be config-driven  | `levelConfigs[].spawnMarginX` (additive, optional)                                   | `30`                       | Affects threat density and edge safety.                            |
 | Enemy              | `packages/games/space-blaster/src/game.ts:250`          | Enemy collision radius      | `12` px                                      | Must be config-driven  | `enemyCatalog.entries[].hitboxRadius` (additive, optional)                           | `12`                       | Collision fairness tuning.                                         |
@@ -41,6 +42,17 @@ All critical gameplay tuning categories are documented in this audit:
 - Formation / level fail boundary behavior
 - Scoring per kill
 - Collision caps/radii used by gameplay interactions
+
+## Known constants remaining (justified)
+
+No undocumented critical tuning constants remain.
+
+Remaining runtime constants are either:
+
+- presentation/layout constants (HUD placement, color tokens, placeholder sprite rectangle dimensions), or
+- engine/runtime invariants (`Phaser.Scale.FIT`, `CENTER_BOTH`, debug=false).
+
+These are intentionally kept non-configurable in the current runtime and are classified as "Should remain constant" in the table above.
 
 ## Proposed additive schema/config changes (backward compatible)
 
