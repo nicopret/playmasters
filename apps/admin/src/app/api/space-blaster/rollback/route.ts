@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '../../../../auth';
-import { rollbackBundle, getBundleVersion } from '../../../../../lib/bundleStore';
+import {
+  rollbackBundle,
+  getBundleVersion,
+} from '../../../../../lib/bundleStore';
 import { logAudit } from '../../../../../lib/audit';
 
 export const runtime = 'nodejs';
@@ -13,7 +16,9 @@ export async function POST(req: Request) {
   if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin)
     return bad('unauthorized', 401);
 
-  const { env = 'dev', targetVersionId } = (await req.json().catch(() => ({}))) as {
+  const { env = 'dev', targetVersionId } = (await req
+    .json()
+    .catch(() => ({}))) as {
     env?: string;
     targetVersionId?: string;
   };
@@ -46,7 +51,8 @@ export async function POST(req: Request) {
   } catch (err) {
     const msg = (err as Error).message;
     if (msg === 'target_not_found') return bad('target_not_found', 404);
-    if (msg.includes('ConditionalCheckFailed')) return bad('pointer_conflict', 409);
+    if (msg.includes('ConditionalCheckFailed'))
+      return bad('pointer_conflict', 409);
     console.error('rollback_error', err);
     return bad('rollback_failed', 500);
   }

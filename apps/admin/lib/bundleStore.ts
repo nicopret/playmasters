@@ -130,7 +130,8 @@ export async function rollbackBundle(input: {
       Key: pointerKey(env),
     }),
   );
-  const prevVersionId = (pointer.Item?.currentVersionId as string | undefined) ?? null;
+  const prevVersionId =
+    (pointer.Item?.currentVersionId as string | undefined) ?? null;
 
   const target = await getBundleVersion(env, targetVersionId);
   if (!target) throw new Error('target_not_found');

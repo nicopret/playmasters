@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getCurrentBundle, getBundleVersion } from '../../../../../lib/bundleStore';
+import {
+  getCurrentBundle,
+  getBundleVersion,
+} from '../../../../../lib/bundleStore';
 
 export const runtime = 'nodejs';
 
