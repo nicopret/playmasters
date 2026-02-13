@@ -9,6 +9,7 @@ import {
   type SpaceBlasterBootstrapDeps,
 } from './bootstrap';
 import { DisposableBag, createRunContext } from './runtime';
+import { PlayerController } from './systems/PlayerController';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -31,6 +32,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private player!: Phaser.GameObjects.Rectangle;
   private playerBody!: Phaser.Physics.Arcade.Body;
+  private playerController!: PlayerController;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private bullets!: Phaser.Physics.Arcade.Group;
   private enemies!: Phaser.Physics.Arcade.Group;
@@ -82,7 +84,20 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.physics.add.existing(this.player);
     this.playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     this.playerBody.setCollideWorldBounds(true);
-    this.playerBody.setDragX(650);
+    const moveSpeed =
+      this.deps.heroCatalog.entries[0]?.moveSpeed &&
+      this.deps.heroCatalog.entries[0].moveSpeed > 0
+        ? this.deps.heroCatalog.entries[0].moveSpeed
+        : 380;
+    this.playerController = new PlayerController(
+      this.player,
+      this.playerBody,
+      () => {
+        const bounds = this.physics.world.bounds;
+        return { minX: bounds.x, maxX: bounds.x + bounds.width };
+      },
+      moveSpeed,
+    );
 
     this.bullets = this.physics.add.group({ runChildUpdate: true });
     this.enemies = this.physics.add.group({ runChildUpdate: true });
@@ -155,17 +170,15 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.onReady?.();
   }
 
-  override update() {
+  override update(_time: number, delta: number) {
     if (this.state !== 'playing') return;
 
-    const velocity = 380;
-    if (this.cursors.left?.isDown) {
-      this.playerBody.setVelocityX(-velocity);
-    } else if (this.cursors.right?.isDown) {
-      this.playerBody.setVelocityX(velocity);
-    } else {
-      this.playerBody.setVelocityX(0);
-    }
+    const inputAxis = this.cursors.left?.isDown
+      ? -1
+      : this.cursors.right?.isDown
+        ? 1
+        : 0;
+    this.playerController.update(delta, inputAxis);
 
     if (this.cursors.space?.isDown) {
       this.fireManualShot();
@@ -235,6 +248,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.enemies.clear(true, true);
     this.bullets.clear(true, true);
     this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT - 60);
+    this.playerController.resetPosition(WORLD_WIDTH / 2);
     this.playerBody.setVelocity(0);
   }
 
