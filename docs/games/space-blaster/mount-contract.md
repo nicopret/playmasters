@@ -17,6 +17,22 @@ Shared types:
 
 ## Exact API (from code)
 
+Package helper API (`@playmasters/space-blaster`):
+
+```ts
+mount(
+  container: HTMLElement,
+  options: {
+    sdk: EmbeddedGameSdk;
+    resolvedConfig: ResolvedGameConfigV1;
+    onReady?: () => void;
+    onGameOver?: (finalScore: number) => void;
+  },
+): SpaceBlasterMountHandle;
+
+unmount(handle: SpaceBlasterMountHandle | null | undefined): void;
+```
+
 ```ts
 type EmbeddedGame = {
   mount: (opts: {

@@ -1,5 +1,9 @@
 import * as Phaser from 'phaser';
-import type { EmbeddedGame, EmbeddedGameSdk } from '@playmasters/types';
+import type {
+  EmbeddedGame,
+  EmbeddedGameSdk,
+  ResolvedGameConfigV1,
+} from '@playmasters/types';
 import {
   createBootstrapDependencies,
   type SpaceBlasterBootstrapDeps,
@@ -405,7 +409,7 @@ const createGameInstance = (opts: MountOptions, el: HTMLElement) => {
 
 export type SpaceBlasterMountInput = {
   sdk: EmbeddedGameSdk;
-  resolvedConfig: unknown;
+  resolvedConfig: ResolvedGameConfigV1;
   onReady?: () => void;
   onGameOver?: (finalScore: number) => void;
 };
@@ -447,7 +451,7 @@ export const spaceBlaster: EmbeddedGame = {
   mount({ el, sdk, resolvedConfig, onReady, onGameOver }) {
     const instance = mount(el, {
       sdk: sdk as EmbeddedGameSdk,
-      resolvedConfig,
+      resolvedConfig: resolvedConfig as ResolvedGameConfigV1,
       onReady,
       onGameOver,
     });

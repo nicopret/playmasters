@@ -1,7 +1,10 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import type { EmbeddedGameSdk } from '@playmasters/types';
+import {
+  resolvedConfigExample,
+  type EmbeddedGameSdk,
+} from '@playmasters/types';
 import type { SpaceBlasterMountHandle } from '@playmasters/space-blaster';
 
 type CycleSample = {
@@ -9,25 +12,6 @@ type CycleSample = {
   activeCanvasCount: number;
   activeDisposables: number;
   heapUsedMb?: number;
-};
-
-const resolvedConfigSmoke = {
-  configHash: 's'.repeat(64),
-  gameConfig: { defaultLives: 3 },
-  levelConfigs: [
-    {
-      layoutId: 'layout-smoke',
-      enemyTypes: ['enemy-smoke'],
-      waves: [{ enemyId: 'enemy-smoke', count: 1 }],
-    },
-  ],
-  heroCatalog: {
-    entries: [{ heroId: 'hero-smoke', defaultAmmoId: 'ammo-smoke' }],
-  },
-  enemyCatalog: { entries: [{ enemyId: 'enemy-smoke' }] },
-  ammoCatalog: { entries: [{ ammoId: 'ammo-smoke' }] },
-  formationLayouts: { entries: [{ layoutId: 'layout-smoke' }] },
-  scoreConfig: { baseEnemyScores: [{ enemyId: 'enemy-smoke', score: 100 }] },
 };
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -54,7 +38,7 @@ export default function SpaceBlasterSmokePage() {
     setReady(false);
     handleRef.current = module.mount(containerRef.current, {
       sdk,
-      resolvedConfig: resolvedConfigSmoke,
+      resolvedConfig: resolvedConfigExample,
       onReady: () => setReady(true),
     });
   };
@@ -62,9 +46,11 @@ export default function SpaceBlasterSmokePage() {
   const unmountGame = async () => {
     if (!handleRef.current) return;
     const module = await import('@playmasters/space-blaster');
-    module.unmount(handleRef.current);
+    const handle = handleRef.current;
+    module.unmount(handle);
     handleRef.current = null;
     setReady(false);
+    return handle;
   };
 
   const runCycles = async (cycles: number) => {
@@ -75,9 +61,9 @@ export default function SpaceBlasterSmokePage() {
       for (let i = 1; i <= cycles; i += 1) {
         await mountGame();
         await wait(120);
-        const diagnosticsBefore = handleRef.current?.getDiagnostics();
-        await unmountGame();
+        const handle = await unmountGame();
         await wait(80);
+        const diagnosticsAfter = handle?.getDiagnostics();
         const canvasLeft =
           containerRef.current.querySelectorAll('canvas').length;
         const heapUsed =
@@ -93,9 +79,9 @@ export default function SpaceBlasterSmokePage() {
           cycle: i,
           activeCanvasCount: Math.max(
             canvasLeft,
-            diagnosticsBefore?.activeCanvasCount ?? 0,
+            diagnosticsAfter?.activeCanvasCount ?? 0,
           ),
-          activeDisposables: diagnosticsBefore?.activeDisposables ?? 0,
+          activeDisposables: diagnosticsAfter?.activeDisposables ?? 0,
           heapUsedMb: heapUsed,
         });
       }
