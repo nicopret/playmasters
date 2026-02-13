@@ -114,8 +114,9 @@ If no override field exists in schema/types, override location is `none`.
 - Runtime freeze tests:
   - `packages/games/space-blaster/src/runtime/run-context.spec.ts`
 - Resolved config validator + fixture:
-  - `packages/types/src/space-blaster/runtime/validate-resolved-v1.ts`
+  - `packages/types/src/space-blaster/runtime/guards/validate-resolved-v1.ts`
   - `packages/types/src/space-blaster/runtime/fixtures/resolved-config.example.ts`
+  - runtime mount validation path: `packages/games/space-blaster/src/runtime/run-context.ts`
 - Canonical schemas:
   - `packages/types/src/space-blaster/schemas/*.schema.json`
 
