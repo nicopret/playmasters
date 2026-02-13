@@ -21,7 +21,11 @@ const AnnouncementList: React.FC<AnnouncementListProps> = ({
   return (
     <div className={styles.list}>
       <div className={styles.header}>
-        <Link href="/announcements/new" className={styles.addBtn} aria-label="Add announcement">
+        <Link
+          href="/announcements/new"
+          className={styles.addBtn}
+          aria-label="Add announcement"
+        >
           +
         </Link>
       </div>

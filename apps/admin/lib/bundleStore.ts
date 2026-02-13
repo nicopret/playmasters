@@ -101,3 +101,63 @@ export async function publishBundle(input: {
 
   return item;
 }
+
+export async function getBundleVersion(
+  env: string,
+  versionId: string,
+): Promise<PublishedBundle | null> {
+  const res = await ddbDocClient.send(
+    new GetCommand({
+      TableName: BUNDLE_TABLE,
+      Key: versionKey(env, versionId),
+    }),
+  );
+  if (!res.Item) return null;
+  const { [PK_ATTR]: _pk, [SK_ATTR]: _sk, ...rest } = res.Item;
+  void _pk;
+  void _sk;
+  return rest as PublishedBundle;
+}
+
+export async function rollbackBundle(input: {
+  env: string;
+  targetVersionId: string;
+}): Promise<{ prevVersionId: string | null; newVersionId: string }> {
+  const { env, targetVersionId } = input;
+  const pointer = await ddbDocClient.send(
+    new GetCommand({
+      TableName: BUNDLE_TABLE,
+      Key: pointerKey(env),
+    }),
+  );
+  const prevVersionId =
+    (pointer.Item?.currentVersionId as string | undefined) ?? null;
+
+  const target = await getBundleVersion(env, targetVersionId);
+  if (!target) throw new Error('target_not_found');
+
+  await ddbDocClient.send(
+    new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: BUNDLE_TABLE,
+            Key: pointerKey(env),
+            UpdateExpression: 'SET currentVersionId = :vid, updatedAt = :ts',
+            ConditionExpression:
+              prevVersionId === null
+                ? 'attribute_not_exists(currentVersionId)'
+                : 'currentVersionId = :prev',
+            ExpressionAttributeValues: {
+              ':vid': targetVersionId,
+              ':ts': new Date().toISOString(),
+              ...(prevVersionId !== null ? { ':prev': prevVersionId } : {}),
+            },
+          },
+        },
+      ],
+    }),
+  );
+
+  return { prevVersionId, newVersionId: targetVersionId };
+}
