@@ -10,6 +10,17 @@ Public exports from `@playmasters/space-blaster`:
 
 `resolvedConfig` is captured into run context at mount-time and stays frozen for that run.
 
+## Dependency injection model
+
+- A per-run `RunContext` is created in `mount(...)`.
+- Bootstrap dependencies are derived once via `createBootstrapDependencies(ctx)`.
+- Gameplay scene/system code only consumes injected dependencies (`sdk` + `resolvedConfig` domains) from that single source.
+- The game package does not fetch runtime config over network.
+
+Related mapping doc:
+
+- `docs/games/space-blaster/systems-to-config-mapping.md`
+
 ## Mount / unmount usage
 
 ```ts

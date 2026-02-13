@@ -1,9 +1,13 @@
 import * as Phaser from 'phaser';
 import type { EmbeddedGame, EmbeddedGameSdk } from '@playmasters/types';
-import { DisposableBag, createRunContext, type RunContext } from './runtime';
+import {
+  createBootstrapDependencies,
+  type SpaceBlasterBootstrapDeps,
+} from './bootstrap';
+import { DisposableBag, createRunContext } from './runtime';
 
 type MountOptions = {
-  runContext: RunContext;
+  deps: SpaceBlasterBootstrapDeps;
   onReady?: () => void;
   onGameOver?: (finalScore: number) => void;
   disposables: DisposableBag;
@@ -16,7 +20,7 @@ const WORLD_WIDTH = 800;
 const WORLD_HEIGHT = 450;
 
 class SpaceBlasterScene extends Phaser.Scene {
-  private runContext: RunContext;
+  private deps: SpaceBlasterBootstrapDeps;
   private onReady?: () => void;
   private onGameOver?: (score: number) => void;
   private disposables: DisposableBag;
@@ -45,7 +49,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   constructor(opts: MountOptions) {
     super('space-blaster');
-    this.runContext = opts.runContext;
+    this.deps = opts.deps;
     this.onReady = opts.onReady;
     this.onGameOver = opts.onGameOver;
     this.disposables = opts.disposables;
@@ -203,7 +207,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.canSubmitScore = true;
 
     try {
-      await this.runContext.sdk.startRun();
+      await this.deps.sdk.startRun();
       this.statusText.setText('Run live - survive and score!');
     } catch {
       this.canSubmitScore = false;
@@ -302,7 +306,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
     try {
       this.statusText.setText('Submitting...');
-      await this.runContext.sdk.submitScore({ score: this.score, durationMs });
+      await this.deps.sdk.submitScore({ score: this.score, durationMs });
       this.statusText.setText('Score submitted');
       window.dispatchEvent(
         new CustomEvent('playmasters:refresh-leaderboard', {
@@ -420,10 +424,11 @@ export const mount = (
     sdk: input.sdk,
     resolvedConfig: input.resolvedConfig,
   });
+  const deps = createBootstrapDependencies(runContext);
   const disposables = new DisposableBag();
   return createGameInstance(
     {
-      runContext,
+      deps,
       onReady: input.onReady,
       onGameOver: input.onGameOver,
       disposables,
