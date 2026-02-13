@@ -29,10 +29,9 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"],
+      "executor": "nx:run-commands",
       "options": {
-        "lintFilePatterns": ["apps/admin/**/*.{ts,tsx,js,jsx}"]
+        "command": "pnpm exec eslint apps/admin/src apps/admin/components apps/admin/lib apps/admin/*.ts --ignore-pattern apps/admin/next-env.d.ts --max-warnings=0"
       }
     }
   }

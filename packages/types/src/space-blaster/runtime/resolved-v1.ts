@@ -1,25 +1,37 @@
 type JsonObject = Record<string, unknown>;
 
-export type ResolvedGameConfigV1 = JsonObject;
-export type ResolvedLevelConfigV1 = JsonObject & { levelId?: string };
-export type ResolvedScoreConfigV1 = JsonObject;
-export type ResolvedEnemyCatalogV1 = JsonObject;
-export type ResolvedHeroCatalogV1 = JsonObject;
-export type ResolvedAmmoCatalogV1 = JsonObject;
-export type ResolvedFormationLayoutsV1 = JsonObject;
+export type GameConfigV1 = JsonObject;
+export type LevelConfigV1 = JsonObject & { levelId?: string };
+export type ScoreConfigV1 = JsonObject;
+export type EnemyCatalogV1 = JsonObject;
+export type HeroCatalogV1 = JsonObject;
+export type AmmoCatalogV1 = JsonObject;
+export type FormationLayoutsV1 = JsonObject;
 
-export type ResolvedSpaceBlasterBundleV1 = {
-  gameConfig: ResolvedGameConfigV1;
-  enemyCatalog: ResolvedEnemyCatalogV1;
-  heroCatalog: ResolvedHeroCatalogV1;
-  ammoCatalog: ResolvedAmmoCatalogV1;
-  formationLayouts: ResolvedFormationLayoutsV1;
-  scoreConfig: ResolvedScoreConfigV1;
-  levels: ResolvedLevelConfigV1[];
-};
+/**
+ * Runtime-facing, self-contained contract for Space Blaster config resolution.
+ * Add `ResolvedGameConfigV2` for breaking changes and keep V1 exports for compatibility.
+ */
+export interface ResolvedGameConfigV1 {
+  configHash: string;
+  versionHash?: string;
+  versionId?: string;
+  publishedAt?: string;
+  env?: string;
+  gameId?: 'space-blaster' | string;
+  gameConfig: GameConfigV1;
+  levelConfigs: LevelConfigV1[];
+  heroCatalog: HeroCatalogV1;
+  enemyCatalog: EnemyCatalogV1;
+  ammoCatalog: AmmoCatalogV1;
+  formationLayouts: FormationLayoutsV1;
+  scoreConfig: ScoreConfigV1;
+}
 
-export type SpaceBlasterRuntimeResolverResponseV1 = {
+export type ResolvedSpaceBlasterBundleV1 = ResolvedGameConfigV1;
+
+export interface SpaceBlasterRuntimeResolverResponseV1 {
   versionId: string;
   configHash: string;
   bundle: ResolvedSpaceBlasterBundleV1;
-};
+}
