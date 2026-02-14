@@ -16,6 +16,18 @@ export interface ResolvedLevelConfigV1 {
   boss?: boolean;
   dive?: number;
   enemyTypes?: string[];
+  fleetSpeedRamp?: {
+    maxMultiplier?: number;
+    exponent?: number;
+    smoothingPerSecond?: number;
+    minAliveForRamp?: number;
+  };
+  lastEnemiesEnrage?: {
+    threshold?: number;
+    speedMultiplier?: number;
+    timeoutMs?: number;
+    autoCompleteOnTimeout?: boolean;
+  };
   scoreMultiplier?: number;
   shooting?: number;
   speed?: number;

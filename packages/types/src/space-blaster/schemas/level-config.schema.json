@@ -1,38 +1,58 @@
 {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://playmasters.dev/schemas/space-blaster/level-config.schema.json",
-    "title": "SpaceBlasterLevelConfig",
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["layoutId"],
-    "properties": {
-        "layoutId": { "type": "string", "minLength": 1 },
-        "boss": { "type": "boolean", "default": false },
-        "dive": { "type": "number", "minimum": 1, "maximum": 100 },
-        "enemyTypes": {
-            "type": "array",
-            "items": { "type": "string", "minLength": 1 },
-            "minItems": 0,
-            "uniqueItems": true
-        },
-        "scoreMultiplier": { "type": "number", "minimum": 1, "maximum": 100 },
-        "shooting": { "type": "number", "minimum": 1, "maximum": 100 },
-        "speed": { "type": "number", "minimum": 1, "maximum": 100 },
-        "waves": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/wave" }
-        }
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://playmasters.dev/schemas/space-blaster/level-config.schema.json",
+  "title": "SpaceBlasterLevelConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["layoutId"],
+  "properties": {
+    "layoutId": { "type": "string", "minLength": 1 },
+    "boss": { "type": "boolean", "default": false },
+    "dive": { "type": "number", "minimum": 1, "maximum": 100 },
+    "enemyTypes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 0,
+      "uniqueItems": true
     },
-    "$defs": {
-        "wave": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["enemyId"],
-            "properties": {
-                "enemyId": { "type": "string", "minLength": 1 },
-                "count": { "type": "integer", "minimum": 1 },
-                "spawnDelayMs": { "type": "number", "minimum": 0 }
-            }
-        }
+    "fleetSpeedRamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxMultiplier": { "type": "number", "minimum": 1 },
+        "exponent": { "type": "number", "minimum": 0.1 },
+        "smoothingPerSecond": { "type": "number", "minimum": 0.1 },
+        "minAliveForRamp": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "lastEnemiesEnrage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "threshold": { "type": "integer", "minimum": 0 },
+        "speedMultiplier": { "type": "number", "minimum": 1 },
+        "timeoutMs": { "type": "number", "minimum": 1 },
+        "autoCompleteOnTimeout": { "type": "boolean" }
+      }
+    },
+    "scoreMultiplier": { "type": "number", "minimum": 1, "maximum": 100 },
+    "shooting": { "type": "number", "minimum": 1, "maximum": 100 },
+    "speed": { "type": "number", "minimum": 1, "maximum": 100 },
+    "waves": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/wave" }
     }
+  },
+  "$defs": {
+    "wave": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enemyId"],
+      "properties": {
+        "enemyId": { "type": "string", "minLength": 1 },
+        "count": { "type": "integer", "minimum": 1 },
+        "spawnDelayMs": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
 }

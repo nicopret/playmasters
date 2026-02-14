@@ -21,6 +21,18 @@ export const resolvedConfigExample: ResolvedGameConfigV1 = {
       boss: false,
       dive: 0.2,
       enemyTypes: ['enemy.grunt', 'enemy.shooter'],
+      fleetSpeedRamp: {
+        maxMultiplier: 2,
+        exponent: 1.25,
+        smoothingPerSecond: 7,
+        minAliveForRamp: 1,
+      },
+      lastEnemiesEnrage: {
+        threshold: 2,
+        speedMultiplier: 2.8,
+        timeoutMs: 7000,
+        autoCompleteOnTimeout: true,
+      },
       scoreMultiplier: 1,
       shooting: 0.15,
       speed: 48,

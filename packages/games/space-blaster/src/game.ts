@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import type {
   EmbeddedGame,
   EmbeddedGameSdk,
+  ResolvedLevelWaveV1,
   ResolvedGameConfigV1,
 } from '@playmasters/types';
 import {
@@ -18,6 +19,7 @@ import {
 import { PlayerController } from './systems/PlayerController';
 import { PlayerLifeSystem } from './systems/PlayerLifeSystem';
 import { WeaponSystem } from './systems/WeaponSystem';
+import { FormationSystem } from './systems/FormationSystem';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -29,6 +31,9 @@ type MountOptions = {
 const GAME_ID = 'game-space-blaster';
 const WORLD_WIDTH = 800;
 const WORLD_HEIGHT = 450;
+const ENEMY_WIDTH = 34;
+const ENEMY_HEIGHT = 24;
+const ENEMY_COLOR = 0xe94b5a;
 const DEFAULT_RESPAWN_INVULNERABILITY_MS = 1200;
 const COUNTDOWN_MS = 1200;
 const RESPAWN_DELAY_MS = 650;
@@ -45,10 +50,10 @@ class SpaceBlasterScene extends Phaser.Scene {
   private playerBody!: Phaser.Physics.Arcade.Body;
   private playerController!: PlayerController;
   private lifeSystem!: PlayerLifeSystem;
+  private formationSystem!: FormationSystem;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private weaponSystem!: WeaponSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
-  private spawnTimer?: Phaser.Time.TimerEvent;
 
   private score = 0;
   private startTime: number | null = null;
@@ -56,7 +61,6 @@ class SpaceBlasterScene extends Phaser.Scene {
   private submitting = false;
   private runStarted = false;
   private currentWaveIndex = 0;
-  private waveSpawnRemaining = 0;
   private waveClearRequested = false;
   private startRequested = false;
 
@@ -165,6 +169,46 @@ class SpaceBlasterScene extends Phaser.Scene {
     );
 
     this.enemies = this.physics.add.group({ runChildUpdate: true });
+    this.formationSystem = new FormationSystem({
+      ctx: this.deps.ctx,
+      playBounds: () => {
+        const world = this.physics.world.bounds;
+        return {
+          minX: world.x,
+          maxX: world.x + world.width,
+          minY: world.y,
+        };
+      },
+      enemyManager: {
+        spawnEnemy: (_enemyId, x, y) => {
+          const enemy = this.add.rectangle(
+            x,
+            y,
+            ENEMY_WIDTH,
+            ENEMY_HEIGHT,
+            ENEMY_COLOR,
+          );
+          this.physics.add.existing(enemy);
+          const body = enemy.body as Phaser.Physics.Arcade.Body;
+          body.setAllowGravity(false);
+          body.setVelocity(0);
+          body.setCircle(12);
+          this.enemies.add(enemy);
+          return enemy;
+        },
+        getActiveEnemies: () =>
+          this.enemies
+            .getChildren()
+            .filter((enemy) => (enemy as Phaser.GameObjects.Rectangle).active)
+            .map((enemy) => enemy as Phaser.GameObjects.Rectangle),
+        clearEnemies: () => {
+          this.enemies.clear(true, true);
+        },
+      },
+      onForceWaveComplete: () => {
+        this.requestWaveClearOnce();
+      },
+    });
 
     this.scoreText = this.add.text(16, 12, 'Score: 0', {
       fontFamily: 'Montserrat, Arial, sans-serif',
@@ -304,6 +348,8 @@ class SpaceBlasterScene extends Phaser.Scene {
           this.fireManualShot();
         }
 
+        this.formationSystem.update(dtMs);
+
         this.enemies.children.each((enemy) => {
           const e = enemy as Phaser.GameObjects.Rectangle;
           if (e.y > WORLD_HEIGHT - 12) {
@@ -312,13 +358,8 @@ class SpaceBlasterScene extends Phaser.Scene {
           return false;
         });
 
-        if (
-          !this.waveClearRequested &&
-          this.waveSpawnRemaining <= 0 &&
-          this.enemies.countActive(true) === 0
-        ) {
-          this.waveClearRequested = true;
-          this.runStateMachine.requestWaveClear();
+        if (!this.waveClearRequested && this.enemies.countActive(true) === 0) {
+          this.requestWaveClearOnce();
         }
 
         this.weaponSystem.update(dtMs);
@@ -350,7 +391,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private resetEntities() {
-    this.enemies.clear(true, true);
+    this.formationSystem.clear();
     this.weaponSystem.clear();
     this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT - 60);
     this.playerController.resetPosition(WORLD_WIDTH / 2);
@@ -366,39 +407,9 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.weaponSystem.tryFire(this.player.x, this.player.y - 20, -1);
   }
 
-  private spawnEnemy() {
-    if (this.runStateMachine.state !== RunState.PLAYING) return;
-    if (this.waveSpawnRemaining <= 0) return;
-
-    this.waveSpawnRemaining -= 1;
-    const x = Phaser.Math.Between(30, WORLD_WIDTH - 30);
-    const enemy = this.add.rectangle(x, -16, 34, 24, 0xe94b5a);
-    this.physics.add.existing(enemy);
-    const body = enemy.body as Phaser.Physics.Arcade.Body;
-    body.setAllowGravity(false);
-    body.setVelocityY(Phaser.Math.Between(90, 160));
-    body.setCircle(12);
-    this.enemies.add(enemy);
-  }
-
   private addScore(delta: number) {
     this.score += delta;
     this.scoreText.setText(`Score: ${this.score}`);
-  }
-
-  private stopActiveTimers() {
-    this.spawnTimer?.destroy();
-    this.spawnTimer = undefined;
-  }
-
-  private freezeEnemies() {
-    this.enemies.setVelocityY(0);
-    this.enemies.children.each((enemy) => {
-      const body = (enemy as Phaser.GameObjects.Rectangle)
-        .body as Phaser.Physics.Arcade.Body;
-      body.setVelocity(0);
-      return false;
-    });
   }
 
   private updateLivesDisplay() {
@@ -453,7 +464,6 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.startRequested = false;
     this.score = 0;
     this.currentWaveIndex = 0;
-    this.waveSpawnRemaining = this.getWaveSpawnCount(this.currentWaveIndex);
     this.waveClearRequested = false;
     this.startTime = null;
     this.scoreText.setText('Score: 0');
@@ -479,11 +489,9 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.statusText.setText(`Starting in ${seconds}...`);
   }
 
-  private getWaveSpawnCount(index: number): number {
+  private getCurrentWave(index: number): ResolvedLevelWaveV1 | undefined {
     const level = this.deps.levelConfigs[0];
-    const wave = level?.waves?.[index];
-    if (!wave || typeof wave.count !== 'number') return 1;
-    return wave.count > 0 ? wave.count : 1;
+    return level?.waves?.[index];
   }
 
   private hasNextWave(): boolean {
@@ -494,8 +502,19 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private moveToNextWave(): void {
     this.currentWaveIndex += 1;
-    this.waveSpawnRemaining = this.getWaveSpawnCount(this.currentWaveIndex);
     this.waveClearRequested = false;
+  }
+
+  private spawnCurrentWaveFormation(): void {
+    const wave = this.getCurrentWave(this.currentWaveIndex);
+    if (!wave) return;
+    this.formationSystem.spawnFormation(wave);
+  }
+
+  private requestWaveClearOnce(): void {
+    if (this.waveClearRequested) return;
+    this.waveClearRequested = true;
+    this.runStateMachine.requestWaveClear();
   }
 
   private onEnterRunState(state: RunState, from: RunState) {
@@ -508,7 +527,6 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.onReady?.();
         break;
       case RunState.COUNTDOWN:
-        this.stopActiveTimers();
         this.resetEntities();
         if (from === RunState.READY || from === RunState.RESULTS) {
           this.beginNewRunSession();
@@ -526,14 +544,9 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.statusText.setText(
           `Run live - ${this.lifeSystem.lives} lives left`,
         );
-        this.spawnTimer = this.time.addEvent({
-          delay: 1000,
-          loop: true,
-          callback: () => this.spawnEnemy(),
-        });
+        this.spawnCurrentWaveFormation();
         break;
       case RunState.PLAYER_RESPAWN:
-        this.stopActiveTimers();
         this.resetEntities();
         this.playerBody.enable = false;
         this.player.setVisible(false);
@@ -542,7 +555,6 @@ class SpaceBlasterScene extends Phaser.Scene {
         );
         break;
       case RunState.WAVE_CLEAR:
-        this.stopActiveTimers();
         this.resetEntities();
         if (!this.hasNextWave()) {
           this.statusText.setText('All waves cleared');
@@ -552,8 +564,6 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.statusText.setText('Wave clear');
         break;
       case RunState.RUN_ENDING:
-        this.stopActiveTimers();
-        this.freezeEnemies();
         this.statusText.setText('Run over');
         break;
       case RunState.RESULTS:
@@ -561,7 +571,6 @@ class SpaceBlasterScene extends Phaser.Scene {
         void this.submitScoreIfNeeded();
         break;
       case RunState.ERROR:
-        this.stopActiveTimers();
         this.statusText.setText('Runtime error');
         break;
       default:
@@ -578,8 +587,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   destroyResources() {
-    this.stopActiveTimers();
-    this.enemies.clear(true, true);
+    this.formationSystem.clear();
     this.weaponSystem.clear();
     this.sound?.stopAll();
     this.sound?.removeAll();
