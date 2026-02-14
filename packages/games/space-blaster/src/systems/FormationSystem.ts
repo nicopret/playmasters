@@ -127,11 +127,11 @@ export class FormationSystem {
 
     const requestedCount =
       typeof wave.count === 'number' && wave.count > 0 ? wave.count : 1;
-    this.initialEnemyCount = requestedCount;
     this.enraged = false;
     this.enrageElapsedMs = 0;
     this.forceWaveCompleteRequested = false;
     const offsets = computeSlotLocalOffsets(layout, requestedCount);
+    this.initialEnemyCount = offsets.length;
     const bounds = this.getPlayBounds();
 
     this.state = {

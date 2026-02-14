@@ -83,6 +83,25 @@ describe('formation-motion', () => {
     expect(leftExtent).toBeCloseTo(0, 8);
   });
 
+  it('handles dt spikes with a single deterministic boundary reversal', () => {
+    const offsets = computeSlotLocalOffsets(layout, 6);
+    const extents = computeExtentsFromOffsets(offsets, 5);
+    const result = stepFormation({
+      state: { originX: 70, originY: 20, direction: 1 },
+      dtMs: 3000,
+      speedPxPerSecond: 40,
+      descendStep: 8,
+      minBoundX: 0,
+      maxBoundX: 100,
+      extents,
+    });
+
+    expect(result.reversed).toBe(true);
+    expect(result.state.direction).toBe(-1);
+    const rightExtent = result.state.originX + extents.maxLocalX + extents.halfEnemyWidth;
+    expect(rightExtent).toBeCloseTo(100, 8);
+  });
+
   it('computes monotonic ramp target speed as enemies die', () => {
     const aliveSeries = [20, 10, 5, 1];
     const targets = aliveSeries.map((aliveEnemies) =>
