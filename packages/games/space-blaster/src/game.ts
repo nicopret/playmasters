@@ -20,6 +20,8 @@ import { PlayerController } from './systems/PlayerController';
 import { PlayerLifeSystem } from './systems/PlayerLifeSystem';
 import { WeaponSystem } from './systems/WeaponSystem';
 import { FormationSystem } from './systems/FormationSystem';
+import { EnemyController } from './enemies/EnemyController';
+import { EnemyLocalState } from './enemies/EnemyLocalState';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -54,6 +56,10 @@ class SpaceBlasterScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private weaponSystem!: WeaponSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
+  private enemyControllers = new Map<
+    Phaser.GameObjects.Rectangle,
+    EnemyController
+  >();
 
   private score = 0;
   private startTime: number | null = null;
@@ -305,7 +311,11 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.weaponSystem.releaseProjectile(
           bullet as Phaser.GameObjects.Rectangle,
         );
-        enemy.destroy();
+        const target = enemy as Phaser.GameObjects.Rectangle;
+        this.enemyControllers.get(target)?.setDead();
+        this.enemyControllers.delete(target);
+        this.formationSystem.onEnemyDeath(target);
+        target.destroy();
         this.addScore(10);
       },
       undefined,
@@ -349,6 +359,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         }
 
         this.formationSystem.update(dtMs);
+        this.updateEnemyControllers(dtMs);
 
         this.enemies.children.each((enemy) => {
           const e = enemy as Phaser.GameObjects.Rectangle;
@@ -392,6 +403,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private resetEntities() {
     this.formationSystem.clear();
+    this.enemyControllers.clear();
     this.weaponSystem.clear();
     this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT - 60);
     this.playerController.resetPosition(WORLD_WIDTH / 2);
@@ -509,12 +521,50 @@ class SpaceBlasterScene extends Phaser.Scene {
     const wave = this.getCurrentWave(this.currentWaveIndex);
     if (!wave) return;
     this.formationSystem.spawnFormation(wave);
+    this.initializeEnemyControllers();
   }
 
   private requestWaveClearOnce(): void {
     if (this.waveClearRequested) return;
     this.waveClearRequested = true;
     this.runStateMachine.requestWaveClear();
+  }
+
+  private initializeEnemyControllers(): void {
+    this.enemyControllers.clear();
+    const baseSpeed =
+      this.formationSystem.getMotionDiagnostics().baseFleetSpeed;
+    const currentWave = this.getCurrentWave(this.currentWaveIndex);
+    const diveDurationMs = currentWave?.spawnDelayMs ?? RESPAWN_DELAY_MS;
+    const arrivalThresholdPx = ENEMY_WIDTH / 8;
+    for (const enemy of this.formationSystem.getManagedEnemies()) {
+      const controller = new EnemyController({
+        enemy,
+        getReservedSlotPose: () =>
+          this.formationSystem.getReservedSlotWorldPose(enemy),
+        onLocalStateChanged: (state) =>
+          this.formationSystem.setEnemyLocalState(enemy, state),
+        diveSpeedPxPerSecond: baseSpeed,
+        returnSpeedPxPerSecond: baseSpeed,
+        diveDurationMs,
+        arrivalThresholdPx,
+      });
+      this.enemyControllers.set(
+        enemy as Phaser.GameObjects.Rectangle,
+        controller,
+      );
+      this.formationSystem.setEnemyLocalState(enemy, EnemyLocalState.FORMATION);
+    }
+  }
+
+  private updateEnemyControllers(simDtMs: number): void {
+    this.enemyControllers.forEach((controller, enemy) => {
+      controller.update(simDtMs);
+      if (controller.state === EnemyLocalState.DEAD || !enemy.active) {
+        this.formationSystem.onEnemyDeath(enemy);
+        this.enemyControllers.delete(enemy);
+      }
+    });
   }
 
   private onEnterRunState(state: RunState, from: RunState) {
