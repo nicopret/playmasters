@@ -7,6 +7,7 @@ describe('SimulationGating', () => {
     expect(isSimulationRunning(RunState.PLAYING, true)).toBe(false);
     expect(isSimulationRunning(RunState.READY, false)).toBe(false);
     expect(isSimulationRunning(RunState.COUNTDOWN, false)).toBe(false);
+    expect(isSimulationRunning(RunState.WAVE_CLEAR, false)).toBe(false);
     expect(isSimulationRunning(RunState.LEVEL_COMPLETE, false)).toBe(false);
     expect(isSimulationRunning(RunState.RUN_ENDING, false)).toBe(false);
   });

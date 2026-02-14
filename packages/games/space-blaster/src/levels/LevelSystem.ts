@@ -3,7 +3,7 @@ import type {
   ResolvedLevelWaveV1,
 } from '@playmasters/types';
 import type { RunContext } from '../runtime';
-import { RunState } from '../run';
+import { RUN_EVENT, type RunEventBus, RunState } from '../run';
 
 type LevelFormationPort = {
   setLevelIndex?: (levelIndex: number) => void;
@@ -18,6 +18,7 @@ type LevelRunStatePort = {
 
 type LevelSystemOptions = {
   ctx: RunContext;
+  bus: RunEventBus;
   runStateMachine: LevelRunStatePort;
   formationSystem: LevelFormationPort;
   getActiveEnemyCount: () => number;
@@ -31,6 +32,7 @@ type LevelSystemOptions = {
 
 export class LevelSystem {
   private readonly ctx: RunContext;
+  private readonly bus: RunEventBus;
   private readonly runStateMachine: LevelRunStatePort;
   private readonly formationSystem: LevelFormationPort;
   private readonly getActiveEnemyCount: LevelSystemOptions['getActiveEnemyCount'];
@@ -41,6 +43,7 @@ export class LevelSystem {
 
   constructor(options: LevelSystemOptions) {
     this.ctx = options.ctx;
+    this.bus = options.bus;
     this.runStateMachine = options.runStateMachine;
     this.formationSystem = options.formationSystem;
     this.getActiveEnemyCount = options.getActiveEnemyCount;
@@ -163,6 +166,13 @@ export class LevelSystem {
   ): void {
     if (this.progressionRequested) return;
     this.progressionRequested = true;
+    this.bus.emit(RUN_EVENT.LEVEL_WAVE_CLEARED, {
+      levelNumber: this.getLevelNumber(),
+      waveIndex: this.activeWaveIndex,
+      reason:
+        reason === 'ENRAGE_TIMEOUT' ? 'ENRAGE_TIMEOUT' : 'ALL_ENEMIES_DEAD',
+      timestampMs: Date.now(),
+    });
     const hasMoreWaves = this.hasNextWave();
     if (hasMoreWaves) {
       this.runStateMachine.requestWaveClear();

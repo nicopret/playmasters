@@ -1,6 +1,6 @@
 import type { ResolvedGameConfigV1 } from '@playmasters/types';
 import type { RunContext } from '../runtime';
-import { RunState } from '../run';
+import { RUN_EVENT, RunEventBus, RunState } from '../run';
 import { LevelSystem } from './LevelSystem';
 
 const createResolvedConfig = (): ResolvedGameConfigV1 => ({
@@ -95,6 +95,8 @@ describe('LevelSystem', () => {
     };
   };
 
+  const createBus = () => new RunEventBus();
+
   it('loads wave 0 on PLAYING', () => {
     const spawnCalls: string[] = [];
     const runStateMachine = {
@@ -104,6 +106,7 @@ describe('LevelSystem', () => {
     };
     const levelSystem = new LevelSystem({
       ctx: createContext(),
+      bus: createBus(),
       runStateMachine,
       formationSystem: {
         spawnFormation: (wave) => spawnCalls.push(wave.enemyId),
@@ -117,6 +120,16 @@ describe('LevelSystem', () => {
   });
 
   it('triggers WAVE_CLEAR when enemy count reaches zero', () => {
+    const bus = createBus();
+    const waveClearedEvents: Array<{
+      levelNumber: number;
+      waveIndex: number;
+      reason: 'ALL_ENEMIES_DEAD' | 'ENRAGE_TIMEOUT';
+      timestampMs: number;
+    }> = [];
+    bus.on(RUN_EVENT.LEVEL_WAVE_CLEARED, (payload) => {
+      waveClearedEvents.push(payload);
+    });
     const runStateMachine = {
       requestWaveClear: jest.fn(),
       requestLevelComplete: jest.fn(),
@@ -124,6 +137,7 @@ describe('LevelSystem', () => {
     };
     const levelSystem = new LevelSystem({
       ctx: createContext(),
+      bus,
       runStateMachine,
       formationSystem: {
         spawnFormation: jest.fn(),
@@ -135,6 +149,10 @@ describe('LevelSystem', () => {
     levelSystem.update(16);
     levelSystem.update(16);
     expect(runStateMachine.requestWaveClear).toHaveBeenCalledTimes(1);
+    expect(waveClearedEvents).toHaveLength(1);
+    expect(waveClearedEvents[0]?.levelNumber).toBe(1);
+    expect(waveClearedEvents[0]?.waveIndex).toBe(0);
+    expect(waveClearedEvents[0]?.reason).toBe('ALL_ENEMIES_DEAD');
   });
 
   it('loads next wave config after WAVE_CLEAR -> COUNTDOWN -> PLAYING', () => {
@@ -147,6 +165,7 @@ describe('LevelSystem', () => {
     };
     const levelSystem = new LevelSystem({
       ctx: createContext(),
+      bus: createBus(),
       runStateMachine,
       formationSystem: {
         spawnFormation: (wave) => spawnCalls.push(wave.enemyId),
@@ -174,6 +193,7 @@ describe('LevelSystem', () => {
     };
     const levelSystem = new LevelSystem({
       ctx: createContext(),
+      bus: createBus(),
       runStateMachine,
       formationSystem: {
         spawnFormation: jest.fn(),
@@ -193,6 +213,7 @@ describe('LevelSystem', () => {
 
   it('advances level number and resets wave index after LEVEL_COMPLETE', () => {
     const spawnCalls: string[] = [];
+    const setLevelIndex = jest.fn();
     const runStateMachine = {
       requestWaveClear: jest.fn(),
       requestLevelComplete: jest.fn(),
@@ -200,9 +221,10 @@ describe('LevelSystem', () => {
     };
     const levelSystem = new LevelSystem({
       ctx: createContext(),
+      bus: createBus(),
       runStateMachine,
       formationSystem: {
-        setLevelIndex: jest.fn(),
+        setLevelIndex,
         spawnFormation: (wave) => spawnCalls.push(wave.enemyId),
       },
       getActiveEnemyCount: () => 1,
@@ -223,6 +245,7 @@ describe('LevelSystem', () => {
     levelSystem.onEnterRunState(RunState.COUNTDOWN, RunState.LEVEL_COMPLETE);
     levelSystem.onEnterRunState(RunState.PLAYING, RunState.COUNTDOWN);
     expect(spawnCalls).toEqual(['enemy-a', 'enemy-b', 'enemy-c']);
+    expect(setLevelIndex.mock.calls.map((call) => call[0])).toEqual([0, 0, 1]);
   });
 
   it('ends run after final level is cleared', () => {
@@ -233,6 +256,7 @@ describe('LevelSystem', () => {
     };
     const levelSystem = new LevelSystem({
       ctx: createContext(),
+      bus: createBus(),
       runStateMachine,
       formationSystem: {
         spawnFormation: jest.fn(),

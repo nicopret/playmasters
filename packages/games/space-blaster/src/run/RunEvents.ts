@@ -17,6 +17,7 @@ export const RUN_EVENT = {
   REQUEST_WAVE_CLEAR: 'run.requestWaveClear',
   REQUEST_LEVEL_COMPLETE: 'run.requestLevelComplete',
   REQUEST_END: 'run.requestEnd',
+  LEVEL_WAVE_CLEARED: 'level.waveCleared',
 } as const;
 
 export type TransitionReason =
@@ -54,4 +55,10 @@ export type RunEventMap = {
   [RUN_EVENT.REQUEST_WAVE_CLEAR]: undefined;
   [RUN_EVENT.REQUEST_LEVEL_COMPLETE]: undefined;
   [RUN_EVENT.REQUEST_END]: { reason: string };
+  [RUN_EVENT.LEVEL_WAVE_CLEARED]: {
+    levelNumber: number;
+    waveIndex: number;
+    reason: 'ALL_ENEMIES_DEAD' | 'ENRAGE_TIMEOUT';
+    timestampMs: number;
+  };
 };

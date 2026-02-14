@@ -261,6 +261,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
     this.levelSystem = new LevelSystem({
       ctx: this.deps.ctx,
+      bus: this.runBus,
       runStateMachine: this.runStateMachine,
       formationSystem: this.formationSystem,
       getActiveEnemyCount: () => this.enemies.countActive(true),
