@@ -218,10 +218,7 @@ export class FormationSystem {
     return this.slots.find((entry) => entry.enemy === enemy)?.localState;
   }
 
-  setEnemyLocalState(
-    enemy: FormationEnemy,
-    localState: EnemyLocalState,
-  ): void {
+  setEnemyLocalState(enemy: FormationEnemy, localState: EnemyLocalState): void {
     const slot = this.slots.find((entry) => entry.enemy === enemy);
     if (!slot) return;
     slot.localState = localState;
@@ -269,7 +266,9 @@ export class FormationSystem {
 
   private getAliveSlots(): FormationSlotAssignment[] {
     const active = new Set(this.enemyManager.getActiveEnemies());
-    return this.slots.filter((slot) => slot.enemy.active && active.has(slot.enemy));
+    return this.slots.filter(
+      (slot) => slot.enemy.active && active.has(slot.enemy),
+    );
   }
 
   private getHalfEnemyWidth(occupied: FormationSlotAssignment[]): number {

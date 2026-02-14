@@ -1,5 +1,8 @@
 import type { ResolvedGameConfigV1 } from '@playmasters/types';
-import { FormationSystem, type FormationEnemy } from '../systems/FormationSystem';
+import {
+  FormationSystem,
+  type FormationEnemy,
+} from '../systems/FormationSystem';
 import { EnemyController } from './EnemyController';
 import { EnemyLocalState } from './EnemyLocalState';
 
@@ -185,7 +188,9 @@ describe('EnemyController', () => {
 
     controller.startDive();
     controller.update(100);
-    expect(formationSystem.getEnemyLocalState(enemy)).toBe(EnemyLocalState.DIVING);
+    expect(formationSystem.getEnemyLocalState(enemy)).toBe(
+      EnemyLocalState.DIVING,
+    );
 
     enemy.active = false;
     controller.update(0);
@@ -251,7 +256,9 @@ describe('EnemyController', () => {
     const detachedY = enemy.y;
     formationSystem.update(16);
     expect(enemy.y).toBeCloseTo(detachedY, 8);
-    expect(formationSystem.getEnemyLocalState(enemy)).toBe(EnemyLocalState.DIVING);
+    expect(formationSystem.getEnemyLocalState(enemy)).toBe(
+      EnemyLocalState.DIVING,
+    );
 
     controller.update(60);
     controller.update(500);

@@ -56,7 +56,10 @@ class SpaceBlasterScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private weaponSystem!: WeaponSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
-  private enemyControllers = new Map<Phaser.GameObjects.Rectangle, EnemyController>();
+  private enemyControllers = new Map<
+    Phaser.GameObjects.Rectangle,
+    EnemyController
+  >();
 
   private score = 0;
   private startTime: number | null = null;
@@ -529,10 +532,10 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private initializeEnemyControllers(): void {
     this.enemyControllers.clear();
-    const baseSpeed = this.formationSystem.getMotionDiagnostics().baseFleetSpeed;
+    const baseSpeed =
+      this.formationSystem.getMotionDiagnostics().baseFleetSpeed;
     const currentWave = this.getCurrentWave(this.currentWaveIndex);
-    const diveDurationMs =
-      currentWave?.spawnDelayMs ?? RESPAWN_DELAY_MS;
+    const diveDurationMs = currentWave?.spawnDelayMs ?? RESPAWN_DELAY_MS;
     const arrivalThresholdPx = ENEMY_WIDTH / 8;
     for (const enemy of this.formationSystem.getManagedEnemies()) {
       const controller = new EnemyController({
@@ -546,7 +549,10 @@ class SpaceBlasterScene extends Phaser.Scene {
         diveDurationMs,
         arrivalThresholdPx,
       });
-      this.enemyControllers.set(enemy as Phaser.GameObjects.Rectangle, controller);
+      this.enemyControllers.set(
+        enemy as Phaser.GameObjects.Rectangle,
+        controller,
+      );
       this.formationSystem.setEnemyLocalState(enemy, EnemyLocalState.FORMATION);
     }
   }
