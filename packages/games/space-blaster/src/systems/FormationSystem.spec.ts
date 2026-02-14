@@ -264,6 +264,110 @@ describe('FormationSystem', () => {
     expect(forceCompleteReasons).toEqual(['ENRAGE_TIMEOUT']);
   });
 
+  it('applies config-driven stall aggression speed when alive <= threshold', () => {
+    const enemies: FormationEnemy[] = [];
+    const forceCompleteReasons: string[] = [];
+    const resolvedConfig = createResolvedConfig();
+    resolvedConfig.levelConfigs[0].stallAggression = {
+      threshold: 2,
+      speedMultiplier: 3,
+    };
+    const system = new FormationSystem({
+      ctx: {
+        sdk: {} as never,
+        resolvedConfig,
+        configHash: resolvedConfig.configHash,
+        mountedAt: '2026-02-14T00:00:00.000Z',
+        hasPendingUpdate: false,
+      },
+      playBounds: () => ({ minX: 0, maxX: 200, minY: 0 }),
+      enemyManager: {
+        spawnEnemy: () => {
+          const enemy: FormationEnemy = {
+            active: true,
+            x: 0,
+            y: 0,
+            width: 10,
+            setPosition: (x: number, y: number) => {
+              enemy.x = x;
+              enemy.y = y;
+            },
+          };
+          enemies.push(enemy);
+          return enemy;
+        },
+        getActiveEnemies: () => enemies.filter((enemy) => enemy.active),
+        clearEnemies: () => {
+          enemies.splice(0, enemies.length);
+        },
+      },
+      onForceWaveComplete: (reason) => forceCompleteReasons.push(reason),
+    });
+
+    system.spawnFormation({ enemyId: 'enemy-a', count: 3 });
+    system.update(16);
+    expect(system.getMotionDiagnostics().stallAggressionActive).toBe(false);
+
+    enemies[0].active = false;
+    system.update(16);
+    const diagnostics = system.getMotionDiagnostics();
+    expect(diagnostics.stallAggressionActive).toBe(true);
+    expect(diagnostics.currentFleetSpeed).toBeCloseTo(
+      diagnostics.baseFleetSpeed * 3,
+      8,
+    );
+    expect(forceCompleteReasons).toEqual([]);
+  });
+
+  it('does not require timeout force-complete for stall aggression behavior', () => {
+    const enemies: FormationEnemy[] = [];
+    const forceCompleteReasons: string[] = [];
+    const resolvedConfig = createResolvedConfig();
+    resolvedConfig.levelConfigs[0].stallAggression = {
+      threshold: 2,
+      speedMultiplier: 3.5,
+    };
+    const system = new FormationSystem({
+      ctx: {
+        sdk: {} as never,
+        resolvedConfig,
+        configHash: resolvedConfig.configHash,
+        mountedAt: '2026-02-14T00:00:00.000Z',
+        hasPendingUpdate: false,
+      },
+      playBounds: () => ({ minX: 0, maxX: 200, minY: 0 }),
+      enemyManager: {
+        spawnEnemy: () => {
+          const enemy: FormationEnemy = {
+            active: true,
+            x: 0,
+            y: 0,
+            width: 10,
+            setPosition: (x: number, y: number) => {
+              enemy.x = x;
+              enemy.y = y;
+            },
+          };
+          enemies.push(enemy);
+          return enemy;
+        },
+        getActiveEnemies: () => enemies.filter((enemy) => enemy.active),
+        clearEnemies: () => {
+          enemies.splice(0, enemies.length);
+        },
+      },
+      onForceWaveComplete: (reason) => forceCompleteReasons.push(reason),
+    });
+
+    system.spawnFormation({ enemyId: 'enemy-a', count: 3 });
+    enemies[0].active = false;
+    for (let idx = 0; idx < 50; idx += 1) {
+      system.update(100);
+    }
+    expect(system.getMotionDiagnostics().stallAggressionActive).toBe(true);
+    expect(forceCompleteReasons).toEqual([]);
+  });
+
   it('does not force-complete when last enemies are cleared before timeout', () => {
     const enemies: FormationEnemy[] = [];
     const forceCompleteReasons: string[] = [];

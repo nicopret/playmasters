@@ -1,5 +1,6 @@
 import type { FormationLayoutEntryV1 } from '@playmasters/types';
 import {
+  computeStallAggressionTargetSpeed,
   computeRampTargetSpeed,
   computeExtentsFromOffsets,
   computeSlotLocalOffsets,
@@ -152,5 +153,21 @@ describe('formation-motion', () => {
     expect(Math.abs(speed16 - speed33)).toBeLessThan(0.05);
     expect(speed16).toBeGreaterThan(100);
     expect(speed33).toBeGreaterThan(100);
+  });
+
+  it('activates stall aggression only at or below threshold', () => {
+    const inactive = computeStallAggressionTargetSpeed({
+      baseSpeed: 100,
+      aliveEnemies: 4,
+      config: { threshold: 3, speedMultiplier: 3 },
+    });
+    const active = computeStallAggressionTargetSpeed({
+      baseSpeed: 100,
+      aliveEnemies: 3,
+      config: { threshold: 3, speedMultiplier: 3 },
+    });
+
+    expect(inactive).toBeNull();
+    expect(active).toBe(300);
   });
 });

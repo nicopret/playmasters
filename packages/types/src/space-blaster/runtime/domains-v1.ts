@@ -45,6 +45,10 @@ export interface ResolvedLevelConfigV1 {
     timeoutMs?: number;
     autoCompleteOnTimeout?: boolean;
   };
+  stallAggression?: {
+    threshold?: number;
+    speedMultiplier?: number;
+  };
   scoreMultiplier?: number;
   shooting?: number;
   speed?: number;

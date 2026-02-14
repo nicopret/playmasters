@@ -1,104 +1,75 @@
-# Story 142 Implementation Plan (Fallback: Story Text Missing)
+# Story 142 / Ticket 32 Implementation Plan
 
-## Discovery Result
+## Story Summary
 
-- Requested source: GitHub issue `#142` story description.
-- In-repo search did **not** find story content for `#142`.
-- Closest related in-repo issue artifact found: `docs/space-blaster/resolved-bundle-system-checklist.md` (Issue `#141`).
+Prevent stalling by applying aggression when remaining enemies are low:
 
-Because the concrete feature text is missing, this document provides a structured implementation scaffold only. No feature-specific gameplay code is added here to avoid inventing requirements.
+- when alive enemies <= threshold, formation speed ramps sharply
+- completion should come from aggression (not primarily from a timeout)
+- behavior is config-driven (`threshold`, `speedMultiplier`)
 
-## What Was Searched
+## Architecture Alignment
 
-- `rg -n "#142|issue 142|Ticket 142|story 142|task 142" -S .`
-- `rg -n "Backlog|Stories|Epics|142" docs packages .github -S`
-- `rg -n "Issue #14[0-9]|Task #14[0-9]|Story #14[0-9]" docs packages . -S`
-- `git log --oneline --all --grep "#142\\|142"`
+- `RunStateMachine` owns transitions.
+- `SimulationGating` runs gameplay updates only in `PLAYING`.
+- `LevelSystem` handles wave/level progression and wave-clear intents.
+- `FormationSystem` owns formation motion and speed ramps.
+- Config is read from `ctx.resolvedConfig` only.
 
-## Architecture Alignment Notes
+## Components
 
-- Run state ownership remains in `RunStateMachine` (`packages/games/space-blaster/src/run`).
-- Gameplay simulation ticks only when `RunState.PLAYING` (`SimulationGating`).
-- Wave/level progression ownership remains in `LevelSystem`.
-- Formation ownership remains in `FormationSystem`.
-- Enemy local behavior ownership remains in enemy systems/controllers.
-- Cross-system communication should use `RunEventBus` typed events.
-- Runtime config source must remain `ctx.resolvedConfig` only (no runtime fetches).
+### 1) Config Surface
 
-## Component Breakdown Scaffold (To Fill Once Story Text Is Available)
+- `ResolvedLevelConfigV1.stallAggression?: { threshold?: number; speedMultiplier?: number }`
+- `level-config.schema.json` validates:
+  - `threshold` integer >= 0
+  - `speedMultiplier` number >= 1
 
-1. Story Summary
+### 2) Motion Logic
 
-- Source issue text: **TBD (missing in repo)**.
-- Target behavior: **TBD**.
+- `formation-motion.ts`
+  - `computeStallAggressionTargetSpeed(...)` helper to derive aggression speed target.
+- `FormationSystem.ts`
+  - reads `level.stallAggression` on wave spawn
+  - applies sharp speed override when alive <= threshold
+  - keeps enrage timeout behavior as fallback only
 
-2. Modules and Responsibilities
+### 3) Verification
 
-- `packages/games/space-blaster/src/run/*`
-  - Add/extend run intents or states only if story requires.
-- `packages/games/space-blaster/src/levels/LevelSystem.ts`
-  - Progression/intents only; no direct state mutation.
-- `packages/games/space-blaster/src/systems/*`
-  - Feature system integration points **TBD**.
-- `packages/games/space-blaster/src/enemies/*`
-  - Enemy behavior integration points **TBD**.
-- `packages/games/space-blaster/src/game.ts`
-  - Orchestration hookup only; preserve sim gating.
+- Unit tests in `formation-motion.spec.ts`:
+  - threshold activation behavior
+- Unit tests in `FormationSystem.spec.ts`:
+  - sharp multiplier application
+  - no required timeout dependency for stall aggression behavior
 
-3. Data Types and Events
+## Ownership / Integration Points
 
-- Additive, typed bus events under `RUN_EVENT` as needed.
-- Event payload fields:
-  - source owner system
-  - deterministic reason enum
-  - relevant progression identifiers (level/wave/enemy ids)
+- `LevelSystem` does not mutate run state directly; it only requests transitions.
+- `FormationSystem` computes speed each simulation tick and stays deterministic.
+- Existing enrage timeout (`lastEnemiesEnrage`) remains optional fallback.
 
-4. Single-Owner Rules
+## Risks / Edge Cases
 
-- Run transitions: `RunStateMachine` only.
-- Progression indices: `LevelSystem` only.
-- Formation transform/slots: `FormationSystem` only.
-- Detached enemy movement: enemy controller/system only.
+- If both `stallAggression` and `lastEnemiesEnrage` are configured, target speed precedence must be deterministic.
+- If `threshold` is `0` or `speedMultiplier` is `1`, feature is effectively disabled.
+- Aggression must not run while simulation is frozen (handled by existing sim gating).
 
-## Incremental Implementation Steps (Template)
+## Reproducible Verification Plan
 
-1. Add/extend types and bus events.
-2. Add pure helper logic (unit-testable).
-3. Integrate into owning runtime system.
-4. Wire orchestration in `game.ts`.
-5. Add unit/integration-ish tests (Phaser-free where possible).
-6. Verify lint/test/build/format.
+### Unit Tests
 
-## Risks and Edge Cases (Template)
+- Run:
+  - `pnpm exec nx test space-blaster -- --runInBand`
+- Relevant suites:
+  - `packages/games/space-blaster/src/systems/formation-motion.spec.ts`
+  - `packages/games/space-blaster/src/systems/FormationSystem.spec.ts`
 
-- Duplicate transition requests in same frame.
-- Event ordering between wave/level transitions and system resets.
-- Frozen simulation behavior outside PLAYING.
-- Backward compatibility with existing resolved config fixtures.
+### Manual Steps
 
-## Verification Plan
-
-### Unit Tests (Minimum)
-
-- Pure helper behavior for new feature math/selection/state rules.
-- Intent emission debounce and reason correctness.
-- State progression invariants for affected systems.
-
-### Manual Verification (Minimum)
-
-1. Start run from READY to PLAYING.
-2. Trigger feature path in gameplay.
-3. Confirm expected state/events in debug logs or assertions.
-4. Confirm no updates occur while not PLAYING.
-5. Confirm no regressions in wave progression and run ending.
-
-### Commands
-
-- `pnpm exec nx lint space-blaster`
-- `pnpm exec nx test space-blaster -- --runInBand`
-- `pnpm exec nx build space-blaster`
-- `pnpm exec nx format:check --files="docs/space-blaster/story-142-implementation-plan.md"`
-
-## Blocking Note
-
-Issue `#142` cannot be implemented feature-complete from repository-local context because its actual story text is missing. Once issue text is available in-repo (or provided directly), this scaffold can be converted into a concrete implementation plan and code changes.
+1. In active level config, set:
+   - `stallAggression.threshold = 3`
+   - `stallAggression.speedMultiplier = 3`
+2. Start a run and clear enemies until 3 remain.
+3. Observe formation speed increase sharply at threshold.
+4. Confirm wave finishes from pressure/aggression without needing timeout force clear.
+5. Optional fallback check: if `lastEnemiesEnrage` timeout is configured, it should only act as backup.

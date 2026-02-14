@@ -12,12 +12,14 @@ import {
   computeExtentsFromOffsets,
   computeRampTargetSpeed,
   computeSlotLocalOffsets,
+  computeStallAggressionTargetSpeed,
   easeToward,
   stepFormation,
   type FleetEnrageConfig,
   type FleetRampConfig,
   type FormationState,
   type SlotLocalOffset,
+  type StallAggressionConfig,
 } from './formation-motion';
 
 export type FormationEnemy = {
@@ -60,6 +62,11 @@ const DEFAULT_ENRAGE_CONFIG: FleetEnrageConfig = {
   autoCompleteOnTimeout: true,
 };
 
+const DEFAULT_STALL_AGGRESSION_CONFIG: StallAggressionConfig = {
+  threshold: 0,
+  speedMultiplier: 1,
+};
+
 const DEFAULT_SPEED_SMOOTHING_PER_SECOND = 7;
 
 export class FormationSystem {
@@ -77,6 +84,8 @@ export class FormationSystem {
   private initialEnemyCount = 0;
   private rampConfig = DEFAULT_FLEET_RAMP_CONFIG;
   private enrageConfig = DEFAULT_ENRAGE_CONFIG;
+  private stallAggressionConfig = DEFAULT_STALL_AGGRESSION_CONFIG;
+  private stallAggressionActive = false;
   private enraged = false;
   private enrageElapsedMs = 0;
   private forceWaveCompleteRequested = false;
@@ -140,12 +149,21 @@ export class FormationSystem {
         level.lastEnemiesEnrage?.autoCompleteOnTimeout ??
         DEFAULT_ENRAGE_CONFIG.autoCompleteOnTimeout,
     };
+    this.stallAggressionConfig = {
+      threshold:
+        level.stallAggression?.threshold ??
+        DEFAULT_STALL_AGGRESSION_CONFIG.threshold,
+      speedMultiplier:
+        level.stallAggression?.speedMultiplier ??
+        DEFAULT_STALL_AGGRESSION_CONFIG.speedMultiplier,
+    };
     // The current runtime schema has no explicit descendStep, so use layout spacing.
     this.descendStep = layout.spacing.y;
 
     const requestedCount =
       typeof wave.count === 'number' && wave.count > 0 ? wave.count : 1;
     this.enraged = false;
+    this.stallAggressionActive = false;
     this.enrageElapsedMs = 0;
     this.forceWaveCompleteRequested = false;
     const offsets = computeSlotLocalOffsets(layout, requestedCount);
@@ -277,6 +295,7 @@ export class FormationSystem {
     currentFleetSpeed: number;
     baseFleetSpeed: number;
     initialEnemyCount: number;
+    stallAggressionActive: boolean;
     enraged: boolean;
     enrageElapsedMs: number;
     forceWaveCompleteRequested: boolean;
@@ -285,6 +304,7 @@ export class FormationSystem {
       currentFleetSpeed: this.currentFleetSpeed,
       baseFleetSpeed: this.baseFleetSpeed,
       initialEnemyCount: this.initialEnemyCount,
+      stallAggressionActive: this.stallAggressionActive,
       enraged: this.enraged,
       enrageElapsedMs: this.enrageElapsedMs,
       forceWaveCompleteRequested: this.forceWaveCompleteRequested,
@@ -339,6 +359,7 @@ export class FormationSystem {
     this.initialEnemyCount = 0;
     this.currentFleetSpeed = 0;
     this.baseFleetSpeed = 0;
+    this.stallAggressionActive = false;
     this.enraged = false;
     this.enrageElapsedMs = 0;
     this.forceWaveCompleteRequested = false;
@@ -365,11 +386,27 @@ export class FormationSystem {
       aliveEnemies,
       ramp: this.rampConfig,
     });
+    const stallAggressionTarget = computeStallAggressionTargetSpeed({
+      baseSpeed: this.baseFleetSpeed,
+      aliveEnemies,
+      config: this.stallAggressionConfig,
+    });
+    if (stallAggressionTarget !== null) {
+      this.stallAggressionActive = true;
+      targetSpeed = Math.max(targetSpeed, stallAggressionTarget);
+    } else {
+      this.stallAggressionActive = false;
+    }
     if (this.enraged) {
       targetSpeed = Math.max(
         targetSpeed,
         this.baseFleetSpeed * this.enrageConfig.speedMultiplier,
       );
+    }
+    if (this.stallAggressionActive) {
+      // Stall aggression is intentionally sharp: jump to the configured speed immediately.
+      this.currentFleetSpeed = targetSpeed;
+      return;
     }
     this.currentFleetSpeed = easeToward({
       current: this.currentFleetSpeed,
