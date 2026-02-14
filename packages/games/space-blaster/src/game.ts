@@ -10,13 +10,11 @@ import {
 } from './bootstrap';
 import { DisposableBag, createRunContext } from './runtime';
 import {
-  canPlayerFire,
-  isSimulationRunning,
-  type PlayerRunPhase,
-} from './systems/player-action-gates';
-import { PlayerController } from './systems/PlayerController';
-import { PlayerLifeSystem } from './systems/PlayerLifeSystem';
-import { WeaponSystem } from './systems/WeaponSystem';
+  orchestrateRunFrame,
+  RunEventBus,
+  RunState,
+  RunStateMachine,
+} from './run';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -25,13 +23,13 @@ type MountOptions = {
   disposables: DisposableBag;
 };
 
-type GameState = PlayerRunPhase;
-
 const GAME_ID = 'game-space-blaster';
 const WORLD_WIDTH = 800;
 const WORLD_HEIGHT = 450;
-const DEFAULT_RESPAWN_INVULNERABILITY_MS = 1200;
-const RESPAWN_DELAY_MS = 700;
+const COUNTDOWN_MS = 1200;
+const RESPAWN_DELAY_MS = 650;
+const WAVE_CLEAR_MS = 750;
+const RUN_ENDING_DELAY_MS = 900;
 
 class SpaceBlasterScene extends Phaser.Scene {
   private deps: SpaceBlasterBootstrapDeps;
@@ -51,9 +49,13 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private score = 0;
   private startTime: number | null = null;
-  private state: GameState = 'idle';
+  private remainingLives = 0;
   private canSubmitScore = true;
   private submitting = false;
+  private runStarted = false;
+  private currentWaveIndex = 0;
+  private waveSpawnRemaining = 0;
+  private waveClearRequested = false;
 
   private scoreText!: Phaser.GameObjects.Text;
   private livesText!: Phaser.GameObjects.Text;
@@ -62,6 +64,24 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private keyboardSpaceHandler?: () => void;
   private pointerDownHandler?: () => void;
+  private visibilityChangeHandler?: () => void;
+  private blurHandler?: () => void;
+  private focusHandler?: () => void;
+  private overlayBlockingGameplay = false;
+  private runBus = new RunEventBus();
+  private runStateMachine = new RunStateMachine(
+    this.runBus,
+    {
+      countdownMs: COUNTDOWN_MS,
+      respawnDelayMs: RESPAWN_DELAY_MS,
+      waveClearMs: WAVE_CLEAR_MS,
+      runEndingDelayMs: RUN_ENDING_DELAY_MS,
+    },
+    {
+      onEnterState: (state, from) => this.onEnterRunState(state, from),
+      onCountdownTick: (remainingMs) => this.onCountdownTick(remainingMs),
+    },
+  );
 
   constructor(opts: MountOptions) {
     super('space-blaster');
@@ -190,6 +210,43 @@ class SpaceBlasterScene extends Phaser.Scene {
       }
     });
 
+    if (typeof document !== 'undefined') {
+      this.overlayBlockingGameplay = document.hidden;
+      this.visibilityChangeHandler = () => {
+        this.overlayBlockingGameplay = document.hidden;
+      };
+      document.addEventListener(
+        'visibilitychange',
+        this.visibilityChangeHandler,
+      );
+      this.disposables.add(() => {
+        if (this.visibilityChangeHandler) {
+          document.removeEventListener(
+            'visibilitychange',
+            this.visibilityChangeHandler,
+          );
+        }
+      });
+    }
+
+    if (typeof window !== 'undefined') {
+      this.blurHandler = () => {
+        this.overlayBlockingGameplay = true;
+      };
+      this.focusHandler = () => {
+        this.overlayBlockingGameplay = false;
+      };
+      window.addEventListener('blur', this.blurHandler);
+      window.addEventListener('focus', this.focusHandler);
+      this.disposables.add(() => {
+        if (this.blurHandler)
+          window.removeEventListener('blur', this.blurHandler);
+        if (this.focusHandler) {
+          window.removeEventListener('focus', this.focusHandler);
+        }
+      });
+    }
+
     this.physics.add.overlap(
       this.weaponSystem.projectileGroup,
       this.enemies,
@@ -211,82 +268,70 @@ class SpaceBlasterScene extends Phaser.Scene {
       undefined,
       this,
     );
-
-    this.setState('idle');
-    this.onReady?.();
+    this.runStateMachine.requestBootComplete();
+    this.runStateMachine.update(0);
   }
 
   override update(_time: number, delta: number) {
-    if (isSimulationRunning(this.state)) {
-      this.lifeSystem.update(delta);
-      const inputAxis = this.cursors.left?.isDown
-        ? -1
-        : this.cursors.right?.isDown
-          ? 1
-          : 0;
-      this.playerController.update(delta, inputAxis);
-
-      if (this.cursors.space?.isDown) {
-        this.fireManualShot();
-      }
-
-      this.enemies.children.each((enemy) => {
-        const e = enemy as Phaser.GameObjects.Rectangle;
-        if (e.y > WORLD_HEIGHT - 12) {
-          this.finishRun('ENEMY_REACHED_BOTTOM');
+    orchestrateRunFrame({
+      deltaMs: delta,
+      overlayBlockingGameplay: this.overlayBlockingGameplay,
+      getState: () => this.runStateMachine.state,
+      advanceRunStateMachine: (dtMs) => this.runStateMachine.update(dtMs),
+      setPhysicsPaused: (paused) => {
+        if (this.physics.world.isPaused !== paused) {
+          this.physics.world.isPaused = paused;
         }
-        return false;
-      });
-      this.weaponSystem.update(delta);
-    }
+      },
+      advanceSimulation: () => {
+        const velocity = 380;
+        if (this.cursors.left?.isDown) {
+          this.playerBody.setVelocityX(-velocity);
+        } else if (this.cursors.right?.isDown) {
+          this.playerBody.setVelocityX(velocity);
+        } else {
+          this.playerBody.setVelocityX(0);
+        }
 
-    if (this.lifeSystem.invulnerable) {
-      const flashVisible = Math.floor(_time / 80) % 2 === 0;
-      this.player.setAlpha(flashVisible ? 0.5 : 1);
-      return;
-    }
-    this.player.setAlpha(1);
+        if (this.cursors.space?.isDown) {
+          this.fireManualShot();
+        }
+
+        this.enemies.children.each((enemy) => {
+          const e = enemy as Phaser.GameObjects.Rectangle;
+          if (e.y > WORLD_HEIGHT - 12) {
+            this.runStateMachine.requestEndRun('enemy_breach');
+          }
+          return false;
+        });
+
+        if (
+          !this.waveClearRequested &&
+          this.waveSpawnRemaining <= 0 &&
+          this.enemies.countActive(true) === 0
+        ) {
+          this.waveClearRequested = true;
+          this.runStateMachine.requestWaveClear();
+        }
+
+        this.bullets.children.each((bullet) => {
+          const b = bullet as Phaser.GameObjects.Rectangle;
+          if (b.y < -20) b.destroy();
+          return false;
+        });
+      },
+    });
   }
 
   private handleSpace() {
-    if (this.state === 'idle') {
-      this.startGame();
+    if (
+      this.runStateMachine.state === RunState.READY ||
+      this.runStateMachine.state === RunState.RESULTS
+    ) {
+      this.runStateMachine.requestStart();
       return;
     }
-    if (this.state === 'gameover') {
-      this.restartGame();
-      return;
-    }
-    this.fireManualShot();
-  }
-
-  private async startGame() {
-    if (this.state === 'playing') return;
-
-    this.resetEntities();
-    this.setState('playing');
-    this.score = 0;
-    this.startTime = Date.now();
-    this.scoreText.setText('Score: 0');
-    this.lifeSystem.reset();
-    this.updateLivesDisplay();
-    this.statusText.setText('Starting run...');
-    this.playAgainBtn.setVisible(false);
-    this.canSubmitScore = true;
-
-    try {
-      await this.deps.sdk.startRun();
-      this.statusText.setText('Run live - survive and score!');
-    } catch {
-      this.canSubmitScore = false;
-      this.statusText.setText('Sign in to submit score');
-    }
-
-    this.spawnTimer = this.time.addEvent({
-      delay: 1000,
-      loop: true,
-      callback: () => this.spawnEnemy(),
-    });
+    if (this.runStateMachine.state === RunState.PLAYING) this.fireManualShot();
   }
 
   private resetEntities() {
@@ -303,12 +348,34 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private fireManualShot() {
-    if (!canPlayerFire(this.state, this.lifeSystem.invulnerable)) return;
-    this.weaponSystem.tryFire(this.player.x, this.player.y - 20, -1);
+    if (this.runStateMachine.state !== RunState.PLAYING) return;
+    const now = Date.now();
+    if (now - this.lastManualShotAt < 200) return;
+    this.lastManualShotAt = now;
+    this.fireBullet();
+  }
+
+  private fireBullet() {
+    if (this.runStateMachine.state !== RunState.PLAYING) return;
+    const bullet = this.add.rectangle(
+      this.player.x,
+      this.player.y - 20,
+      6,
+      16,
+      0xf9d65c,
+    );
+    this.physics.add.existing(bullet);
+    const body = bullet.body as Phaser.Physics.Arcade.Body;
+    body.setAllowGravity(false);
+    body.setVelocityY(-560);
+    body.setCircle(3);
+    this.bullets.add(bullet);
   }
 
   private spawnEnemy() {
-    if (this.state !== 'playing') return;
+    if (this.runStateMachine.state !== RunState.PLAYING) return;
+    if (this.waveSpawnRemaining <= 0) return;
+    this.waveSpawnRemaining -= 1;
     const x = Phaser.Math.Between(30, WORLD_WIDTH - 30);
     const enemy = this.add.rectangle(x, -16, 34, 24, 0xe94b5a);
     this.physics.add.existing(enemy);
@@ -324,52 +391,13 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.scoreText.setText(`Score: ${this.score}`);
   }
 
-  private updateLivesDisplay() {
-    this.livesText.setText(`Lives: ${this.lifeSystem.lives}`);
-  }
-
-  private handlePlayerHit() {
-    if (this.state !== 'playing') return;
-    const hitResult = this.lifeSystem.onPlayerHit();
-    if (hitResult.kind === 'ignored') {
-      return;
-    }
-
-    this.updateLivesDisplay();
-    if (hitResult.kind === 'end_run') {
-      void this.finishRun('GAME_OVER');
-      return;
-    }
-
-    this.startRespawnSequence();
-  }
-
-  private startRespawnSequence() {
-    this.setState('player_respawn');
-    this.playerBody.setVelocity(0);
-    this.playerBody.enable = false;
-    this.player.setVisible(false);
-    this.statusText.setText('Respawning...');
-    this.respawnTimer?.destroy();
-    this.respawnTimer = this.time.delayedCall(RESPAWN_DELAY_MS, () => {
-      this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT - 60);
-      this.playerController.resetPosition(WORLD_WIDTH / 2);
-      this.playerBody.enable = true;
-      this.player.setVisible(true);
-      this.setState('playing');
-      this.statusText.setText('Run live - survive and score!');
-    });
-  }
-
-  private async finishRun(reason: 'GAME_OVER' | 'ENEMY_REACHED_BOTTOM') {
-    if (this.state !== 'playing') return;
-    this.setState('run_ending');
-
+  private stopActiveTimers() {
     this.spawnTimer?.destroy();
     this.spawnTimer = undefined;
-    this.respawnTimer?.destroy();
-    this.respawnTimer = undefined;
+    this.autoFireTimer = undefined;
+  }
 
+  private freezeEnemies() {
     this.enemies.setVelocityY(0);
     this.enemies.children.each((enemy) => {
       const body = (enemy as Phaser.GameObjects.Rectangle)
@@ -377,10 +405,19 @@ class SpaceBlasterScene extends Phaser.Scene {
       body.setVelocity(0);
       return false;
     });
+  }
 
-    this.statusText.setText(reason === 'GAME_OVER' ? 'Game over' : 'Run over');
-    this.playAgainBtn.setVisible(true);
+  private handlePlayerHit() {
+    if (this.runStateMachine.state !== RunState.PLAYING) return;
+    this.remainingLives -= 1;
+    if (this.remainingLives > 0) {
+      this.runStateMachine.requestRespawn();
+      return;
+    }
+    this.runStateMachine.requestEndRun('player_death');
+  }
 
+  private async submitScoreIfNeeded() {
     if (!this.canSubmitScore || this.submitting) {
       this.setState('gameover');
       this.onGameOver?.(this.score);
@@ -408,14 +445,131 @@ class SpaceBlasterScene extends Phaser.Scene {
     }
   }
 
+  private beginNewRunSession() {
+    this.runStarted = false;
+    this.score = 0;
+    this.currentWaveIndex = 0;
+    this.waveSpawnRemaining = this.getWaveSpawnCount(this.currentWaveIndex);
+    this.waveClearRequested = false;
+    this.remainingLives =
+      this.deps.gameConfig.defaultLives && this.deps.gameConfig.defaultLives > 0
+        ? this.deps.gameConfig.defaultLives
+        : 3;
+    this.startTime = null;
+    this.scoreText.setText('Score: 0');
+    this.canSubmitScore = true;
+  }
+
+  private async ensureRunStarted() {
+    if (this.runStarted) return;
+    this.runStarted = true;
+    this.startTime = Date.now();
+    try {
+      await this.deps.sdk.startRun();
+    } catch {
+      this.canSubmitScore = false;
+      this.statusText.setText('Sign in to submit score');
+    }
+  }
+
+  private onCountdownTick(remainingMs: number) {
+    const seconds = Math.max(1, Math.ceil(remainingMs / 1000));
+    this.statusText.setText(`Starting in ${seconds}...`);
+  }
+
+  private getWaveSpawnCount(index: number): number {
+    const level = this.deps.levelConfigs[0];
+    const wave = level?.waves?.[index];
+    if (!wave || typeof wave.count !== 'number') return 1;
+    return wave.count > 0 ? wave.count : 1;
+  }
+
+  private hasNextWave(): boolean {
+    const level = this.deps.levelConfigs[0];
+    if (!level?.waves) return false;
+    return this.currentWaveIndex + 1 < level.waves.length;
+  }
+
+  private moveToNextWave(): void {
+    this.currentWaveIndex += 1;
+    this.waveSpawnRemaining = this.getWaveSpawnCount(this.currentWaveIndex);
+    this.waveClearRequested = false;
+  }
+
+  private onEnterRunState(state: RunState, from: RunState) {
+    switch (state) {
+      case RunState.READY:
+        this.resetEntities();
+        this.beginNewRunSession();
+        this.playAgainBtn.setVisible(false);
+        this.statusText.setText('Press space or tap to start');
+        this.onReady?.();
+        break;
+      case RunState.COUNTDOWN:
+        this.stopActiveTimers();
+        this.resetEntities();
+        if (from === RunState.READY || from === RunState.RESULTS) {
+          this.beginNewRunSession();
+        }
+        if (from === RunState.WAVE_CLEAR) {
+          this.moveToNextWave();
+        }
+        void this.ensureRunStarted();
+        break;
+      case RunState.PLAYING:
+        this.waveClearRequested = false;
+        this.statusText.setText(`Run live - ${this.remainingLives} lives left`);
+        this.spawnTimer = this.time.addEvent({
+          delay: 1000,
+          loop: true,
+          callback: () => this.spawnEnemy(),
+        });
+        this.autoFireTimer = this.time.addEvent({
+          delay: 480,
+          loop: true,
+          callback: () => this.fireBullet(),
+        });
+        break;
+      case RunState.PLAYER_RESPAWN:
+        this.stopActiveTimers();
+        this.resetEntities();
+        this.statusText.setText(
+          `Respawning (${this.remainingLives} lives left)`,
+        );
+        break;
+      case RunState.WAVE_CLEAR:
+        this.stopActiveTimers();
+        this.resetEntities();
+        if (!this.hasNextWave()) {
+          this.statusText.setText('All waves cleared');
+          this.runStateMachine.requestEndRun('all_waves_cleared');
+          break;
+        }
+        this.statusText.setText('Wave clear');
+        break;
+      case RunState.RUN_ENDING:
+        this.stopActiveTimers();
+        this.freezeEnemies();
+        this.statusText.setText('Run over');
+        break;
+      case RunState.RESULTS:
+        this.playAgainBtn.setVisible(true);
+        void this.submitScoreIfNeeded();
+        break;
+      case RunState.ERROR:
+        this.stopActiveTimers();
+        this.statusText.setText('Runtime error');
+        break;
+      default:
+        break;
+    }
+  }
+
   private restartGame() {
     if (this.submitting) return;
-    this.setState('idle');
-    this.statusText.setText('Press space or tap to start');
-    this.playAgainBtn.setVisible(false);
-    this.lifeSystem.reset();
-    this.updateLivesDisplay();
     this.resetEntities();
+    this.playAgainBtn.setVisible(false);
+    this.runStateMachine.requestStart();
   }
 
   private setState(nextState: GameState) {
@@ -424,14 +578,13 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   destroyResources() {
-    this.spawnTimer?.destroy();
-    this.spawnTimer = undefined;
-    this.respawnTimer?.destroy();
-    this.respawnTimer = undefined;
+    this.stopActiveTimers();
     this.enemies.clear(true, true);
     this.weaponSystem.clear();
     this.sound?.stopAll();
     this.sound?.removeAll();
+    this.runStateMachine.dispose();
+    this.runBus.clear();
     this.disposables.disposeAll();
   }
 }
