@@ -2,6 +2,7 @@ import type {
   FormationLayoutEntryV1,
   ResolvedLevelWaveV1,
 } from '@playmasters/types';
+import { EnemyLocalState } from '../enemies/EnemyLocalState';
 import type { RunContext } from '../runtime';
 import {
   computeExtentsFromOffsets,
@@ -31,6 +32,7 @@ export type FormationEnemyManager = {
 
 type FormationSlotAssignment = SlotLocalOffset & {
   enemy: FormationEnemy;
+  localState: EnemyLocalState;
 };
 
 type FormationSystemOptions = {
@@ -146,19 +148,26 @@ export class FormationSystem {
 
     for (const slot of offsets) {
       const enemy = this.enemyManager.spawnEnemy(wave.enemyId, 0, 0);
-      this.slots.push({ ...slot, enemy });
+      this.slots.push({
+        ...slot,
+        enemy,
+        localState: EnemyLocalState.FORMATION,
+      });
     }
 
     this.applyCurrentPose();
   }
 
   update(simDtMs: number): void {
+    this.clearDeadReservations();
+    const aliveEnemies = this.getAliveSlots().length;
+    if (aliveEnemies === 0) return;
+
+    this.updateEnrageState(simDtMs, aliveEnemies);
+    this.updateSpeed(simDtMs, aliveEnemies);
     // Bounds/extents are based on occupied slots so the formation narrows as enemies are removed.
     const occupied = this.getOccupiedSlots();
     if (occupied.length === 0) return;
-    const aliveEnemies = occupied.length;
-    this.updateEnrageState(simDtMs, aliveEnemies);
-    this.updateSpeed(simDtMs, aliveEnemies);
 
     const bounds = this.getPlayBounds();
     const halfEnemyWidth = this.getHalfEnemyWidth(occupied);
@@ -183,6 +192,45 @@ export class FormationSystem {
       x: this.state.originX + slot.localX,
       y: this.state.originY + slot.localY,
     };
+  }
+
+  getReservedSlotId(enemy: FormationEnemy): string | undefined {
+    const slot = this.slots.find((entry) => entry.enemy === enemy);
+    return slot?.slotId;
+  }
+
+  getReservedSlotWorldPose(
+    enemy: FormationEnemy,
+  ): { x: number; y: number } | undefined {
+    const slot = this.slots.find((entry) => entry.enemy === enemy);
+    if (!slot) return undefined;
+    return {
+      x: this.state.originX + slot.localX,
+      y: this.state.originY + slot.localY,
+    };
+  }
+
+  getManagedEnemies(): FormationEnemy[] {
+    return this.slots.map((slot) => slot.enemy);
+  }
+
+  getEnemyLocalState(enemy: FormationEnemy): EnemyLocalState | undefined {
+    return this.slots.find((entry) => entry.enemy === enemy)?.localState;
+  }
+
+  setEnemyLocalState(
+    enemy: FormationEnemy,
+    localState: EnemyLocalState,
+  ): void {
+    const slot = this.slots.find((entry) => entry.enemy === enemy);
+    if (!slot) return;
+    slot.localState = localState;
+  }
+
+  onEnemyDeath(enemy: FormationEnemy): void {
+    const slotIndex = this.slots.findIndex((entry) => entry.enemy === enemy);
+    if (slotIndex < 0) return;
+    this.slots.splice(slotIndex, 1);
   }
 
   getMotionDiagnostics(): {
@@ -212,8 +260,16 @@ export class FormationSystem {
   private getOccupiedSlots(): FormationSlotAssignment[] {
     const active = new Set(this.enemyManager.getActiveEnemies());
     return this.slots.filter(
-      (slot) => slot.enemy.active && active.has(slot.enemy),
+      (slot) =>
+        slot.enemy.active &&
+        active.has(slot.enemy) &&
+        slot.localState === EnemyLocalState.FORMATION,
     );
+  }
+
+  private getAliveSlots(): FormationSlotAssignment[] {
+    const active = new Set(this.enemyManager.getActiveEnemies());
+    return this.slots.filter((slot) => slot.enemy.active && active.has(slot.enemy));
   }
 
   private getHalfEnemyWidth(occupied: FormationSlotAssignment[]): number {
@@ -244,6 +300,16 @@ export class FormationSystem {
     this.enraged = false;
     this.enrageElapsedMs = 0;
     this.forceWaveCompleteRequested = false;
+  }
+
+  private clearDeadReservations(): void {
+    const active = new Set(this.enemyManager.getActiveEnemies());
+    this.slots = this.slots.filter(
+      (slot) =>
+        slot.localState !== EnemyLocalState.DEAD &&
+        slot.enemy.active &&
+        active.has(slot.enemy),
+    );
   }
 
   private updateSpeed(simDtMs: number, aliveEnemies: number): void {
