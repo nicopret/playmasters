@@ -1,8 +1,10 @@
 import type { FormationLayoutEntryV1 } from '@playmasters/types';
 import {
+  computeRampTargetSpeed,
   computeExtentsFromOffsets,
   computeSlotLocalOffsets,
   computeWorldPositions,
+  easeToward,
   stepFormation,
   type FormationState,
 } from './formation-motion';
@@ -79,5 +81,54 @@ describe('formation-motion', () => {
     expect(result.state.originY).toBe(28);
     const leftExtent = result.state.originX + extents.minLocalX - extents.halfEnemyWidth;
     expect(leftExtent).toBeCloseTo(0, 8);
+  });
+
+  it('computes monotonic ramp target speed as enemies die', () => {
+    const aliveSeries = [20, 10, 5, 1];
+    const targets = aliveSeries.map((aliveEnemies) =>
+      computeRampTargetSpeed({
+        baseSpeed: 100,
+        initialEnemies: 20,
+        aliveEnemies,
+        ramp: {
+          maxMultiplier: 2,
+          exponent: 1.25,
+          minAliveForRamp: 1,
+        },
+      }),
+    );
+
+    expect(targets[0]).toBeCloseTo(100, 8);
+    expect(targets[1]).toBeGreaterThanOrEqual(targets[0]);
+    expect(targets[2]).toBeGreaterThanOrEqual(targets[1]);
+    expect(targets[3]).toBeGreaterThanOrEqual(targets[2]);
+    expect(targets[3]).toBeLessThanOrEqual(200);
+  });
+
+  it('smoothes speed similarly across variable dt steps', () => {
+    const target = 180;
+    let speed16 = 100;
+    let speed33 = 100;
+
+    for (let idx = 0; idx < 60; idx += 1) {
+      speed16 = easeToward({
+        current: speed16,
+        target,
+        dtMs: 16,
+        smoothingPerSecond: 7,
+      });
+    }
+    for (let idx = 0; idx < 30; idx += 1) {
+      speed33 = easeToward({
+        current: speed33,
+        target,
+        dtMs: 33,
+        smoothingPerSecond: 7,
+      });
+    }
+
+    expect(Math.abs(speed16 - speed33)).toBeLessThan(0.05);
+    expect(speed16).toBeGreaterThan(100);
+    expect(speed33).toBeGreaterThan(100);
   });
 });

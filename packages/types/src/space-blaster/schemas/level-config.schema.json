@@ -15,6 +15,26 @@
             "minItems": 0,
             "uniqueItems": true
         },
+        "fleetSpeedRamp": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "maxMultiplier": { "type": "number", "minimum": 1 },
+                "exponent": { "type": "number", "minimum": 0.1 },
+                "smoothingPerSecond": { "type": "number", "minimum": 0.1 },
+                "minAliveForRamp": { "type": "integer", "minimum": 1 }
+            }
+        },
+        "lastEnemiesEnrage": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "threshold": { "type": "integer", "minimum": 0 },
+                "speedMultiplier": { "type": "number", "minimum": 1 },
+                "timeoutMs": { "type": "number", "minimum": 1 },
+                "autoCompleteOnTimeout": { "type": "boolean" }
+            }
+        },
         "scoreMultiplier": { "type": "number", "minimum": 1, "maximum": 100 },
         "shooting": { "type": "number", "minimum": 1, "maximum": 100 },
         "speed": { "type": "number", "minimum": 1, "maximum": 100 },

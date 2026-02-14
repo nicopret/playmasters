@@ -12,6 +12,12 @@ const createResolvedConfig = (): ResolvedGameConfigV1 => ({
     {
       layoutId: 'layout-a',
       speed: 40,
+      fleetSpeedRamp: {
+        maxMultiplier: 2,
+        exponent: 1.25,
+        smoothingPerSecond: 7,
+        minAliveForRamp: 1,
+      },
       waves: [{ enemyId: 'enemy-a', count: 3 }],
     },
   ],
@@ -168,5 +174,118 @@ describe('FormationSystem', () => {
     expect(afterBounce?.x).toBeCloseTo(95, 8);
     expect(afterBounce?.y).toBeCloseTo(24, 8);
     expect((afterNextStep?.x ?? 0) < (afterBounce?.x ?? 0)).toBe(true);
+  });
+
+  it('activates enrage at threshold and forces wave complete on timeout', () => {
+    const enemies: FormationEnemy[] = [];
+    const forceCompleteReasons: string[] = [];
+    const resolvedConfig = createResolvedConfig();
+    resolvedConfig.levelConfigs[0].lastEnemiesEnrage = {
+      threshold: 2,
+      speedMultiplier: 3,
+      timeoutMs: 1000,
+      autoCompleteOnTimeout: true,
+    };
+    const system = new FormationSystem({
+      ctx: {
+        sdk: {} as never,
+        resolvedConfig,
+        configHash: resolvedConfig.configHash,
+        mountedAt: '2026-02-14T00:00:00.000Z',
+        hasPendingUpdate: false,
+      },
+      playBounds: () => ({ minX: 0, maxX: 200, minY: 0 }),
+      enemyManager: {
+        spawnEnemy: () => {
+          const enemy: FormationEnemy = {
+            active: true,
+            x: 0,
+            y: 0,
+            width: 10,
+            setPosition: (x: number, y: number) => {
+              enemy.x = x;
+              enemy.y = y;
+            },
+          };
+          enemies.push(enemy);
+          return enemy;
+        },
+        getActiveEnemies: () => enemies.filter((enemy) => enemy.active),
+        clearEnemies: () => {
+          enemies.splice(0, enemies.length);
+        },
+      },
+      onForceWaveComplete: (reason) => forceCompleteReasons.push(reason),
+    });
+
+    system.spawnFormation({ enemyId: 'enemy-a', count: 3 });
+    enemies[0].active = false;
+
+    system.update(400);
+    const afterEnrageStart = system.getMotionDiagnostics();
+    expect(afterEnrageStart.enraged).toBe(true);
+    expect(forceCompleteReasons).toEqual([]);
+
+    system.update(500);
+    expect(forceCompleteReasons).toEqual([]);
+
+    system.update(200);
+    expect(forceCompleteReasons).toEqual(['ENRAGE_TIMEOUT']);
+
+    system.update(1000);
+    expect(forceCompleteReasons).toEqual(['ENRAGE_TIMEOUT']);
+  });
+
+  it('does not force-complete when last enemies are cleared before timeout', () => {
+    const enemies: FormationEnemy[] = [];
+    const forceCompleteReasons: string[] = [];
+    const resolvedConfig = createResolvedConfig();
+    resolvedConfig.levelConfigs[0].lastEnemiesEnrage = {
+      threshold: 2,
+      speedMultiplier: 3,
+      timeoutMs: 1000,
+      autoCompleteOnTimeout: true,
+    };
+    const system = new FormationSystem({
+      ctx: {
+        sdk: {} as never,
+        resolvedConfig,
+        configHash: resolvedConfig.configHash,
+        mountedAt: '2026-02-14T00:00:00.000Z',
+        hasPendingUpdate: false,
+      },
+      playBounds: () => ({ minX: 0, maxX: 200, minY: 0 }),
+      enemyManager: {
+        spawnEnemy: () => {
+          const enemy: FormationEnemy = {
+            active: true,
+            x: 0,
+            y: 0,
+            width: 10,
+            setPosition: (x: number, y: number) => {
+              enemy.x = x;
+              enemy.y = y;
+            },
+          };
+          enemies.push(enemy);
+          return enemy;
+        },
+        getActiveEnemies: () => enemies.filter((enemy) => enemy.active),
+        clearEnemies: () => {
+          enemies.splice(0, enemies.length);
+        },
+      },
+      onForceWaveComplete: (reason) => forceCompleteReasons.push(reason),
+    });
+
+    system.spawnFormation({ enemyId: 'enemy-a', count: 3 });
+    enemies[0].active = false;
+    enemies[1].active = false;
+
+    system.update(300);
+    enemies[2].active = false;
+    system.update(1000);
+
+    expect(forceCompleteReasons).toEqual([]);
   });
 });

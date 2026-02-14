@@ -35,6 +35,52 @@ export type FormationStepResult = {
   reversed: boolean;
 };
 
+export type FleetRampConfig = {
+  maxMultiplier: number;
+  exponent: number;
+  minAliveForRamp: number;
+};
+
+export type FleetEnrageConfig = {
+  threshold: number;
+  speedMultiplier: number;
+  timeoutMs: number;
+  autoCompleteOnTimeout: boolean;
+};
+
+export const smoothstep = (value: number): number => {
+  const t = Math.max(0, Math.min(1, value));
+  return t * t * (3 - 2 * t);
+};
+
+export const computeRampTargetSpeed = (params: {
+  baseSpeed: number;
+  initialEnemies: number;
+  aliveEnemies: number;
+  ramp: FleetRampConfig;
+}): number => {
+  const initial = Math.max(1, params.initialEnemies);
+  const boundedAlive = Math.max(
+    params.ramp.minAliveForRamp,
+    Math.min(initial, params.aliveEnemies),
+  );
+  const progress = 1 - boundedAlive / initial;
+  const curved = Math.pow(smoothstep(progress), params.ramp.exponent);
+  const multiplier = 1 + (params.ramp.maxMultiplier - 1) * curved;
+  return params.baseSpeed * multiplier;
+};
+
+export const easeToward = (params: {
+  current: number;
+  target: number;
+  dtMs: number;
+  smoothingPerSecond: number;
+}): number => {
+  const dtSeconds = params.dtMs / 1000;
+  const blend = 1 - Math.exp(-Math.max(0, params.smoothingPerSecond) * dtSeconds);
+  return params.current + (params.target - params.current) * blend;
+};
+
 export const computeSlotLocalOffsets = (
   layout: FormationLayoutEntryV1,
   requestedCount: number,

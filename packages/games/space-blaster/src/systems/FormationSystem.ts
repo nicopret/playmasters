@@ -5,8 +5,12 @@ import type {
 import type { RunContext } from '../runtime';
 import {
   computeExtentsFromOffsets,
+  computeRampTargetSpeed,
   computeSlotLocalOffsets,
+  easeToward,
   stepFormation,
+  type FleetEnrageConfig,
+  type FleetRampConfig,
   type FormationState,
   type SlotLocalOffset,
 } from './formation-motion';
@@ -33,29 +37,56 @@ type FormationSystemOptions = {
   ctx: RunContext;
   playBounds: () => { minX: number; maxX: number; minY: number };
   enemyManager: FormationEnemyManager;
+  onForceWaveComplete?: (reason: 'ENRAGE_TIMEOUT') => void;
   levelIndex?: number;
 };
+
+const DEFAULT_FLEET_RAMP_CONFIG: FleetRampConfig = {
+  maxMultiplier: 2,
+  exponent: 1.25,
+  minAliveForRamp: 1,
+};
+
+const DEFAULT_ENRAGE_CONFIG: FleetEnrageConfig = {
+  threshold: 0,
+  speedMultiplier: 2.8,
+  timeoutMs: 7000,
+  autoCompleteOnTimeout: true,
+};
+
+const DEFAULT_SPEED_SMOOTHING_PER_SECOND = 7;
 
 export class FormationSystem {
   private readonly ctx: RunContext;
   private readonly getPlayBounds: FormationSystemOptions['playBounds'];
   private readonly enemyManager: FormationEnemyManager;
+  private readonly onForceWaveComplete?: FormationSystemOptions['onForceWaveComplete'];
   private readonly levelIndex: number;
   private slots: FormationSlotAssignment[] = [];
   private state: FormationState = { originX: 0, originY: 0, direction: 1 };
-  private fleetSpeed = 0;
+  private baseFleetSpeed = 0;
+  private currentFleetSpeed = 0;
+  private speedSmoothingPerSecond = DEFAULT_SPEED_SMOOTHING_PER_SECOND;
   private descendStep = 0;
+  private initialEnemyCount = 0;
+  private rampConfig = DEFAULT_FLEET_RAMP_CONFIG;
+  private enrageConfig = DEFAULT_ENRAGE_CONFIG;
+  private enraged = false;
+  private enrageElapsedMs = 0;
+  private forceWaveCompleteRequested = false;
 
   constructor(options: FormationSystemOptions) {
     this.ctx = options.ctx;
     this.getPlayBounds = options.playBounds;
     this.enemyManager = options.enemyManager;
+    this.onForceWaveComplete = options.onForceWaveComplete;
     this.levelIndex = options.levelIndex ?? 0;
   }
 
   clear(): void {
     this.enemyManager.clearEnemies();
     this.slots = [];
+    this.resetWaveMotionState();
   }
 
   spawnFormation(wave: ResolvedLevelWaveV1): void {
@@ -67,13 +98,39 @@ export class FormationSystem {
 
     this.enemyManager.clearEnemies();
     this.slots = [];
-    this.fleetSpeed =
+    this.baseFleetSpeed =
       typeof level.speed === 'number' ? level.speed : layout.spacing.x;
+    this.currentFleetSpeed = this.baseFleetSpeed;
+    this.speedSmoothingPerSecond =
+      level.fleetSpeedRamp?.smoothingPerSecond ?? DEFAULT_SPEED_SMOOTHING_PER_SECOND;
+    this.rampConfig = {
+      maxMultiplier:
+        level.fleetSpeedRamp?.maxMultiplier ?? DEFAULT_FLEET_RAMP_CONFIG.maxMultiplier,
+      exponent: level.fleetSpeedRamp?.exponent ?? DEFAULT_FLEET_RAMP_CONFIG.exponent,
+      minAliveForRamp:
+        level.fleetSpeedRamp?.minAliveForRamp ??
+        DEFAULT_FLEET_RAMP_CONFIG.minAliveForRamp,
+    };
+    this.enrageConfig = {
+      threshold:
+        level.lastEnemiesEnrage?.threshold ?? DEFAULT_ENRAGE_CONFIG.threshold,
+      speedMultiplier:
+        level.lastEnemiesEnrage?.speedMultiplier ??
+        DEFAULT_ENRAGE_CONFIG.speedMultiplier,
+      timeoutMs: level.lastEnemiesEnrage?.timeoutMs ?? DEFAULT_ENRAGE_CONFIG.timeoutMs,
+      autoCompleteOnTimeout:
+        level.lastEnemiesEnrage?.autoCompleteOnTimeout ??
+        DEFAULT_ENRAGE_CONFIG.autoCompleteOnTimeout,
+    };
     // The current runtime schema has no explicit descendStep, so use layout spacing.
     this.descendStep = layout.spacing.y;
 
     const requestedCount =
       typeof wave.count === 'number' && wave.count > 0 ? wave.count : 1;
+    this.initialEnemyCount = requestedCount;
+    this.enraged = false;
+    this.enrageElapsedMs = 0;
+    this.forceWaveCompleteRequested = false;
     const offsets = computeSlotLocalOffsets(layout, requestedCount);
     const bounds = this.getPlayBounds();
 
@@ -95,6 +152,9 @@ export class FormationSystem {
     // Bounds/extents are based on occupied slots so the formation narrows as enemies are removed.
     const occupied = this.getOccupiedSlots();
     if (occupied.length === 0) return;
+    const aliveEnemies = occupied.length;
+    this.updateEnrageState(simDtMs, aliveEnemies);
+    this.updateSpeed(simDtMs, aliveEnemies);
 
     const bounds = this.getPlayBounds();
     const halfEnemyWidth = this.getHalfEnemyWidth(occupied);
@@ -102,7 +162,7 @@ export class FormationSystem {
     this.state = stepFormation({
       state: this.state,
       dtMs: simDtMs,
-      speedPxPerSecond: this.fleetSpeed,
+      speedPxPerSecond: this.currentFleetSpeed,
       descendStep: this.descendStep,
       minBoundX: bounds.minX,
       maxBoundX: bounds.maxX,
@@ -118,6 +178,24 @@ export class FormationSystem {
     return {
       x: this.state.originX + slot.localX,
       y: this.state.originY + slot.localY,
+    };
+  }
+
+  getMotionDiagnostics(): {
+    currentFleetSpeed: number;
+    baseFleetSpeed: number;
+    initialEnemyCount: number;
+    enraged: boolean;
+    enrageElapsedMs: number;
+    forceWaveCompleteRequested: boolean;
+  } {
+    return {
+      currentFleetSpeed: this.currentFleetSpeed,
+      baseFleetSpeed: this.baseFleetSpeed,
+      initialEnemyCount: this.initialEnemyCount,
+      enraged: this.enraged,
+      enrageElapsedMs: this.enrageElapsedMs,
+      forceWaveCompleteRequested: this.forceWaveCompleteRequested,
     };
   }
 
@@ -150,6 +228,62 @@ export class FormationSystem {
         this.state.originX + slot.localX,
         this.state.originY + slot.localY,
       );
+    }
+  }
+
+  private resetWaveMotionState(): void {
+    this.initialEnemyCount = 0;
+    this.currentFleetSpeed = 0;
+    this.baseFleetSpeed = 0;
+    this.enraged = false;
+    this.enrageElapsedMs = 0;
+    this.forceWaveCompleteRequested = false;
+  }
+
+  private updateSpeed(simDtMs: number, aliveEnemies: number): void {
+    let targetSpeed = computeRampTargetSpeed({
+      baseSpeed: this.baseFleetSpeed,
+      initialEnemies: this.initialEnemyCount,
+      aliveEnemies,
+      ramp: this.rampConfig,
+    });
+    if (this.enraged) {
+      targetSpeed = Math.max(
+        targetSpeed,
+        this.baseFleetSpeed * this.enrageConfig.speedMultiplier,
+      );
+    }
+    this.currentFleetSpeed = easeToward({
+      current: this.currentFleetSpeed,
+      target: targetSpeed,
+      dtMs: simDtMs,
+      smoothingPerSecond: this.speedSmoothingPerSecond,
+    });
+  }
+
+  private updateEnrageState(simDtMs: number, aliveEnemies: number): void {
+    if (
+      !this.enraged &&
+      this.enrageConfig.threshold > 0 &&
+      aliveEnemies > 0 &&
+      aliveEnemies <= this.enrageConfig.threshold
+    ) {
+      this.enraged = true;
+      this.enrageElapsedMs = 0;
+    }
+
+    if (!this.enraged || aliveEnemies <= 0) {
+      return;
+    }
+
+    this.enrageElapsedMs += simDtMs;
+    if (
+      this.enrageElapsedMs >= this.enrageConfig.timeoutMs &&
+      this.enrageConfig.autoCompleteOnTimeout &&
+      !this.forceWaveCompleteRequested
+    ) {
+      this.forceWaveCompleteRequested = true;
+      this.onForceWaveComplete?.('ENRAGE_TIMEOUT');
     }
   }
 }

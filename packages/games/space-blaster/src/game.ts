@@ -199,6 +199,9 @@ class SpaceBlasterScene extends Phaser.Scene {
           this.enemies.clear(true, true);
         },
       },
+      onForceWaveComplete: () => {
+        this.requestWaveClearOnce();
+      },
     });
 
     this.scoreText = this.add.text(16, 12, 'Score: 0', {
@@ -353,8 +356,7 @@ class SpaceBlasterScene extends Phaser.Scene {
           !this.waveClearRequested &&
           this.enemies.countActive(true) === 0
         ) {
-          this.waveClearRequested = true;
-          this.runStateMachine.requestWaveClear();
+          this.requestWaveClearOnce();
         }
 
         this.weaponSystem.update(dtMs);
@@ -504,6 +506,12 @@ class SpaceBlasterScene extends Phaser.Scene {
     const wave = this.getCurrentWave(this.currentWaveIndex);
     if (!wave) return;
     this.formationSystem.spawnFormation(wave);
+  }
+
+  private requestWaveClearOnce(): void {
+    if (this.waveClearRequested) return;
+    this.waveClearRequested = true;
+    this.runStateMachine.requestWaveClear();
   }
 
   private onEnterRunState(state: RunState, from: RunState) {
