@@ -8,12 +8,14 @@ type RunIntent =
   | { type: 'START_REQUESTED' }
   | { type: 'RESPAWN_REQUESTED' }
   | { type: 'WAVE_CLEAR_REQUESTED' }
+  | { type: 'LEVEL_COMPLETE_REQUESTED' }
   | { type: 'RUN_END_REQUESTED'; reason: string };
 
 export type RunStateMachineConfig = {
   countdownMs: number;
   respawnDelayMs: number;
   waveClearMs: number;
+  levelCompleteMs: number;
   runEndingDelayMs: number;
 };
 
@@ -54,6 +56,9 @@ export class RunStateMachine {
       }),
       this.bus.on(RUN_EVENT.REQUEST_WAVE_CLEAR, () => {
         this.intents.push({ type: 'WAVE_CLEAR_REQUESTED' });
+      }),
+      this.bus.on(RUN_EVENT.REQUEST_LEVEL_COMPLETE, () => {
+        this.intents.push({ type: 'LEVEL_COMPLETE_REQUESTED' });
       }),
       this.bus.on(RUN_EVENT.REQUEST_END, ({ reason }) => {
         this.intents.push({ type: 'RUN_END_REQUESTED', reason });
@@ -96,6 +101,10 @@ export class RunStateMachine {
     this.bus.emit(RUN_EVENT.REQUEST_WAVE_CLEAR, undefined);
   }
 
+  requestLevelComplete(): void {
+    this.bus.emit(RUN_EVENT.REQUEST_LEVEL_COMPLETE, undefined);
+  }
+
   update(dtMs: number): void {
     if (dtMs < 0) {
       throw new Error('RunStateMachine requires non-negative dtMs.');
@@ -126,6 +135,12 @@ export class RunStateMachine {
       case RunState.WAVE_CLEAR: {
         if (this.elapsedInStateMs >= this.config.waveClearMs) {
           this.transition(RunState.COUNTDOWN, 'wave_clear_complete');
+        }
+        break;
+      }
+      case RunState.LEVEL_COMPLETE: {
+        if (this.elapsedInStateMs >= this.config.levelCompleteMs) {
+          this.transition(RunState.COUNTDOWN, 'level_complete_complete');
         }
         break;
       }
@@ -168,12 +183,18 @@ export class RunStateMachine {
             this.transition(RunState.WAVE_CLEAR, 'wave_clear');
           }
           break;
+        case 'LEVEL_COMPLETE_REQUESTED':
+          if (this._state === RunState.PLAYING) {
+            this.transition(RunState.LEVEL_COMPLETE, 'level_complete');
+          }
+          break;
         case 'RUN_END_REQUESTED':
           if (
             this._state === RunState.PLAYING ||
             this._state === RunState.PLAYER_RESPAWN ||
             this._state === RunState.COUNTDOWN ||
-            this._state === RunState.WAVE_CLEAR
+            this._state === RunState.WAVE_CLEAR ||
+            this._state === RunState.LEVEL_COMPLETE
           ) {
             this.transition(RunState.RUN_ENDING, 'run_end_requested');
           }
@@ -209,6 +230,9 @@ export class RunStateMachine {
         break;
       case RunState.WAVE_CLEAR:
         this.bus.emit(RUN_EVENT.WAVE_CLEAR, undefined);
+        break;
+      case RunState.LEVEL_COMPLETE:
+        this.bus.emit(RUN_EVENT.LEVEL_COMPLETE, undefined);
         break;
       case RunState.RUN_ENDING:
         this.bus.emit(RUN_EVENT.ENDING, undefined);

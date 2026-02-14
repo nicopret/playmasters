@@ -3,7 +3,7 @@ import type {
   EmbeddedGame,
   EmbeddedGameSdk,
   EnemyCatalogEntryV1,
-  ResolvedLevelWaveV1,
+  ResolvedLevelConfigV1,
   ResolvedGameConfigV1,
 } from '@playmasters/types';
 import {
@@ -25,6 +25,7 @@ import { EnemyFireSystem } from './systems/EnemyFireSystem';
 import { EnemyController } from './enemies/EnemyController';
 import { DiveScheduler } from './enemies/DiveScheduler';
 import { EnemyLocalState } from './enemies/EnemyLocalState';
+import { LevelSystem } from './levels/LevelSystem';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -43,6 +44,7 @@ const DEFAULT_RESPAWN_INVULNERABILITY_MS = 1200;
 const COUNTDOWN_MS = 1200;
 const RESPAWN_DELAY_MS = 650;
 const WAVE_CLEAR_MS = 750;
+const LEVEL_COMPLETE_MS = 900;
 const RUN_ENDING_DELAY_MS = 900;
 
 class SpaceBlasterScene extends Phaser.Scene {
@@ -61,6 +63,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   private enemyWeaponSystem!: WeaponSystem;
   private enemyFireSystem?: EnemyFireSystem;
   private diveScheduler?: DiveScheduler<Phaser.GameObjects.Rectangle>;
+  private levelSystem!: LevelSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
   private enemyControllers = new Map<
     Phaser.GameObjects.Rectangle,
@@ -77,8 +80,6 @@ class SpaceBlasterScene extends Phaser.Scene {
   private canSubmitScore = true;
   private submitting = false;
   private runStarted = false;
-  private currentWaveIndex = 0;
-  private waveClearRequested = false;
   private startRequested = false;
 
   private scoreText!: Phaser.GameObjects.Text;
@@ -99,6 +100,7 @@ class SpaceBlasterScene extends Phaser.Scene {
       countdownMs: COUNTDOWN_MS,
       respawnDelayMs: RESPAWN_DELAY_MS,
       waveClearMs: WAVE_CLEAR_MS,
+      levelCompleteMs: LEVEL_COMPLETE_MS,
       runEndingDelayMs: RUN_ENDING_DELAY_MS,
     },
     {
@@ -254,7 +256,19 @@ class SpaceBlasterScene extends Phaser.Scene {
         },
       },
       onForceWaveComplete: () => {
-        this.requestWaveClearOnce();
+        this.levelSystem.forceWaveClear('ENRAGE_TIMEOUT');
+      },
+    });
+    this.levelSystem = new LevelSystem({
+      ctx: this.deps.ctx,
+      bus: this.runBus,
+      runStateMachine: this.runStateMachine,
+      formationSystem: this.formationSystem,
+      getActiveEnemyCount: () => this.enemies.countActive(true),
+      onWaveStarted: ({ wave, level }) => {
+        this.diveScheduler = this.createDiveScheduler(wave.enemyId, level);
+        this.enemyFireSystem = this.createEnemyFireSystem(level);
+        this.initializeEnemyControllers(level);
       },
     });
 
@@ -427,9 +441,7 @@ class SpaceBlasterScene extends Phaser.Scene {
           return false;
         });
 
-        if (!this.waveClearRequested && this.enemies.countActive(true) === 0) {
-          this.requestWaveClearOnce();
-        }
+        this.levelSystem.update(dtMs);
 
         this.weaponSystem.update(dtMs);
         this.enemyWeaponSystem.update(dtMs);
@@ -539,13 +551,12 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.runStarted = false;
     this.startRequested = false;
     this.score = 0;
-    this.currentWaveIndex = 0;
-    this.waveClearRequested = false;
     this.startTime = null;
     this.scoreText.setText('Score: 0');
     this.canSubmitScore = true;
     this.lifeSystem.reset();
     this.updateLivesDisplay();
+    this.levelSystem.startLevel(0);
   }
 
   private async ensureRunStarted() {
@@ -565,35 +576,10 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.statusText.setText(`Starting in ${seconds}...`);
   }
 
-  private getCurrentWave(index: number): ResolvedLevelWaveV1 | undefined {
-    const level = this.deps.levelConfigs[0];
-    return level?.waves?.[index];
-  }
-
-  private hasNextWave(): boolean {
-    const level = this.deps.levelConfigs[0];
-    if (!level?.waves) return false;
-    return this.currentWaveIndex + 1 < level.waves.length;
-  }
-
-  private moveToNextWave(): void {
-    this.currentWaveIndex += 1;
-    this.waveClearRequested = false;
-  }
-
-  private spawnCurrentWaveFormation(): void {
-    const wave = this.getCurrentWave(this.currentWaveIndex);
-    if (!wave) return;
-    this.formationSystem.spawnFormation(wave);
-    this.diveScheduler = this.createDiveScheduler(wave.enemyId);
-    this.enemyFireSystem = this.createEnemyFireSystem();
-    this.initializeEnemyControllers();
-  }
-
   private createDiveScheduler(
     waveEnemyId: string,
+    level: ResolvedLevelConfigV1,
   ): DiveScheduler<Phaser.GameObjects.Rectangle> | undefined {
-    const level = this.deps.levelConfigs[0];
     const waveEnemy = this.deps.enemyCatalog.entries.find(
       (entry) => entry.enemyId === waveEnemyId,
     );
@@ -654,8 +640,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
   }
 
-  private createEnemyFireSystem(): EnemyFireSystem {
-    const level = this.deps.levelConfigs[0];
+  private createEnemyFireSystem(level: ResolvedLevelConfigV1): EnemyFireSystem {
     const fireChancePerSecond =
       typeof level?.shooting === 'number' && level.shooting > 0
         ? level.shooting / 100
@@ -668,18 +653,11 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
   }
 
-  private requestWaveClearOnce(): void {
-    if (this.waveClearRequested) return;
-    this.waveClearRequested = true;
-    this.runStateMachine.requestWaveClear();
-  }
-
-  private initializeEnemyControllers(): void {
+  private initializeEnemyControllers(level: ResolvedLevelConfigV1): void {
     this.enemyControllers.clear();
     const baseSpeed =
       this.formationSystem.getMotionDiagnostics().baseFleetSpeed;
-    const level = this.deps.levelConfigs[0];
-    const currentWave = this.getCurrentWave(this.currentWaveIndex);
+    const currentWave = this.levelSystem.getActiveWave();
     const arrivalThresholdPx = ENEMY_WIDTH / 8;
     const worldBounds = this.physics.world.bounds;
     const fallbackReturnTriggerY =
@@ -742,6 +720,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private onEnterRunState(state: RunState, from: RunState) {
+    this.levelSystem.onEnterRunState(state, from);
     switch (state) {
       case RunState.READY:
         this.resetEntities();
@@ -755,20 +734,15 @@ class SpaceBlasterScene extends Phaser.Scene {
         if (from === RunState.READY || from === RunState.RESULTS) {
           this.beginNewRunSession();
         }
-        if (from === RunState.WAVE_CLEAR) {
-          this.moveToNextWave();
-        }
         if (from === RunState.PLAYER_RESPAWN) {
           this.lifeSystem.startRespawnInvulnerability();
         }
         void this.ensureRunStarted();
         break;
       case RunState.PLAYING:
-        this.waveClearRequested = false;
         this.statusText.setText(
           `Run live - ${this.lifeSystem.lives} lives left`,
         );
-        this.spawnCurrentWaveFormation();
         break;
       case RunState.PLAYER_RESPAWN:
         this.resetEntities();
@@ -780,12 +754,17 @@ class SpaceBlasterScene extends Phaser.Scene {
         break;
       case RunState.WAVE_CLEAR:
         this.resetEntities();
-        if (!this.hasNextWave()) {
+        if (!this.levelSystem.hasNextWave()) {
           this.statusText.setText('All waves cleared');
-          this.runStateMachine.requestEndRun('all_waves_cleared');
           break;
         }
         this.statusText.setText('Wave clear');
+        break;
+      case RunState.LEVEL_COMPLETE:
+        this.resetEntities();
+        this.statusText.setText(
+          `Level ${this.levelSystem.getLevelNumber()} clear`,
+        );
         break;
       case RunState.RUN_ENDING:
         this.statusText.setText('Run over');
