@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import type {
   EmbeddedGame,
   EmbeddedGameSdk,
+  EnemyCatalogEntryV1,
   ResolvedLevelWaveV1,
   ResolvedGameConfigV1,
 } from '@playmasters/types';
@@ -66,6 +67,10 @@ class SpaceBlasterScene extends Phaser.Scene {
     EnemyController
   >();
   private enemyCanDive = new Map<Phaser.GameObjects.Rectangle, boolean>();
+  private enemyProfile = new Map<
+    Phaser.GameObjects.Rectangle,
+    EnemyCatalogEntryV1 | undefined
+  >();
 
   private score = 0;
   private startTime: number | null = null;
@@ -234,6 +239,7 @@ class SpaceBlasterScene extends Phaser.Scene {
           body.setCircle(12);
           this.enemies.add(enemy);
           this.enemyCanDive.set(enemy, enemyEntry?.canDive !== false);
+          this.enemyProfile.set(enemy, enemyEntry);
           return enemy;
         },
         getActiveEnemies: () =>
@@ -243,6 +249,7 @@ class SpaceBlasterScene extends Phaser.Scene {
             .map((enemy) => enemy as Phaser.GameObjects.Rectangle),
         clearEnemies: () => {
           this.enemyCanDive.clear();
+          this.enemyProfile.clear();
           this.enemies.clear(true, true);
         },
       },
@@ -350,6 +357,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.enemyControllers.get(target)?.setDead();
         this.enemyControllers.delete(target);
         this.enemyCanDive.delete(target);
+        this.enemyProfile.delete(target);
         this.formationSystem.onEnemyDeath(target);
         target.destroy();
         this.addScore(10);
@@ -460,6 +468,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.enemyFireSystem = undefined;
     this.diveScheduler = undefined;
     this.enemyCanDive.clear();
+    this.enemyProfile.clear();
     this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT - 60);
     this.playerController.resetPosition(WORLD_WIDTH / 2);
     this.playerBody.setVelocity(0);
@@ -669,19 +678,47 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.enemyControllers.clear();
     const baseSpeed =
       this.formationSystem.getMotionDiagnostics().baseFleetSpeed;
+    const level = this.deps.levelConfigs[0];
     const currentWave = this.getCurrentWave(this.currentWaveIndex);
-    const diveDurationMs = currentWave?.spawnDelayMs ?? RESPAWN_DELAY_MS;
     const arrivalThresholdPx = ENEMY_WIDTH / 8;
+    const worldBounds = this.physics.world.bounds;
+    const fallbackReturnTriggerY =
+      worldBounds.y + worldBounds.height + ENEMY_HEIGHT;
     for (const enemy of this.formationSystem.getManagedEnemies()) {
+      const profile = this.enemyProfile.get(
+        enemy as Phaser.GameObjects.Rectangle,
+      );
+      const divePattern =
+        profile?.divePattern ?? level?.diveMotion?.divePattern ?? 'straight';
+      const diveSpeedPxPerSecond =
+        profile?.diveSpeed ?? level?.diveMotion?.diveSpeed ?? baseSpeed;
+      const maxDiveDurationMs =
+        profile?.maxDiveDurationMs ??
+        level?.diveMotion?.maxDiveDurationMs ??
+        currentWave?.spawnDelayMs ??
+        RESPAWN_DELAY_MS;
+      const returnTriggerY =
+        profile?.returnTriggerY ??
+        level?.diveMotion?.returnTriggerY ??
+        fallbackReturnTriggerY;
       const controller = new EnemyController({
         enemy,
         getReservedSlotPose: () =>
           this.formationSystem.getReservedSlotWorldPose(enemy),
+        getPlayerPose: () => ({ x: this.player.x, y: this.player.y }),
         onLocalStateChanged: (state) =>
           this.formationSystem.setEnemyLocalState(enemy, state),
-        diveSpeedPxPerSecond: baseSpeed,
+        divePattern,
+        diveSpeedPxPerSecond,
+        sineAmplitudePx:
+          profile?.sineAmplitude ?? level?.diveMotion?.sineAmplitude ?? 0,
+        sineFrequencyHz:
+          profile?.sineFrequency ?? level?.diveMotion?.sineFrequency ?? 0,
+        turnRateDegPerSecond:
+          profile?.turnRate ?? level?.diveMotion?.turnRate ?? 0,
         returnSpeedPxPerSecond: baseSpeed,
-        diveDurationMs,
+        maxDiveDurationMs,
+        returnTriggerY,
         arrivalThresholdPx,
       });
       this.enemyControllers.set(
@@ -698,6 +735,7 @@ class SpaceBlasterScene extends Phaser.Scene {
       if (controller.state === EnemyLocalState.DEAD || !enemy.active) {
         this.formationSystem.onEnemyDeath(enemy);
         this.enemyCanDive.delete(enemy);
+        this.enemyProfile.delete(enemy);
         this.enemyControllers.delete(enemy);
       }
     });
@@ -778,6 +816,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.enemyWeaponSystem.clear();
     this.diveScheduler = undefined;
     this.enemyCanDive.clear();
+    this.enemyProfile.clear();
     this.sound?.stopAll();
     this.sound?.removeAll();
     this.runStateMachine.dispose();

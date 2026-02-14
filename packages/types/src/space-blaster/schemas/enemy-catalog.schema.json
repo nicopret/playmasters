@@ -33,7 +33,17 @@
         "speed": { "type": "number", "minimum": 0 },
         "baseScore": { "type": "number", "minimum": 0 },
         "projectileCooldownMs": { "type": "number", "minimum": 0 },
-        "diveCooldownMs": { "type": "number", "minimum": 0 }
+        "diveCooldownMs": { "type": "number", "minimum": 0 },
+        "divePattern": {
+          "type": "string",
+          "enum": ["straight", "sine", "track"]
+        },
+        "diveSpeed": { "type": "number", "minimum": 0 },
+        "sineAmplitude": { "type": "number", "minimum": 0 },
+        "sineFrequency": { "type": "number", "minimum": 0 },
+        "turnRate": { "type": "number", "minimum": 0 },
+        "maxDiveDurationMs": { "type": "number", "minimum": 1 },
+        "returnTriggerY": { "type": "number" }
       }
     }
   }

@@ -23,6 +23,15 @@ export interface ResolvedLevelConfigV1 {
     diveChancePerTick?: number;
     maxConcurrentDivers?: number;
   };
+  diveMotion?: {
+    divePattern?: 'straight' | 'sine' | 'track';
+    diveSpeed?: number;
+    sineAmplitude?: number;
+    sineFrequency?: number;
+    turnRate?: number;
+    maxDiveDurationMs?: number;
+    returnTriggerY?: number;
+  };
   enemyTypes?: string[];
   fleetSpeedRamp?: {
     maxMultiplier?: number;
@@ -76,6 +85,13 @@ export interface EnemyCatalogEntryV1 {
   baseScore?: number;
   projectileCooldownMs?: number;
   diveCooldownMs?: number;
+  divePattern?: 'straight' | 'sine' | 'track';
+  diveSpeed?: number;
+  sineAmplitude?: number;
+  sineFrequency?: number;
+  turnRate?: number;
+  maxDiveDurationMs?: number;
+  returnTriggerY?: number;
 }
 
 export interface EnemyCatalogV1 {
