@@ -3,6 +3,10 @@ import type {
   ResolvedLevelWaveV1,
 } from '@playmasters/types';
 import { EnemyLocalState } from '../enemies/EnemyLocalState';
+import {
+  ShooterEligibility,
+  type ShooterEligibilitySlot,
+} from '../enemies/ShooterEligibility';
 import type { RunContext } from '../runtime';
 import {
   computeExtentsFromOffsets,
@@ -76,6 +80,9 @@ export class FormationSystem {
   private enraged = false;
   private enrageElapsedMs = 0;
   private forceWaveCompleteRequested = false;
+  private readonly shooterEligibility = new ShooterEligibility<FormationEnemy>({
+    getSlots: () => this.getShooterEligibilitySlots(),
+  });
 
   constructor(options: FormationSystemOptions) {
     this.ctx = options.ctx;
@@ -89,6 +96,7 @@ export class FormationSystem {
     this.enemyManager.clearEnemies();
     this.slots = [];
     this.resetWaveMotionState();
+    this.shooterEligibility.clear();
   }
 
   spawnFormation(wave: ResolvedLevelWaveV1): void {
@@ -156,6 +164,7 @@ export class FormationSystem {
     }
 
     this.applyCurrentPose();
+    this.shooterEligibility.rebuildFromFormation();
   }
 
   update(simDtMs: number): void {
@@ -221,13 +230,43 @@ export class FormationSystem {
   setEnemyLocalState(enemy: FormationEnemy, localState: EnemyLocalState): void {
     const slot = this.slots.find((entry) => entry.enemy === enemy);
     if (!slot) return;
+    const priorState = slot.localState;
     slot.localState = localState;
+    if (priorState === localState) return;
+    if (localState === EnemyLocalState.FORMATION) {
+      this.shooterEligibility.onEnemyReattached();
+      return;
+    }
+    this.shooterEligibility.onEnemyDetached();
   }
 
   onEnemyDeath(enemy: FormationEnemy): void {
     const slotIndex = this.slots.findIndex((entry) => entry.enemy === enemy);
     if (slotIndex < 0) return;
     this.slots.splice(slotIndex, 1);
+    this.shooterEligibility.onEnemyDied();
+  }
+
+  isEligibleShooter(enemy: FormationEnemy): boolean {
+    return this.shooterEligibility.isEligible(enemy);
+  }
+
+  getEligibleShooterInColumn(column: number): FormationEnemy | null {
+    return this.shooterEligibility.getEligibleInColumn(column);
+  }
+
+  getEligibleShooters(): Set<FormationEnemy> {
+    return this.shooterEligibility.getAllEligible();
+  }
+
+  pickEligibleShooter(
+    randomFloat: () => number = Math.random,
+  ): FormationEnemy | null {
+    const eligible = Array.from(this.shooterEligibility.getAllEligible());
+    if (eligible.length === 0) return null;
+    const clamped = Math.max(0, Math.min(0.999999999, randomFloat()));
+    const index = Math.floor(clamped * eligible.length);
+    return eligible[index] ?? null;
   }
 
   getMotionDiagnostics(): {
@@ -303,12 +342,16 @@ export class FormationSystem {
 
   private clearDeadReservations(): void {
     const active = new Set(this.enemyManager.getActiveEnemies());
+    const priorLength = this.slots.length;
     this.slots = this.slots.filter(
       (slot) =>
         slot.localState !== EnemyLocalState.DEAD &&
         slot.enemy.active &&
         active.has(slot.enemy),
     );
+    if (this.slots.length !== priorLength) {
+      this.shooterEligibility.rebuildFromFormation();
+    }
   }
 
   private updateSpeed(simDtMs: number, aliveEnemies: number): void {
@@ -356,5 +399,16 @@ export class FormationSystem {
       this.forceWaveCompleteRequested = true;
       this.onForceWaveComplete?.('ENRAGE_TIMEOUT');
     }
+  }
+
+  private getShooterEligibilitySlots(): ShooterEligibilitySlot<FormationEnemy>[] {
+    const active = new Set(this.enemyManager.getActiveEnemies());
+    return this.slots.map((slot) => ({
+      enemy: slot.enemy,
+      row: slot.row,
+      column: slot.column,
+      alive: slot.enemy.active && active.has(slot.enemy),
+      inFormation: slot.localState === EnemyLocalState.FORMATION,
+    }));
   }
 }
