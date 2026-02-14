@@ -20,6 +20,7 @@ import { PlayerController } from './systems/PlayerController';
 import { PlayerLifeSystem } from './systems/PlayerLifeSystem';
 import { WeaponSystem } from './systems/WeaponSystem';
 import { FormationSystem } from './systems/FormationSystem';
+import { EnemyFireSystem } from './systems/EnemyFireSystem';
 import { EnemyController } from './enemies/EnemyController';
 import { EnemyLocalState } from './enemies/EnemyLocalState';
 
@@ -55,6 +56,8 @@ class SpaceBlasterScene extends Phaser.Scene {
   private formationSystem!: FormationSystem;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private weaponSystem!: WeaponSystem;
+  private enemyWeaponSystem!: WeaponSystem;
+  private enemyFireSystem?: EnemyFireSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
   private enemyControllers = new Map<
     Phaser.GameObjects.Rectangle,
@@ -171,6 +174,30 @@ class SpaceBlasterScene extends Phaser.Scene {
         fireCooldownMs: ammoEntry?.fireCooldownMs ?? 200,
         projectileSpeed: ammoEntry?.projectileSpeed ?? 560,
         poolSize: 48,
+      },
+    );
+    const levelConfig = this.deps.levelConfigs[0];
+    const firstWave = levelConfig?.waves?.[0];
+    const enemyEntry = this.deps.enemyCatalog.entries.find(
+      (entry) => entry.enemyId === firstWave?.enemyId,
+    );
+    this.enemyWeaponSystem = new WeaponSystem(
+      this,
+      () => {
+        const world = this.physics.world.bounds;
+        return {
+          minX: world.x,
+          maxX: world.x + world.width,
+          minY: world.y,
+          maxY: world.y + world.height,
+        };
+      },
+      {
+        fireCooldownMs:
+          enemyEntry?.projectileCooldownMs ?? ammoEntry?.fireCooldownMs ?? 200,
+        projectileSpeed: ammoEntry?.projectileSpeed ?? 560,
+        poolSize: 48,
+        projectileColor: ENEMY_COLOR,
       },
     );
 
@@ -329,6 +356,18 @@ class SpaceBlasterScene extends Phaser.Scene {
       undefined,
       this,
     );
+    this.physics.add.overlap(
+      this.enemyWeaponSystem.projectileGroup,
+      this.player,
+      (projectile) => {
+        this.enemyWeaponSystem.releaseProjectile(
+          projectile as Phaser.GameObjects.Rectangle,
+        );
+        this.handlePlayerHit();
+      },
+      undefined,
+      this,
+    );
 
     this.runStateMachine.requestBootComplete();
     this.runStateMachine.update(0);
@@ -360,6 +399,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
         this.formationSystem.update(dtMs);
         this.updateEnemyControllers(dtMs);
+        this.enemyFireSystem?.update(dtMs);
 
         this.enemies.children.each((enemy) => {
           const e = enemy as Phaser.GameObjects.Rectangle;
@@ -374,6 +414,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         }
 
         this.weaponSystem.update(dtMs);
+        this.enemyWeaponSystem.update(dtMs);
       },
     });
 
@@ -405,6 +446,8 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.formationSystem.clear();
     this.enemyControllers.clear();
     this.weaponSystem.clear();
+    this.enemyWeaponSystem.clear();
+    this.enemyFireSystem = undefined;
     this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT - 60);
     this.playerController.resetPosition(WORLD_WIDTH / 2);
     this.playerBody.setVelocity(0);
@@ -521,7 +564,22 @@ class SpaceBlasterScene extends Phaser.Scene {
     const wave = this.getCurrentWave(this.currentWaveIndex);
     if (!wave) return;
     this.formationSystem.spawnFormation(wave);
+    this.enemyFireSystem = this.createEnemyFireSystem();
     this.initializeEnemyControllers();
+  }
+
+  private createEnemyFireSystem(): EnemyFireSystem {
+    const level = this.deps.levelConfigs[0];
+    const fireChancePerSecond =
+      typeof level?.shooting === 'number' && level.shooting > 0
+        ? level.shooting / 100
+        : 0;
+    return new EnemyFireSystem({
+      formation: this.formationSystem,
+      weapon: this.enemyWeaponSystem,
+      fireChancePerSecond,
+      muzzleOffsetY: ENEMY_HEIGHT / 2,
+    });
   }
 
   private requestWaveClearOnce(): void {
@@ -639,6 +697,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   destroyResources() {
     this.formationSystem.clear();
     this.weaponSystem.clear();
+    this.enemyWeaponSystem.clear();
     this.sound?.stopAll();
     this.sound?.removeAll();
     this.runStateMachine.dispose();

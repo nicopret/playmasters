@@ -1,4 +1,5 @@
 import type { ResolvedGameConfigV1 } from '@playmasters/types';
+import { EnemyLocalState } from '../enemies/EnemyLocalState';
 import { FormationSystem, type FormationEnemy } from './FormationSystem';
 import { computeSlotLocalOffsets } from './formation-motion';
 
@@ -69,6 +70,28 @@ const createResolvedConfig = (): ResolvedGameConfigV1 => ({
     levelScoreMultiplier: { base: 1, max: 1, perLevel: 0 },
     waveClearBonus: { base: 0, perLifeBonus: 0 },
   },
+});
+
+const createTwoRowResolvedConfig = (): ResolvedGameConfigV1 => ({
+  ...createResolvedConfig(),
+  formationLayouts: {
+    entries: [
+      {
+        layoutId: 'layout-a',
+        rows: 2,
+        columns: 2,
+        spacing: { x: 20, y: 12 },
+        compact: false,
+      },
+    ],
+  },
+  levelConfigs: [
+    {
+      layoutId: 'layout-a',
+      speed: 40,
+      waves: [{ enemyId: 'enemy-a', count: 4 }],
+    },
+  ],
 });
 
 describe('FormationSystem', () => {
@@ -292,5 +315,154 @@ describe('FormationSystem', () => {
     system.update(1000);
 
     expect(forceCompleteReasons).toEqual([]);
+  });
+
+  it('updates lowest-per-column eligibility immediately on death', () => {
+    const enemies: FormationEnemy[] = [];
+    const resolvedConfig = createTwoRowResolvedConfig();
+    const system = new FormationSystem({
+      ctx: {
+        sdk: {} as never,
+        resolvedConfig,
+        configHash: resolvedConfig.configHash,
+        mountedAt: '2026-02-14T00:00:00.000Z',
+        hasPendingUpdate: false,
+      },
+      playBounds: () => ({ minX: 0, maxX: 200, minY: 0 }),
+      enemyManager: {
+        spawnEnemy: () => {
+          const enemy: FormationEnemy = {
+            active: true,
+            x: 0,
+            y: 0,
+            width: 10,
+            setPosition: (x: number, y: number) => {
+              enemy.x = x;
+              enemy.y = y;
+            },
+          };
+          enemies.push(enemy);
+          return enemy;
+        },
+        getActiveEnemies: () => enemies.filter((enemy) => enemy.active),
+        clearEnemies: () => {
+          enemies.splice(0, enemies.length);
+        },
+      },
+    });
+
+    system.spawnFormation({ enemyId: 'enemy-a', count: 4 });
+
+    const col0Top = enemies[0];
+    const col1Top = enemies[1];
+    const col0Bottom = enemies[2];
+    const col1Bottom = enemies[3];
+    expect(system.getEligibleShooters()).toEqual(
+      new Set([col0Bottom, col1Bottom]),
+    );
+
+    col0Bottom.active = false;
+    system.onEnemyDeath(col0Bottom);
+    expect(system.getEligibleShooterInColumn(0)).toBe(col0Top);
+    expect(system.isEligibleShooter(col0Top)).toBe(true);
+    expect(system.isEligibleShooter(col0Bottom)).toBe(false);
+    expect(system.getEligibleShooterInColumn(1)).toBe(col1Bottom);
+    expect(system.isEligibleShooter(col1Top)).toBe(false);
+  });
+
+  it('excludes divers from eligibility while detached and restores on return', () => {
+    const enemies: FormationEnemy[] = [];
+    const resolvedConfig = createTwoRowResolvedConfig();
+    const system = new FormationSystem({
+      ctx: {
+        sdk: {} as never,
+        resolvedConfig,
+        configHash: resolvedConfig.configHash,
+        mountedAt: '2026-02-14T00:00:00.000Z',
+        hasPendingUpdate: false,
+      },
+      playBounds: () => ({ minX: 0, maxX: 200, minY: 0 }),
+      enemyManager: {
+        spawnEnemy: () => {
+          const enemy: FormationEnemy = {
+            active: true,
+            x: 0,
+            y: 0,
+            width: 10,
+            setPosition: (x: number, y: number) => {
+              enemy.x = x;
+              enemy.y = y;
+            },
+          };
+          enemies.push(enemy);
+          return enemy;
+        },
+        getActiveEnemies: () => enemies.filter((enemy) => enemy.active),
+        clearEnemies: () => {
+          enemies.splice(0, enemies.length);
+        },
+      },
+    });
+
+    system.spawnFormation({ enemyId: 'enemy-a', count: 4 });
+    const col0Top = enemies[0];
+    const col0Bottom = enemies[2];
+    expect(system.getEligibleShooterInColumn(0)).toBe(col0Bottom);
+
+    system.setEnemyLocalState(col0Bottom, EnemyLocalState.DIVING);
+    expect(system.getEligibleShooterInColumn(0)).toBe(col0Top);
+    expect(system.isEligibleShooter(col0Bottom)).toBe(false);
+
+    system.setEnemyLocalState(col0Bottom, EnemyLocalState.FORMATION);
+    expect(system.getEligibleShooterInColumn(0)).toBe(col0Bottom);
+    expect(system.isEligibleShooter(col0Bottom)).toBe(true);
+  });
+
+  it('picks only from eligible shooter set', () => {
+    const enemies: FormationEnemy[] = [];
+    const resolvedConfig = createTwoRowResolvedConfig();
+    const system = new FormationSystem({
+      ctx: {
+        sdk: {} as never,
+        resolvedConfig,
+        configHash: resolvedConfig.configHash,
+        mountedAt: '2026-02-14T00:00:00.000Z',
+        hasPendingUpdate: false,
+      },
+      playBounds: () => ({ minX: 0, maxX: 200, minY: 0 }),
+      enemyManager: {
+        spawnEnemy: () => {
+          const enemy: FormationEnemy = {
+            active: true,
+            x: 0,
+            y: 0,
+            width: 10,
+            setPosition: (x: number, y: number) => {
+              enemy.x = x;
+              enemy.y = y;
+            },
+          };
+          enemies.push(enemy);
+          return enemy;
+        },
+        getActiveEnemies: () => enemies.filter((enemy) => enemy.active),
+        clearEnemies: () => {
+          enemies.splice(0, enemies.length);
+        },
+      },
+    });
+
+    system.spawnFormation({ enemyId: 'enemy-a', count: 4 });
+    system.setEnemyLocalState(enemies[2], EnemyLocalState.DIVING);
+
+    const pickedA = system.pickEligibleShooter(() => 0);
+    const pickedB = system.pickEligibleShooter(() => 0.99);
+    if (!pickedA || !pickedB) {
+      throw new Error('Expected at least one eligible shooter.');
+    }
+    expect(system.isEligibleShooter(pickedA)).toBe(true);
+    expect(system.isEligibleShooter(pickedB)).toBe(true);
+    expect(pickedA).not.toBe(enemies[2]);
+    expect(pickedB).not.toBe(enemies[2]);
   });
 });
