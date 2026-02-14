@@ -15,6 +15,14 @@ export interface ResolvedLevelConfigV1 {
   layoutId: string;
   boss?: boolean;
   dive?: number;
+  attackTickMs?: number;
+  diveChancePerTick?: number;
+  maxConcurrentDivers?: number;
+  diveScheduler?: {
+    attackTickMs?: number;
+    diveChancePerTick?: number;
+    maxConcurrentDivers?: number;
+  };
   enemyTypes?: string[];
   fleetSpeedRamp?: {
     maxMultiplier?: number;

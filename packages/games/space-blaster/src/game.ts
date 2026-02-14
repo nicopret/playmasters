@@ -22,6 +22,7 @@ import { WeaponSystem } from './systems/WeaponSystem';
 import { FormationSystem } from './systems/FormationSystem';
 import { EnemyFireSystem } from './systems/EnemyFireSystem';
 import { EnemyController } from './enemies/EnemyController';
+import { DiveScheduler } from './enemies/DiveScheduler';
 import { EnemyLocalState } from './enemies/EnemyLocalState';
 
 type MountOptions = {
@@ -58,11 +59,13 @@ class SpaceBlasterScene extends Phaser.Scene {
   private weaponSystem!: WeaponSystem;
   private enemyWeaponSystem!: WeaponSystem;
   private enemyFireSystem?: EnemyFireSystem;
+  private diveScheduler?: DiveScheduler<Phaser.GameObjects.Rectangle>;
   private enemies!: Phaser.Physics.Arcade.Group;
   private enemyControllers = new Map<
     Phaser.GameObjects.Rectangle,
     EnemyController
   >();
+  private enemyCanDive = new Map<Phaser.GameObjects.Rectangle, boolean>();
 
   private score = 0;
   private startTime: number | null = null;
@@ -214,6 +217,9 @@ class SpaceBlasterScene extends Phaser.Scene {
       },
       enemyManager: {
         spawnEnemy: (_enemyId, x, y) => {
+          const enemyEntry = this.deps.enemyCatalog.entries.find(
+            (entry) => entry.enemyId === _enemyId,
+          );
           const enemy = this.add.rectangle(
             x,
             y,
@@ -227,6 +233,7 @@ class SpaceBlasterScene extends Phaser.Scene {
           body.setVelocity(0);
           body.setCircle(12);
           this.enemies.add(enemy);
+          this.enemyCanDive.set(enemy, enemyEntry?.canDive !== false);
           return enemy;
         },
         getActiveEnemies: () =>
@@ -235,6 +242,7 @@ class SpaceBlasterScene extends Phaser.Scene {
             .filter((enemy) => (enemy as Phaser.GameObjects.Rectangle).active)
             .map((enemy) => enemy as Phaser.GameObjects.Rectangle),
         clearEnemies: () => {
+          this.enemyCanDive.clear();
           this.enemies.clear(true, true);
         },
       },
@@ -341,6 +349,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         const target = enemy as Phaser.GameObjects.Rectangle;
         this.enemyControllers.get(target)?.setDead();
         this.enemyControllers.delete(target);
+        this.enemyCanDive.delete(target);
         this.formationSystem.onEnemyDeath(target);
         target.destroy();
         this.addScore(10);
@@ -399,6 +408,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
         this.formationSystem.update(dtMs);
         this.updateEnemyControllers(dtMs);
+        this.diveScheduler?.update(dtMs);
         this.enemyFireSystem?.update(dtMs);
 
         this.enemies.children.each((enemy) => {
@@ -448,6 +458,8 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.weaponSystem.clear();
     this.enemyWeaponSystem.clear();
     this.enemyFireSystem = undefined;
+    this.diveScheduler = undefined;
+    this.enemyCanDive.clear();
     this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT - 60);
     this.playerController.resetPosition(WORLD_WIDTH / 2);
     this.playerBody.setVelocity(0);
@@ -564,8 +576,73 @@ class SpaceBlasterScene extends Phaser.Scene {
     const wave = this.getCurrentWave(this.currentWaveIndex);
     if (!wave) return;
     this.formationSystem.spawnFormation(wave);
+    this.diveScheduler = this.createDiveScheduler(wave.enemyId);
     this.enemyFireSystem = this.createEnemyFireSystem();
     this.initializeEnemyControllers();
+  }
+
+  private createDiveScheduler(
+    waveEnemyId: string,
+  ): DiveScheduler<Phaser.GameObjects.Rectangle> | undefined {
+    const level = this.deps.levelConfigs[0];
+    const waveEnemy = this.deps.enemyCatalog.entries.find(
+      (entry) => entry.enemyId === waveEnemyId,
+    );
+    const attackTickMs =
+      level?.diveScheduler?.attackTickMs ??
+      level?.attackTickMs ??
+      waveEnemy?.diveCooldownMs ??
+      0;
+    const diveChancePerTick = Math.max(
+      0,
+      Math.min(
+        1,
+        level?.diveScheduler?.diveChancePerTick ??
+          level?.diveChancePerTick ??
+          (typeof level?.dive === 'number' ? level.dive / 100 : 0),
+      ),
+    );
+    const maxConcurrentDivers = Math.max(
+      0,
+      Math.floor(
+        level?.diveScheduler?.maxConcurrentDivers ??
+          level?.maxConcurrentDivers ??
+          1,
+      ),
+    );
+
+    if (
+      attackTickMs <= 0 ||
+      diveChancePerTick <= 0 ||
+      maxConcurrentDivers <= 0
+    ) {
+      return undefined;
+    }
+
+    return new DiveScheduler({
+      config: {
+        attackTickMs,
+        diveChancePerTick,
+        maxConcurrentDivers,
+      },
+      getCandidates: () => {
+        const candidates: Array<{
+          enemy: Phaser.GameObjects.Rectangle;
+          active: boolean;
+          canDive: boolean;
+          controller: EnemyController;
+        }> = [];
+        this.enemyControllers.forEach((controller, enemy) => {
+          candidates.push({
+            enemy,
+            active: enemy.active,
+            canDive: this.enemyCanDive.get(enemy) ?? true,
+            controller,
+          });
+        });
+        return candidates;
+      },
+    });
   }
 
   private createEnemyFireSystem(): EnemyFireSystem {
@@ -620,6 +697,7 @@ class SpaceBlasterScene extends Phaser.Scene {
       controller.update(simDtMs);
       if (controller.state === EnemyLocalState.DEAD || !enemy.active) {
         this.formationSystem.onEnemyDeath(enemy);
+        this.enemyCanDive.delete(enemy);
         this.enemyControllers.delete(enemy);
       }
     });
@@ -698,6 +776,8 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.formationSystem.clear();
     this.weaponSystem.clear();
     this.enemyWeaponSystem.clear();
+    this.diveScheduler = undefined;
+    this.enemyCanDive.clear();
     this.sound?.stopAll();
     this.sound?.removeAll();
     this.runStateMachine.dispose();
