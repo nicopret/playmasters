@@ -77,7 +77,8 @@ export const easeToward = (params: {
   smoothingPerSecond: number;
 }): number => {
   const dtSeconds = params.dtMs / 1000;
-  const blend = 1 - Math.exp(-Math.max(0, params.smoothingPerSecond) * dtSeconds);
+  const blend =
+    1 - Math.exp(-Math.max(0, params.smoothingPerSecond) * dtSeconds);
   return params.current + (params.target - params.current) * blend;
 };
 
@@ -155,7 +156,8 @@ export const stepFormation = ({
   extents,
 }: FormationStepParams): FormationStepResult => {
   const dtSeconds = dtMs / 1000;
-  const proposedX = state.originX + state.direction * speedPxPerSecond * dtSeconds;
+  const proposedX =
+    state.originX + state.direction * speedPxPerSecond * dtSeconds;
   const projectedLeft = proposedX + extents.minLocalX - extents.halfEnemyWidth;
   const projectedRight = proposedX + extents.maxLocalX + extents.halfEnemyWidth;
   const leftContactX = minBoundX - extents.minLocalX + extents.halfEnemyWidth;

@@ -59,7 +59,8 @@ describe('formation-motion', () => {
     expect(result.reversed).toBe(true);
     expect(result.state.direction).toBe(-1);
     expect(result.state.originY).toBe(28);
-    const rightExtent = result.state.originX + extents.maxLocalX + extents.halfEnemyWidth;
+    const rightExtent =
+      result.state.originX + extents.maxLocalX + extents.halfEnemyWidth;
     expect(rightExtent).toBeCloseTo(100, 8);
   });
 
@@ -79,7 +80,8 @@ describe('formation-motion', () => {
     expect(result.reversed).toBe(true);
     expect(result.state.direction).toBe(1);
     expect(result.state.originY).toBe(28);
-    const leftExtent = result.state.originX + extents.minLocalX - extents.halfEnemyWidth;
+    const leftExtent =
+      result.state.originX + extents.minLocalX - extents.halfEnemyWidth;
     expect(leftExtent).toBeCloseTo(0, 8);
   });
 
@@ -98,7 +100,8 @@ describe('formation-motion', () => {
 
     expect(result.reversed).toBe(true);
     expect(result.state.direction).toBe(-1);
-    const rightExtent = result.state.originX + extents.maxLocalX + extents.halfEnemyWidth;
+    const rightExtent =
+      result.state.originX + extents.maxLocalX + extents.halfEnemyWidth;
     expect(rightExtent).toBeCloseTo(100, 8);
   });
 

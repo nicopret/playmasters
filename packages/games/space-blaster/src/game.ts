@@ -181,7 +181,13 @@ class SpaceBlasterScene extends Phaser.Scene {
       },
       enemyManager: {
         spawnEnemy: (_enemyId, x, y) => {
-          const enemy = this.add.rectangle(x, y, ENEMY_WIDTH, ENEMY_HEIGHT, ENEMY_COLOR);
+          const enemy = this.add.rectangle(
+            x,
+            y,
+            ENEMY_WIDTH,
+            ENEMY_HEIGHT,
+            ENEMY_COLOR,
+          );
           this.physics.add.existing(enemy);
           const body = enemy.body as Phaser.Physics.Arcade.Body;
           body.setAllowGravity(false);
@@ -352,10 +358,7 @@ class SpaceBlasterScene extends Phaser.Scene {
           return false;
         });
 
-        if (
-          !this.waveClearRequested &&
-          this.enemies.countActive(true) === 0
-        ) {
+        if (!this.waveClearRequested && this.enemies.countActive(true) === 0) {
           this.requestWaveClearOnce();
         }
 

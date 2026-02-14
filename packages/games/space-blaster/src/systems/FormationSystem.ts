@@ -102,11 +102,14 @@ export class FormationSystem {
       typeof level.speed === 'number' ? level.speed : layout.spacing.x;
     this.currentFleetSpeed = this.baseFleetSpeed;
     this.speedSmoothingPerSecond =
-      level.fleetSpeedRamp?.smoothingPerSecond ?? DEFAULT_SPEED_SMOOTHING_PER_SECOND;
+      level.fleetSpeedRamp?.smoothingPerSecond ??
+      DEFAULT_SPEED_SMOOTHING_PER_SECOND;
     this.rampConfig = {
       maxMultiplier:
-        level.fleetSpeedRamp?.maxMultiplier ?? DEFAULT_FLEET_RAMP_CONFIG.maxMultiplier,
-      exponent: level.fleetSpeedRamp?.exponent ?? DEFAULT_FLEET_RAMP_CONFIG.exponent,
+        level.fleetSpeedRamp?.maxMultiplier ??
+        DEFAULT_FLEET_RAMP_CONFIG.maxMultiplier,
+      exponent:
+        level.fleetSpeedRamp?.exponent ?? DEFAULT_FLEET_RAMP_CONFIG.exponent,
       minAliveForRamp:
         level.fleetSpeedRamp?.minAliveForRamp ??
         DEFAULT_FLEET_RAMP_CONFIG.minAliveForRamp,
@@ -117,7 +120,8 @@ export class FormationSystem {
       speedMultiplier:
         level.lastEnemiesEnrage?.speedMultiplier ??
         DEFAULT_ENRAGE_CONFIG.speedMultiplier,
-      timeoutMs: level.lastEnemiesEnrage?.timeoutMs ?? DEFAULT_ENRAGE_CONFIG.timeoutMs,
+      timeoutMs:
+        level.lastEnemiesEnrage?.timeoutMs ?? DEFAULT_ENRAGE_CONFIG.timeoutMs,
       autoCompleteOnTimeout:
         level.lastEnemiesEnrage?.autoCompleteOnTimeout ??
         DEFAULT_ENRAGE_CONFIG.autoCompleteOnTimeout,
@@ -207,7 +211,9 @@ export class FormationSystem {
 
   private getOccupiedSlots(): FormationSlotAssignment[] {
     const active = new Set(this.enemyManager.getActiveEnemies());
-    return this.slots.filter((slot) => slot.enemy.active && active.has(slot.enemy));
+    return this.slots.filter(
+      (slot) => slot.enemy.active && active.has(slot.enemy),
+    );
   }
 
   private getHalfEnemyWidth(occupied: FormationSlotAssignment[]): number {

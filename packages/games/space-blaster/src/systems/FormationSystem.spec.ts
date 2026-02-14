@@ -38,7 +38,12 @@ const createResolvedConfig = (): ResolvedGameConfigV1 => ({
   },
   ammoCatalog: {
     entries: [
-      { ammoId: 'ammo-a', spriteKey: 'ammo', projectileSpeed: 100, fireCooldownMs: 100 },
+      {
+        ammoId: 'ammo-a',
+        spriteKey: 'ammo',
+        projectileSpeed: 100,
+        fireCooldownMs: 100,
+      },
     ],
   },
   formationLayouts: {
