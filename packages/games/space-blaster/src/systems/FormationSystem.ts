@@ -67,7 +67,7 @@ export class FormationSystem {
   private readonly getPlayBounds: FormationSystemOptions['playBounds'];
   private readonly enemyManager: FormationEnemyManager;
   private readonly onForceWaveComplete?: FormationSystemOptions['onForceWaveComplete'];
-  private readonly levelIndex: number;
+  private levelIndex: number;
   private slots: FormationSlotAssignment[] = [];
   private state: FormationState = { originX: 0, originY: 0, direction: 1 };
   private baseFleetSpeed = 0;
@@ -90,6 +90,10 @@ export class FormationSystem {
     this.enemyManager = options.enemyManager;
     this.onForceWaveComplete = options.onForceWaveComplete;
     this.levelIndex = options.levelIndex ?? 0;
+  }
+
+  setLevelIndex(levelIndex: number): void {
+    this.levelIndex = Math.max(0, levelIndex);
   }
 
   clear(): void {

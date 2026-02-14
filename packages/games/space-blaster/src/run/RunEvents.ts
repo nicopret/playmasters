@@ -7,6 +7,7 @@ export const RUN_EVENT = {
   PLAYING: 'run.playing',
   PLAYER_RESPAWN: 'run.playerRespawn',
   WAVE_CLEAR: 'run.waveClear',
+  LEVEL_COMPLETE: 'run.levelComplete',
   ENDING: 'run.ending',
   RESULTS: 'run.results',
   ERROR: 'run.error',
@@ -14,6 +15,7 @@ export const RUN_EVENT = {
   REQUEST_START: 'run.requestStart',
   REQUEST_RESPAWN: 'run.requestRespawn',
   REQUEST_WAVE_CLEAR: 'run.requestWaveClear',
+  REQUEST_LEVEL_COMPLETE: 'run.requestLevelComplete',
   REQUEST_END: 'run.requestEnd',
 } as const;
 
@@ -25,6 +27,8 @@ export type TransitionReason =
   | 'respawn_complete'
   | 'wave_clear'
   | 'wave_clear_complete'
+  | 'level_complete'
+  | 'level_complete_complete'
   | 'run_end_requested'
   | 'run_end_complete'
   | 'error';
@@ -40,6 +44,7 @@ export type RunEventMap = {
   [RUN_EVENT.PLAYING]: undefined;
   [RUN_EVENT.PLAYER_RESPAWN]: undefined;
   [RUN_EVENT.WAVE_CLEAR]: undefined;
+  [RUN_EVENT.LEVEL_COMPLETE]: undefined;
   [RUN_EVENT.ENDING]: undefined;
   [RUN_EVENT.RESULTS]: undefined;
   [RUN_EVENT.ERROR]: { message: string };
@@ -47,5 +52,6 @@ export type RunEventMap = {
   [RUN_EVENT.REQUEST_START]: undefined;
   [RUN_EVENT.REQUEST_RESPAWN]: undefined;
   [RUN_EVENT.REQUEST_WAVE_CLEAR]: undefined;
+  [RUN_EVENT.REQUEST_LEVEL_COMPLETE]: undefined;
   [RUN_EVENT.REQUEST_END]: { reason: string };
 };

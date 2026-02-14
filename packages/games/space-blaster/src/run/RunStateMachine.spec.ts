@@ -10,6 +10,7 @@ const createMachine = (bus: RunEventBus) =>
       countdownMs: 1000,
       respawnDelayMs: 500,
       waveClearMs: 250,
+      levelCompleteMs: 400,
       runEndingDelayMs: 300,
     },
     {},
@@ -94,6 +95,27 @@ describe('RunStateMachine', () => {
     expect(machine.state).toBe(RunState.PLAYING);
   });
 
+  it('reaches LEVEL_COMPLETE and loops back to PLAYING', () => {
+    const bus = new RunEventBus();
+    const machine = createMachine(bus);
+
+    machine.requestBootComplete();
+    machine.update(0);
+    machine.requestStart();
+    machine.update(0);
+    machine.update(1000);
+    expect(machine.state).toBe(RunState.PLAYING);
+
+    machine.requestLevelComplete();
+    machine.update(0);
+    expect(machine.state).toBe(RunState.LEVEL_COMPLETE);
+
+    machine.update(400);
+    expect(machine.state).toBe(RunState.COUNTDOWN);
+    machine.update(1000);
+    expect(machine.state).toBe(RunState.PLAYING);
+  });
+
   it('reaches RUN_ENDING and terminates in RESULTS', () => {
     const bus = new RunEventBus();
     const machine = createMachine(bus);
@@ -121,6 +143,7 @@ describe('RunStateMachine', () => {
         countdownMs: 1000,
         respawnDelayMs: 500,
         waveClearMs: 250,
+        levelCompleteMs: 400,
         runEndingDelayMs: 300,
       },
       {

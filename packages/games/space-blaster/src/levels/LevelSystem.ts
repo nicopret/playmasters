@@ -6,11 +6,13 @@ import type { RunContext } from '../runtime';
 import { RunState } from '../run';
 
 type LevelFormationPort = {
+  setLevelIndex?: (levelIndex: number) => void;
   spawnFormation: (wave: ResolvedLevelWaveV1) => void;
 };
 
 type LevelRunStatePort = {
   requestWaveClear: () => void;
+  requestLevelComplete: () => void;
   requestEndRun: (reason?: string) => void;
 };
 
@@ -35,7 +37,7 @@ export class LevelSystem {
   private readonly onWaveStarted?: LevelSystemOptions['onWaveStarted'];
   private activeLevelIndex = 0;
   private activeWaveIndex = 0;
-  private waveClearRequested = false;
+  private progressionRequested = false;
 
   constructor(options: LevelSystemOptions) {
     this.ctx = options.ctx;
@@ -46,9 +48,9 @@ export class LevelSystem {
   }
 
   startLevel(levelIndex = 0): void {
-    this.activeLevelIndex = Math.max(0, levelIndex);
+    this.activeLevelIndex = this.clampLevelIndex(levelIndex);
     this.activeWaveIndex = 0;
-    this.waveClearRequested = false;
+    this.progressionRequested = false;
   }
 
   onEnterRunState(state: RunState, from: RunState): void {
@@ -66,22 +68,32 @@ export class LevelSystem {
       return;
     }
 
-    if (state === RunState.WAVE_CLEAR && !this.hasNextWave()) {
-      this.runStateMachine.requestEndRun('all_waves_cleared');
+    if (state === RunState.LEVEL_COMPLETE) {
+      if (this.hasNextLevel()) {
+        this.initializeNextLevel();
+        return;
+      }
+      this.runStateMachine.requestEndRun('all_levels_cleared');
+      return;
+    }
+
+    if (
+      state === RunState.WAVE_CLEAR &&
+      !this.hasNextWave() &&
+      !this.hasNextLevel()
+    ) {
+      this.runStateMachine.requestEndRun('all_levels_cleared');
     }
   }
 
   update(simDtMs: number): void {
-    if (simDtMs <= 0 || this.waveClearRequested) return;
+    if (simDtMs <= 0 || this.progressionRequested) return;
     if (this.getActiveEnemyCount() > 0) return;
-    this.forceWaveClear('enemies_depleted');
+    this.requestProgression('enemies_depleted');
   }
 
   forceWaveClear(reason: 'enemies_depleted' | 'ENRAGE_TIMEOUT'): void {
-    void reason;
-    if (this.waveClearRequested) return;
-    this.waveClearRequested = true;
-    this.runStateMachine.requestWaveClear();
+    this.requestProgression(reason);
   }
 
   hasNextWave(): boolean {
@@ -96,6 +108,14 @@ export class LevelSystem {
     return level.waves[this.activeWaveIndex];
   }
 
+  getLevelNumber(): number {
+    return this.activeLevelIndex + 1;
+  }
+
+  getWaveIndex(): number {
+    return this.activeWaveIndex;
+  }
+
   private startWave(waveIndex: number): void {
     const level = this.getActiveLevel();
     if (!level || !level.waves || level.waves.length === 0) return;
@@ -106,7 +126,8 @@ export class LevelSystem {
     const wave = level.waves[clampedWaveIndex];
     if (!wave) return;
     this.activeWaveIndex = clampedWaveIndex;
-    this.waveClearRequested = false;
+    this.progressionRequested = false;
+    this.formationSystem.setLevelIndex?.(this.activeLevelIndex);
     this.formationSystem.spawnFormation(wave);
     this.onWaveStarted?.({
       levelIndex: this.activeLevelIndex,
@@ -120,7 +141,50 @@ export class LevelSystem {
     if (this.hasNextWave()) {
       this.activeWaveIndex += 1;
     }
-    this.waveClearRequested = false;
+    this.progressionRequested = false;
+  }
+
+  private initializeNextLevel(): void {
+    if (!this.hasNextLevel()) return;
+    this.activeLevelIndex += 1;
+    this.activeWaveIndex = 0;
+    this.progressionRequested = false;
+  }
+
+  private hasNextLevel(): boolean {
+    // Selection rule: advance linearly through resolvedConfig.levelConfigs by index.
+    return (
+      this.activeLevelIndex + 1 < this.ctx.resolvedConfig.levelConfigs.length
+    );
+  }
+
+  private requestProgression(
+    reason: 'enemies_depleted' | 'ENRAGE_TIMEOUT',
+  ): void {
+    if (this.progressionRequested) return;
+    this.progressionRequested = true;
+    const hasMoreWaves = this.hasNextWave();
+    if (hasMoreWaves) {
+      this.runStateMachine.requestWaveClear();
+      return;
+    }
+    if (this.hasNextLevel()) {
+      this.runStateMachine.requestLevelComplete();
+      return;
+    }
+    this.runStateMachine.requestEndRun(
+      reason === 'ENRAGE_TIMEOUT'
+        ? 'all_levels_cleared_enrage_timeout'
+        : 'all_levels_cleared',
+    );
+  }
+
+  private clampLevelIndex(levelIndex: number): number {
+    const maxIndex = Math.max(
+      0,
+      this.ctx.resolvedConfig.levelConfigs.length - 1,
+    );
+    return Math.max(0, Math.min(maxIndex, levelIndex));
   }
 
   private getActiveLevel(): ResolvedLevelConfigV1 | undefined {

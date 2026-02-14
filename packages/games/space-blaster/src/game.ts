@@ -3,6 +3,7 @@ import type {
   EmbeddedGame,
   EmbeddedGameSdk,
   EnemyCatalogEntryV1,
+  ResolvedLevelConfigV1,
   ResolvedGameConfigV1,
 } from '@playmasters/types';
 import {
@@ -43,6 +44,7 @@ const DEFAULT_RESPAWN_INVULNERABILITY_MS = 1200;
 const COUNTDOWN_MS = 1200;
 const RESPAWN_DELAY_MS = 650;
 const WAVE_CLEAR_MS = 750;
+const LEVEL_COMPLETE_MS = 900;
 const RUN_ENDING_DELAY_MS = 900;
 
 class SpaceBlasterScene extends Phaser.Scene {
@@ -98,6 +100,7 @@ class SpaceBlasterScene extends Phaser.Scene {
       countdownMs: COUNTDOWN_MS,
       respawnDelayMs: RESPAWN_DELAY_MS,
       waveClearMs: WAVE_CLEAR_MS,
+      levelCompleteMs: LEVEL_COMPLETE_MS,
       runEndingDelayMs: RUN_ENDING_DELAY_MS,
     },
     {
@@ -261,10 +264,10 @@ class SpaceBlasterScene extends Phaser.Scene {
       runStateMachine: this.runStateMachine,
       formationSystem: this.formationSystem,
       getActiveEnemyCount: () => this.enemies.countActive(true),
-      onWaveStarted: ({ wave }) => {
-        this.diveScheduler = this.createDiveScheduler(wave.enemyId);
-        this.enemyFireSystem = this.createEnemyFireSystem();
-        this.initializeEnemyControllers();
+      onWaveStarted: ({ wave, level }) => {
+        this.diveScheduler = this.createDiveScheduler(wave.enemyId, level);
+        this.enemyFireSystem = this.createEnemyFireSystem(level);
+        this.initializeEnemyControllers(level);
       },
     });
 
@@ -574,8 +577,8 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private createDiveScheduler(
     waveEnemyId: string,
+    level: ResolvedLevelConfigV1,
   ): DiveScheduler<Phaser.GameObjects.Rectangle> | undefined {
-    const level = this.deps.levelConfigs[0];
     const waveEnemy = this.deps.enemyCatalog.entries.find(
       (entry) => entry.enemyId === waveEnemyId,
     );
@@ -636,8 +639,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
   }
 
-  private createEnemyFireSystem(): EnemyFireSystem {
-    const level = this.deps.levelConfigs[0];
+  private createEnemyFireSystem(level: ResolvedLevelConfigV1): EnemyFireSystem {
     const fireChancePerSecond =
       typeof level?.shooting === 'number' && level.shooting > 0
         ? level.shooting / 100
@@ -650,11 +652,10 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
   }
 
-  private initializeEnemyControllers(): void {
+  private initializeEnemyControllers(level: ResolvedLevelConfigV1): void {
     this.enemyControllers.clear();
     const baseSpeed =
       this.formationSystem.getMotionDiagnostics().baseFleetSpeed;
-    const level = this.deps.levelConfigs[0];
     const currentWave = this.levelSystem.getActiveWave();
     const arrivalThresholdPx = ENEMY_WIDTH / 8;
     const worldBounds = this.physics.world.bounds;
@@ -757,6 +758,12 @@ class SpaceBlasterScene extends Phaser.Scene {
           break;
         }
         this.statusText.setText('Wave clear');
+        break;
+      case RunState.LEVEL_COMPLETE:
+        this.resetEntities();
+        this.statusText.setText(
+          `Level ${this.levelSystem.getLevelNumber()} clear`,
+        );
         break;
       case RunState.RUN_ENDING:
         this.statusText.setText('Run over');

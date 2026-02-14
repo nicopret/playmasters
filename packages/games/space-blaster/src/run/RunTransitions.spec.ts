@@ -19,12 +19,18 @@ describe('RunTransitions', () => {
     expect(isAllowedTransition(RunState.PLAYING, RunState.WAVE_CLEAR)).toBe(
       true,
     );
+    expect(isAllowedTransition(RunState.PLAYING, RunState.LEVEL_COMPLETE)).toBe(
+      true,
+    );
     expect(
       isAllowedTransition(RunState.PLAYER_RESPAWN, RunState.COUNTDOWN),
     ).toBe(true);
     expect(isAllowedTransition(RunState.WAVE_CLEAR, RunState.COUNTDOWN)).toBe(
       true,
     );
+    expect(
+      isAllowedTransition(RunState.LEVEL_COMPLETE, RunState.COUNTDOWN),
+    ).toBe(true);
     expect(isAllowedTransition(RunState.PLAYING, RunState.RUN_ENDING)).toBe(
       true,
     );

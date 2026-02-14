@@ -18,6 +18,11 @@ const createResolvedConfig = (): ResolvedGameConfigV1 => ({
         { enemyId: 'enemy-b', count: 2 },
       ],
     },
+    {
+      layoutId: 'layout-b',
+      speed: 42,
+      waves: [{ enemyId: 'enemy-c', count: 4 }],
+    },
   ],
   heroCatalog: {
     entries: [
@@ -35,6 +40,7 @@ const createResolvedConfig = (): ResolvedGameConfigV1 => ({
     entries: [
       { enemyId: 'enemy-a', hp: 1, spriteKey: 'enemy-a' },
       { enemyId: 'enemy-b', hp: 1, spriteKey: 'enemy-b' },
+      { enemyId: 'enemy-c', hp: 1, spriteKey: 'enemy-c' },
     ],
   },
   ammoCatalog: {
@@ -54,6 +60,12 @@ const createResolvedConfig = (): ResolvedGameConfigV1 => ({
         rows: 1,
         columns: 3,
         spacing: { x: 20, y: 12 },
+      },
+      {
+        layoutId: 'layout-b',
+        rows: 2,
+        columns: 2,
+        spacing: { x: 24, y: 16 },
       },
     ],
   },
@@ -87,6 +99,7 @@ describe('LevelSystem', () => {
     const spawnCalls: string[] = [];
     const runStateMachine = {
       requestWaveClear: jest.fn(),
+      requestLevelComplete: jest.fn(),
       requestEndRun: jest.fn(),
     };
     const levelSystem = new LevelSystem({
@@ -106,6 +119,7 @@ describe('LevelSystem', () => {
   it('triggers WAVE_CLEAR when enemy count reaches zero', () => {
     const runStateMachine = {
       requestWaveClear: jest.fn(),
+      requestLevelComplete: jest.fn(),
       requestEndRun: jest.fn(),
     };
     const levelSystem = new LevelSystem({
@@ -128,6 +142,7 @@ describe('LevelSystem', () => {
     const startedWaves: string[] = [];
     const runStateMachine = {
       requestWaveClear: jest.fn(),
+      requestLevelComplete: jest.fn(),
       requestEndRun: jest.fn(),
     };
     const levelSystem = new LevelSystem({
@@ -151,9 +166,10 @@ describe('LevelSystem', () => {
     expect(startedWaves).toEqual(['enemy-a', 'enemy-b']);
   });
 
-  it('handles forced completion and ends run on final wave clear', () => {
+  it('requests LEVEL_COMPLETE on final wave when another level exists', () => {
     const runStateMachine = {
       requestWaveClear: jest.fn(),
+      requestLevelComplete: jest.fn(),
       requestEndRun: jest.fn(),
     };
     const levelSystem = new LevelSystem({
@@ -166,15 +182,69 @@ describe('LevelSystem', () => {
     });
 
     levelSystem.startLevel(0);
-    levelSystem.forceWaveClear('ENRAGE_TIMEOUT');
-    expect(runStateMachine.requestWaveClear).toHaveBeenCalledTimes(1);
-
-    levelSystem.onEnterRunState(RunState.COUNTDOWN, RunState.WAVE_CLEAR);
     levelSystem.onEnterRunState(RunState.PLAYING, RunState.COUNTDOWN);
     levelSystem.forceWaveClear('ENRAGE_TIMEOUT');
     levelSystem.onEnterRunState(RunState.WAVE_CLEAR, RunState.PLAYING);
+    levelSystem.onEnterRunState(RunState.COUNTDOWN, RunState.WAVE_CLEAR);
+    levelSystem.onEnterRunState(RunState.PLAYING, RunState.COUNTDOWN);
+    levelSystem.forceWaveClear('ENRAGE_TIMEOUT');
+    expect(runStateMachine.requestLevelComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('advances level number and resets wave index after LEVEL_COMPLETE', () => {
+    const spawnCalls: string[] = [];
+    const runStateMachine = {
+      requestWaveClear: jest.fn(),
+      requestLevelComplete: jest.fn(),
+      requestEndRun: jest.fn(),
+    };
+    const levelSystem = new LevelSystem({
+      ctx: createContext(),
+      runStateMachine,
+      formationSystem: {
+        setLevelIndex: jest.fn(),
+        spawnFormation: (wave) => spawnCalls.push(wave.enemyId),
+      },
+      getActiveEnemyCount: () => 1,
+    });
+
+    levelSystem.startLevel(0);
+    levelSystem.onEnterRunState(RunState.PLAYING, RunState.COUNTDOWN);
+    levelSystem.forceWaveClear('enemies_depleted');
+    levelSystem.onEnterRunState(RunState.WAVE_CLEAR, RunState.PLAYING);
+    levelSystem.onEnterRunState(RunState.COUNTDOWN, RunState.WAVE_CLEAR);
+    levelSystem.onEnterRunState(RunState.PLAYING, RunState.COUNTDOWN);
+    levelSystem.forceWaveClear('enemies_depleted');
+    levelSystem.onEnterRunState(RunState.LEVEL_COMPLETE, RunState.PLAYING);
+
+    expect(levelSystem.getLevelNumber()).toBe(2);
+    expect(levelSystem.getWaveIndex()).toBe(0);
+
+    levelSystem.onEnterRunState(RunState.COUNTDOWN, RunState.LEVEL_COMPLETE);
+    levelSystem.onEnterRunState(RunState.PLAYING, RunState.COUNTDOWN);
+    expect(spawnCalls).toEqual(['enemy-a', 'enemy-b', 'enemy-c']);
+  });
+
+  it('ends run after final level is cleared', () => {
+    const runStateMachine = {
+      requestWaveClear: jest.fn(),
+      requestLevelComplete: jest.fn(),
+      requestEndRun: jest.fn(),
+    };
+    const levelSystem = new LevelSystem({
+      ctx: createContext(),
+      runStateMachine,
+      formationSystem: {
+        spawnFormation: jest.fn(),
+      },
+      getActiveEnemyCount: () => 0,
+    });
+
+    levelSystem.startLevel(1);
+    levelSystem.onEnterRunState(RunState.PLAYING, RunState.COUNTDOWN);
+    levelSystem.update(16);
     expect(runStateMachine.requestEndRun).toHaveBeenCalledWith(
-      'all_waves_cleared',
+      'all_levels_cleared',
     );
   });
 });

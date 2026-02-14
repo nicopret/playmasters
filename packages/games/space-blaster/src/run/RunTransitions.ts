@@ -11,6 +11,7 @@ export const allowedTransitions: Record<RunState, ReadonlySet<RunState>> = {
   [RunState.PLAYING]: new Set([
     RunState.PLAYER_RESPAWN,
     RunState.WAVE_CLEAR,
+    RunState.LEVEL_COMPLETE,
     RunState.RUN_ENDING,
     RunState.ERROR,
   ]),
@@ -20,6 +21,11 @@ export const allowedTransitions: Record<RunState, ReadonlySet<RunState>> = {
     RunState.ERROR,
   ]),
   [RunState.WAVE_CLEAR]: new Set([
+    RunState.COUNTDOWN,
+    RunState.RUN_ENDING,
+    RunState.ERROR,
+  ]),
+  [RunState.LEVEL_COMPLETE]: new Set([
     RunState.COUNTDOWN,
     RunState.RUN_ENDING,
     RunState.ERROR,
