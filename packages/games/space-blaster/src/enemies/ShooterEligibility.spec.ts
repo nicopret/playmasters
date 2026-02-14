@@ -125,4 +125,27 @@ describe('ShooterEligibility', () => {
     tracker.onEnemyReattached();
     expect(tracker.getEligibleInColumn(0)).toBe(col0Row2);
   });
+
+  it('returns null for empty columns', () => {
+    const col0Row0 = createEnemy('c0r0');
+    const slots = [
+      {
+        enemy: col0Row0,
+        row: 0,
+        column: 0,
+        alive: true,
+        inFormation: true,
+      },
+    ];
+    const tracker = new ShooterEligibility<Enemy>({
+      getSlots: () => slots,
+    });
+
+    tracker.rebuildFromFormation();
+    expect(tracker.getEligibleInColumn(1)).toBeNull();
+
+    slots[0].alive = false;
+    tracker.onEnemyDied();
+    expect(tracker.getEligibleInColumn(0)).toBeNull();
+  });
 });
