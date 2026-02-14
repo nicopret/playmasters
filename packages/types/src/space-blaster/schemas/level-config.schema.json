@@ -9,6 +9,34 @@
     "layoutId": { "type": "string", "minLength": 1 },
     "boss": { "type": "boolean", "default": false },
     "dive": { "type": "number", "minimum": 1, "maximum": 100 },
+    "attackTickMs": { "type": "number", "minimum": 1 },
+    "diveChancePerTick": { "type": "number", "minimum": 0, "maximum": 1 },
+    "maxConcurrentDivers": { "type": "integer", "minimum": 0 },
+    "diveScheduler": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attackTickMs": { "type": "number", "minimum": 1 },
+        "diveChancePerTick": { "type": "number", "minimum": 0, "maximum": 1 },
+        "maxConcurrentDivers": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diveMotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "divePattern": {
+          "type": "string",
+          "enum": ["straight", "sine", "track"]
+        },
+        "diveSpeed": { "type": "number", "minimum": 0 },
+        "sineAmplitude": { "type": "number", "minimum": 0 },
+        "sineFrequency": { "type": "number", "minimum": 0 },
+        "turnRate": { "type": "number", "minimum": 0 },
+        "maxDiveDurationMs": { "type": "number", "minimum": 1 },
+        "returnTriggerY": { "type": "number" }
+      }
+    },
     "enemyTypes": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },

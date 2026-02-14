@@ -85,7 +85,7 @@ describe('EnemyController', () => {
       getReservedSlotPose: () => ({ x: 10, y: 20 }),
       diveSpeedPxPerSecond: 100,
       returnSpeedPxPerSecond: 100,
-      diveDurationMs: 200,
+      maxDiveDurationMs: 200,
       arrivalThresholdPx: 2,
     });
 
@@ -113,7 +113,7 @@ describe('EnemyController', () => {
       onLocalStateChanged: (state) => stateHistory.push(state),
       diveSpeedPxPerSecond: 100,
       returnSpeedPxPerSecond: 200,
-      diveDurationMs: 200,
+      maxDiveDurationMs: 200,
       arrivalThresholdPx: 2,
     });
 
@@ -182,7 +182,7 @@ describe('EnemyController', () => {
         formationSystem.setEnemyLocalState(enemy, state),
       diveSpeedPxPerSecond: 100,
       returnSpeedPxPerSecond: 100,
-      diveDurationMs: 200,
+      maxDiveDurationMs: 200,
       arrivalThresholdPx: 2,
     });
 
@@ -247,7 +247,7 @@ describe('EnemyController', () => {
         formationSystem.setEnemyLocalState(enemy, state),
       diveSpeedPxPerSecond: 100,
       returnSpeedPxPerSecond: 200,
-      diveDurationMs: 100,
+      maxDiveDurationMs: 100,
       arrivalThresholdPx: 2,
     });
 
@@ -269,5 +269,62 @@ describe('EnemyController', () => {
     const slotAfterReturn = formationSystem.getReservedSlotWorldPose(enemy);
     expect(enemy.x).toBeCloseTo(slotAfterReturn?.x ?? 0, 8);
     expect(enemy.y).toBeCloseTo(slotAfterReturn?.y ?? 0, 8);
+  });
+
+  it('limits track turning by turnRate and cannot instantly snap', () => {
+    const enemy = {
+      active: true,
+      x: 0,
+      y: 0,
+      setPosition(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+      },
+    };
+    const controller = new EnemyController({
+      enemy,
+      getReservedSlotPose: () => ({ x: 0, y: 0 }),
+      getPlayerPose: () => ({ x: 100, y: 0 }),
+      divePattern: 'track',
+      turnRateDegPerSecond: 30,
+      diveSpeedPxPerSecond: 100,
+      returnSpeedPxPerSecond: 100,
+      maxDiveDurationMs: 1000,
+      arrivalThresholdPx: 2,
+    });
+
+    controller.startDive();
+    controller.update(100);
+    expect(controller.state).toBe(EnemyLocalState.DIVING);
+    expect(enemy.x).toBeLessThan(8);
+    expect(enemy.y).toBeGreaterThan(9);
+  });
+
+  it('dies gracefully if return slot is unavailable', () => {
+    const enemy = {
+      active: true,
+      x: 0,
+      y: 0,
+      setPosition(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+      },
+    };
+    let reserved: { x: number; y: number } | undefined = { x: 0, y: 0 };
+    const controller = new EnemyController({
+      enemy,
+      getReservedSlotPose: () => reserved,
+      diveSpeedPxPerSecond: 100,
+      returnSpeedPxPerSecond: 200,
+      maxDiveDurationMs: 50,
+      arrivalThresholdPx: 2,
+    });
+
+    controller.startDive();
+    controller.update(50);
+    expect(controller.state).toBe(EnemyLocalState.RETURNING);
+    reserved = undefined;
+    controller.update(16);
+    expect(controller.state).toBe(EnemyLocalState.DEAD);
   });
 });
