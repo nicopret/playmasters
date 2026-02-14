@@ -9,6 +9,11 @@ import {
   type SpaceBlasterBootstrapDeps,
 } from './bootstrap';
 import { DisposableBag, createRunContext } from './runtime';
+import {
+  canPlayerFire,
+  isSimulationRunning,
+  type PlayerRunPhase,
+} from './systems/player-action-gates';
 import { PlayerController } from './systems/PlayerController';
 import { PlayerLifeSystem } from './systems/PlayerLifeSystem';
 import { WeaponSystem } from './systems/WeaponSystem';
@@ -20,12 +25,7 @@ type MountOptions = {
   disposables: DisposableBag;
 };
 
-type GameState =
-  | 'idle'
-  | 'playing'
-  | 'player_respawn'
-  | 'run_ending'
-  | 'gameover';
+type GameState = PlayerRunPhase;
 
 const GAME_ID = 'game-space-blaster';
 const WORLD_WIDTH = 800;
@@ -217,7 +217,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number) {
-    if (this.state === 'playing') {
+    if (isSimulationRunning(this.state)) {
       this.lifeSystem.update(delta);
       const inputAxis = this.cursors.left?.isDown
         ? -1
@@ -303,7 +303,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private fireManualShot() {
-    if (this.state !== 'playing') return;
+    if (!canPlayerFire(this.state, this.lifeSystem.invulnerable)) return;
     this.weaponSystem.tryFire(this.player.x, this.player.y - 20, -1);
   }
 

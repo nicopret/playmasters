@@ -3,8 +3,8 @@
 ## Summary
 
 - Runtime files scanned: `packages/games/space-blaster/src/game.ts`, `packages/games/space-blaster/src/runtime/run-context.ts`
-- Tuning-relevant constants identified: **19**
-- Classified as **must be config-driven**: **12**
+- Tuning-relevant constants identified: **21**
+- Classified as **must be config-driven**: **14**
 - Classified as **should remain constant**: **7**
 
 This audit is based on constants currently hardcoded in runtime gameplay code. It does not rename or break existing schema fields; proposed additions are optional and backward compatible.
@@ -13,12 +13,14 @@ This audit is based on constants currently hardcoded in runtime gameplay code. I
 
 | System             | File:line                                               | Constant / context          | Value (units)                                | Classification         | Proposed config domain + field path                                                  | Default when absent        | Notes / justification                                              |
 | ------------------ | ------------------------------------------------------- | --------------------------- | -------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------ | -------------------------- | ------------------------------------------------------------------ |
-| Player             | `packages/games/space-blaster/src/game.ts:137`          | Horizontal move velocity    | `380` px/s                                   | Must be config-driven  | `heroCatalog.entries[].moveSpeed` (existing)                                         | `380`                      | Runtime should use selected hero move speed.                       |
+| Player             | `packages/games/space-blaster/src/game.ts`              | Horizontal move velocity    | `380` px/s                                   | Must be config-driven  | `heroCatalog.entries[].moveSpeed` (existing)                                         | `380`                      | Runtime should use selected hero move speed.                       |
 | Player             | `packages/games/space-blaster/src/game.ts:220`          | Manual fire debounce        | `200` ms                                     | Must be config-driven  | `ammoCatalog.entries[].fireCooldownMs` (existing)                                    | `200`                      | Align manual cadence with ammo catalog.                            |
 | Player             | `packages/games/space-blaster/src/game.ts:237`          | Bullet speed                | `560` px/s                                   | Must be config-driven  | `ammoCatalog.entries[].projectileSpeed` (existing)                                   | `560`                      | Gameplay tuning + fairness-sensitive.                              |
 | Player             | `packages/games/space-blaster/src/game.ts:230-231`      | Bullet rectangle size       | `6x16` px                                    | Must be config-driven  | `gameConfig.player.projectileSize` (additive, optional)                              | `{ width: 6, height: 16 }` | Affects hit profile and readability.                               |
 | Player             | `packages/games/space-blaster/src/game.ts:238`          | Bullet collision radius     | `3` px                                       | Must be config-driven  | `gameConfig.player.projectileHitRadius` (additive, optional)                         | `3`                        | Hit detection tuning.                                              |
 | Player             | `packages/games/space-blaster/src/game.ts:72`           | Player drag X               | `650`                                        | Must be config-driven  | `gameConfig.player.dragX` (additive, optional)                                       | `650`                      | Movement feel tuning.                                              |
+| Player / Respawn   | `packages/games/space-blaster/src/game.ts`              | Respawn invulnerability     | `1200` ms                                    | Must be config-driven  | `gameConfig.player.respawnInvulnerabilityMs` (additive, optional)                    | `1200`                     | Determines how long post-respawn hits are ignored.                 |
+| Player / Respawn   | `packages/games/space-blaster/src/game.ts`              | Respawn interstitial delay  | `700` ms                                     | Must be config-driven  | `gameConfig.player.respawnDelayMs` (additive, optional)                              | `700`                      | Controls downtime before player re-enters PLAYING.                 |
 | Enemy              | `packages/games/space-blaster/src/game.ts:198`          | Spawn interval              | `1000` ms                                    | Must be config-driven  | `levelConfigs[].spawnIntervalMs` (additive, optional)                                | `1000`                     | Core level pacing.                                                 |
 | Enemy              | `packages/games/space-blaster/src/game.ts:204`          | Auto-fire interval          | `480` ms                                     | Must be config-driven  | `ammoCatalog.entries[].fireCooldownMs` (existing)                                    | `480`                      | Should align automated fire cadence with selected ammo tuning.     |
 | Enemy              | `packages/games/space-blaster/src/game.ts:249`          | Enemy descent speed range   | `90..160` px/s                               | Must be config-driven  | `enemyCatalog.entries[].speed` (existing) + `levelConfigs[].speed` (existing scalar) | `90..160`                  | Difficulty/fairness-sensitive.                                     |
@@ -63,6 +65,8 @@ Use optional fields only; preserve current behavior when absent:
 - `gameConfig.player.dragX?: number` (default `650`)
 - `gameConfig.player.projectileSize?: { width: number; height: number }` (default `6x16`)
 - `gameConfig.player.projectileHitRadius?: number` (default `3`)
+- `gameConfig.player.respawnInvulnerabilityMs?: number` (default `1200`)
+- `gameConfig.player.respawnDelayMs?: number` (default `700`)
 
 ### LevelConfig (optional additions)
 
