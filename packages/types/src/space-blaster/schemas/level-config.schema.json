@@ -63,6 +63,14 @@
         "autoCompleteOnTimeout": { "type": "boolean" }
       }
     },
+    "stallAggression": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "threshold": { "type": "integer", "minimum": 0 },
+        "speedMultiplier": { "type": "number", "minimum": 1 }
+      }
+    },
     "scoreMultiplier": { "type": "number", "minimum": 1, "maximum": 100 },
     "shooting": { "type": "number", "minimum": 1, "maximum": 100 },
     "speed": { "type": "number", "minimum": 1, "maximum": 100 },

@@ -48,6 +48,11 @@ export type FleetEnrageConfig = {
   autoCompleteOnTimeout: boolean;
 };
 
+export type StallAggressionConfig = {
+  threshold: number;
+  speedMultiplier: number;
+};
+
 export const smoothstep = (value: number): number => {
   const t = Math.max(0, Math.min(1, value));
   return t * t * (3 - 2 * t);
@@ -68,6 +73,22 @@ export const computeRampTargetSpeed = (params: {
   const curved = Math.pow(smoothstep(progress), params.ramp.exponent);
   const multiplier = 1 + (params.ramp.maxMultiplier - 1) * curved;
   return params.baseSpeed * multiplier;
+};
+
+export const computeStallAggressionTargetSpeed = (params: {
+  baseSpeed: number;
+  aliveEnemies: number;
+  config: StallAggressionConfig;
+}): number | null => {
+  if (
+    params.config.threshold <= 0 ||
+    params.config.speedMultiplier <= 1 ||
+    params.aliveEnemies <= 0 ||
+    params.aliveEnemies > params.config.threshold
+  ) {
+    return null;
+  }
+  return params.baseSpeed * params.config.speedMultiplier;
 };
 
 export const easeToward = (params: {
