@@ -24,6 +24,10 @@ export const RUN_EVENT = {
   PLAYER_SHOT_HIT: 'score.shotHit',
   ENEMY_KILLED: 'score.enemyKilled',
   PLAYER_HIT: 'score.playerHit',
+  SCORE_CHANGED: 'score.changed',
+  SCORE_TIER_ENTERED: 'score.tierEntered',
+  SCORE_COMBO_RESET: 'score.comboReset',
+  PLAYER_LIVES_CHANGED: 'player.livesChanged',
 } as const;
 
 export type TransitionReason =
@@ -75,4 +79,27 @@ export type RunEventMap = {
   [RUN_EVENT.PLAYER_SHOT_HIT]: { nowMs: number };
   [RUN_EVENT.ENEMY_KILLED]: { enemyId: string; nowMs: number };
   [RUN_EVENT.PLAYER_HIT]: { nowMs: number };
+  [RUN_EVENT.SCORE_CHANGED]: {
+    score: number;
+    comboCount: number;
+    maxComboCount: number;
+    tierIndex: number | null;
+    nowMs: number;
+  };
+  [RUN_EVENT.SCORE_TIER_ENTERED]: {
+    tierIndex: number;
+    minCount: number;
+    multiplier: number;
+    tierBonus: number;
+    comboCount: number;
+    nowMs: number;
+  };
+  [RUN_EVENT.SCORE_COMBO_RESET]: {
+    reason: 'EXPIRED' | 'PLAYER_HIT';
+    nowMs: number;
+  };
+  [RUN_EVENT.PLAYER_LIVES_CHANGED]: {
+    livesRemaining: number;
+    nowMs: number;
+  };
 };

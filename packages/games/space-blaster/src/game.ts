@@ -41,6 +41,7 @@ import {
 } from './scoring';
 import { buildResultsViewModel } from './results/buildResultsViewModel';
 import { buildSubmitScorePayloadV1 } from './submit';
+import { HUDSystem } from './ui/HUDSystem';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -81,6 +82,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   private diveScheduler?: DiveScheduler<Phaser.GameObjects.Rectangle>;
   private levelSystem!: LevelSystem;
   private scoreSystem!: ScoreSystem;
+  private hudSystem!: HUDSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
   private enemyControllers = new Map<
     Phaser.GameObjects.Rectangle,
@@ -102,8 +104,6 @@ class SpaceBlasterScene extends Phaser.Scene {
   private maxWaveReached = 1;
   private finalSummary: FinalScoreSummary | null = null;
 
-  private scoreText!: Phaser.GameObjects.Text;
-  private livesText!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
   private resultsText!: Phaser.GameObjects.Text;
   private playAgainBtn!: Phaser.GameObjects.Text;
@@ -302,6 +302,18 @@ class SpaceBlasterScene extends Phaser.Scene {
       bus: this.runBus,
       getLevelNumber: () => this.levelSystem.getLevelNumber(),
     });
+    this.hudSystem = new HUDSystem({
+      scene: this,
+      ctx: this.deps.ctx,
+      bus: this.runBus,
+      scoreSystem: this.scoreSystem,
+      getLives: () => this.lifeSystem.lives,
+    });
+    this.hudSystem.create();
+    this.runBus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
+      livesRemaining: this.lifeSystem.lives,
+      nowMs: this.simNowMs,
+    });
     this.disposables.add(
       this.runBus.on(RUN_EVENT.LEVEL_WAVE_CLEARED, () => {
         this.wavesCleared += 1;
@@ -309,17 +321,6 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.syncScoreFromSystem();
       }),
     );
-
-    this.scoreText = this.add.text(16, 12, 'Score: 0', {
-      fontFamily: 'Montserrat, Arial, sans-serif',
-      fontSize: '18px',
-      color: '#f9d65c',
-    });
-    this.livesText = this.add.text(16, 34, `Lives: ${this.lifeSystem.lives}`, {
-      fontFamily: 'Montserrat, Arial, sans-serif',
-      fontSize: '16px',
-      color: '#d5d8e0',
-    });
 
     this.statusText = this.add.text(16, 58, 'Press space or tap to start', {
       fontFamily: 'Montserrat, Arial, sans-serif',
@@ -559,10 +560,6 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.runBus.emit(RUN_EVENT.PLAYER_SHOT_FIRED, { nowMs: this.simNowMs });
   }
 
-  private updateLivesDisplay() {
-    this.livesText.setText(`Lives: ${this.lifeSystem.lives}`);
-  }
-
   private handlePlayerHit() {
     if (this.runStateMachine.state !== RunState.PLAYING) return;
 
@@ -571,8 +568,10 @@ class SpaceBlasterScene extends Phaser.Scene {
       return;
     }
     this.runBus.emit(RUN_EVENT.PLAYER_HIT, { nowMs: this.simNowMs });
-
-    this.updateLivesDisplay();
+    this.runBus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
+      livesRemaining: hitResult.livesRemaining,
+      nowMs: this.simNowMs,
+    });
     if (hitResult.kind === 'end_run') {
       this.runStateMachine.requestEndRun('player_death');
       return;
@@ -632,7 +631,10 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.finalSummary = null;
     this.submitting = false;
     this.lifeSystem.reset();
-    this.updateLivesDisplay();
+    this.runBus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
+      livesRemaining: this.lifeSystem.lives,
+      nowMs: this.simNowMs,
+    });
     this.levelSystem.startLevel(0);
     resetRunRegistration(this.deps.ctx);
     this.scoreSystem.resetForNewRun();
@@ -896,6 +898,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.formationSystem.clear();
     this.weaponSystem.clear();
     this.enemyWeaponSystem.clear();
+    this.hudSystem.destroy();
     this.diveScheduler = undefined;
     this.enemyCanDive.clear();
     this.enemyProfile.clear();
@@ -909,7 +912,6 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private syncScoreFromSystem(): void {
     this.score = this.scoreSystem.getState().score;
-    this.scoreText.setText(`Score: ${this.score}`);
   }
 
   private buildFinalSummary(): FinalScoreSummary {
