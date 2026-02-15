@@ -11,7 +11,7 @@ import {
   type SpaceBlasterBootstrapDeps,
 } from './bootstrap';
 import {
-  buildRunScoreSubmissionPayload,
+  buildRunSubmissionPayload,
   DisposableBag,
   createRunContext,
   isRunStartTransition,
@@ -34,7 +34,7 @@ import { EnemyController } from './enemies/EnemyController';
 import { DiveScheduler } from './enemies/DiveScheduler';
 import { EnemyLocalState } from './enemies/EnemyLocalState';
 import { LevelSystem } from './levels/LevelSystem';
-import { ScoreSystem } from './scoring';
+import { buildFinalScoreSummary, ScoreSystem } from './scoring';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -92,6 +92,9 @@ class SpaceBlasterScene extends Phaser.Scene {
   private runStarted = false;
   private startRequested = false;
   private simNowMs = 0;
+  private wavesCleared = 0;
+  private maxLevelReached = 1;
+  private maxWaveReached = 1;
 
   private scoreText!: Phaser.GameObjects.Text;
   private livesText!: Phaser.GameObjects.Text;
@@ -293,6 +296,8 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
     this.disposables.add(
       this.runBus.on(RUN_EVENT.LEVEL_WAVE_CLEARED, () => {
+        this.wavesCleared += 1;
+        this.syncReachedProgress();
         this.syncScoreFromSystem();
       }),
     );
@@ -476,6 +481,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         });
 
         this.levelSystem.update(dtMs);
+        this.syncReachedProgress();
 
         this.weaponSystem.update(dtMs);
         this.enemyWeaponSystem.update(dtMs);
@@ -558,21 +564,31 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private async submitScoreIfNeeded() {
-    if (!this.canSubmitScore || this.submitting) {
+    if (this.submitting) {
+      this.onGameOver?.(this.score);
+      return;
+    }
+
+    const durationMs = this.startTime ? Date.now() - this.startTime : undefined;
+    const summary = buildFinalScoreSummary({
+      scoreState: this.scoreSystem.getState(),
+      durationMs,
+      levelReached: this.maxLevelReached,
+      waveReached: this.maxWaveReached,
+      wavesCleared: this.wavesCleared,
+    });
+    const payload = buildRunSubmissionPayload(summary, this.deps.ctx);
+
+    if (!this.canSubmitScore) {
+      this.score = payload.score;
       this.onGameOver?.(this.score);
       return;
     }
 
     this.submitting = true;
-    const durationMs = this.startTime ? Date.now() - this.startTime : undefined;
 
     try {
       this.statusText.setText('Submitting...');
-      const payload = buildRunScoreSubmissionPayload(
-        this.deps.ctx,
-        this.score,
-        durationMs,
-      );
       await this.deps.sdk.submitScore(payload);
       this.statusText.setText('Score submitted');
       window.dispatchEvent(
@@ -594,6 +610,9 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.score = 0;
     this.startTime = null;
     this.simNowMs = 0;
+    this.wavesCleared = 0;
+    this.maxLevelReached = 1;
+    this.maxWaveReached = 1;
     this.canSubmitScore = true;
     this.lifeSystem.reset();
     this.updateLivesDisplay();
@@ -867,6 +886,17 @@ class SpaceBlasterScene extends Phaser.Scene {
   private syncScoreFromSystem(): void {
     this.score = this.scoreSystem.getState().score;
     this.scoreText.setText(`Score: ${this.score}`);
+  }
+
+  private syncReachedProgress(): void {
+    const levelReached = this.levelSystem.getLevelNumber();
+    const waveReached = this.levelSystem.getWaveIndex() + 1;
+    if (levelReached > this.maxLevelReached) {
+      this.maxLevelReached = levelReached;
+    }
+    if (waveReached > this.maxWaveReached) {
+      this.maxWaveReached = waveReached;
+    }
   }
 }
 

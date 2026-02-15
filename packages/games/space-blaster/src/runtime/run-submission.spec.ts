@@ -1,7 +1,8 @@
 import type { EmbeddedGameSdk } from '@playmasters/types';
+import type { FinalScoreSummary } from '../scoring';
 import { createRunContext } from './run-context';
 import { registerRunIfAuthenticated } from './run-registration';
-import { buildRunScoreSubmissionPayload } from './run-submission';
+import { buildRunSubmissionPayload } from './run-submission';
 
 const resolvedConfigExample = {
   configHash: 'f'.repeat(64),
@@ -31,6 +32,19 @@ const createSdkMock = (): EmbeddedGameSdk => ({
 });
 
 describe('buildRunScoreSubmissionPayload', () => {
+  const summary: FinalScoreSummary = {
+    score: 1234,
+    durationMs: 4567,
+    levelReached: 3,
+    waveReached: 5,
+    stats: {
+      shotsFired: 40,
+      shotsHit: 22,
+      kills: 18,
+      wavesCleared: 4,
+    },
+  };
+
   it('uses the hash captured at run start', async () => {
     const ctx = createRunContext({
       sdk: createSdkMock(),
@@ -38,10 +52,19 @@ describe('buildRunScoreSubmissionPayload', () => {
     });
     await registerRunIfAuthenticated(ctx);
 
-    const payload = buildRunScoreSubmissionPayload(ctx, 1234, 4567);
+    const payload = buildRunSubmissionPayload(summary, ctx);
     expect(payload).toEqual({
+      runId: 'run-123',
       score: 1234,
       durationMs: 4567,
+      levelReached: 3,
+      waveReached: 5,
+      stats: {
+        shotsFired: 40,
+        shotsHit: 22,
+        kills: 18,
+        wavesCleared: 4,
+      },
       configHash: resolvedConfigExample.configHash,
       versionHash: resolvedConfigExample.versionHash,
     });
@@ -56,7 +79,83 @@ describe('buildRunScoreSubmissionPayload', () => {
     const captured = ctx.runConfigHash;
     (ctx as unknown as { configHash: string }).configHash = '0'.repeat(64);
 
-    const payload = buildRunScoreSubmissionPayload(ctx, 99);
+    const payload = buildRunSubmissionPayload(
+      { ...summary, score: 99, durationMs: 1 },
+      ctx,
+    );
     expect(payload.configHash).toBe(captured);
+  });
+
+  it('whitelists allowed fields only and excludes hidden modifiers', async () => {
+    const ctx = createRunContext({
+      sdk: createSdkMock(),
+      resolvedConfig: resolvedConfigExample,
+    });
+    await registerRunIfAuthenticated(ctx);
+
+    const noisySummary = {
+      ...summary,
+      hiddenMultiplier: 999,
+      debug: true,
+      seed: 'abc',
+      stats: {
+        ...summary.stats,
+        cheatFlags: ['godmode'],
+      },
+    } as unknown as FinalScoreSummary;
+    const payload = buildRunSubmissionPayload(noisySummary, ctx);
+
+    expect(payload).toEqual({
+      runId: 'run-123',
+      score: 1234,
+      durationMs: 4567,
+      levelReached: 3,
+      waveReached: 5,
+      stats: {
+        shotsFired: 40,
+        shotsHit: 22,
+        kills: 18,
+        wavesCleared: 4,
+      },
+      configHash: resolvedConfigExample.configHash,
+      versionHash: resolvedConfigExample.versionHash,
+    });
+    expect((payload as { hiddenMultiplier?: number }).hiddenMultiplier).toBe(
+      undefined,
+    );
+    expect((payload.stats as { cheatFlags?: string[] }).cheatFlags).toBe(
+      undefined,
+    );
+  });
+
+  it('is deterministic for the same inputs', async () => {
+    const ctx = createRunContext({
+      sdk: createSdkMock(),
+      resolvedConfig: resolvedConfigExample,
+    });
+    await registerRunIfAuthenticated(ctx);
+
+    const a = buildRunSubmissionPayload(summary, ctx);
+    const b = buildRunSubmissionPayload(summary, ctx);
+    expect(a).toEqual(b);
+  });
+
+  it('builds payload without auth state or runId', () => {
+    const unauthSdk: EmbeddedGameSdk = {
+      isAuthenticated: false,
+      startRun: jest.fn(async () => {
+        throw new Error('auth_required');
+      }),
+      submitScore: jest.fn(async () => undefined),
+    };
+    const ctx = createRunContext({
+      sdk: unauthSdk,
+      resolvedConfig: resolvedConfigExample,
+    });
+    ctx.runConfigHash = ctx.configHash;
+
+    const payload = buildRunSubmissionPayload(summary, ctx);
+    expect(payload.runId).toBeUndefined();
+    expect(payload.configHash).toBe(resolvedConfigExample.configHash);
   });
 });
