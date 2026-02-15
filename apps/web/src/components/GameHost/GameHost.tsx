@@ -28,6 +28,7 @@ const gameLoaders: Record<string, () => Promise<EmbeddedGame>> = {
 };
 
 const createGuestSdk = (): GameSdk => ({
+  isAuthenticated: false,
   async startRun() {
     throw new Error('auth_required');
   },

@@ -22,7 +22,9 @@ export function createGameSdk(ctx: GameContext): GameSdk {
 
     const json = await safeJson(response);
     if (!response.ok || !json?.token) {
-      throw new Error((json as { error?: string } | null)?.error ?? 'session_failed');
+      throw new Error(
+        (json as { error?: string } | null)?.error ?? 'session_failed',
+      );
     }
 
     sessionToken = json.token as string;
@@ -49,10 +51,15 @@ export function createGameSdk(ctx: GameContext): GameSdk {
     });
 
     const json = await safeJson(response);
-    if (!response.ok || (json as { ok?: boolean; error?: string } | null)?.ok === false) {
-      throw new Error((json as { error?: string } | null)?.error ?? 'submit_failed');
+    if (
+      !response.ok ||
+      (json as { ok?: boolean; error?: string } | null)?.ok === false
+    ) {
+      throw new Error(
+        (json as { error?: string } | null)?.error ?? 'submit_failed',
+      );
     }
   };
 
-  return { startRun, submitScore };
+  return { isAuthenticated: Boolean(ctx.user), startRun, submitScore };
 }

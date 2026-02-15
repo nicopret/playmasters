@@ -1,4 +1,5 @@
 export type EmbeddedGameSdk = {
+  isAuthenticated?: boolean;
   startRun(): Promise<{
     run: { runId: string; startedAt: string };
     sessionToken: string;

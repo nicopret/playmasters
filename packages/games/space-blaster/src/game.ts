@@ -10,7 +10,12 @@ import {
   createBootstrapDependencies,
   type SpaceBlasterBootstrapDeps,
 } from './bootstrap';
-import { DisposableBag, createRunContext } from './runtime';
+import {
+  DisposableBag,
+  createRunContext,
+  registerRunIfAuthenticated,
+  resetRunRegistration,
+} from './runtime';
 import {
   orchestrateRunFrame,
   RUN_EVENT,
@@ -586,6 +591,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.lifeSystem.reset();
     this.updateLivesDisplay();
     this.levelSystem.startLevel(0);
+    resetRunRegistration(this.deps.ctx);
     this.scoreSystem.resetForNewRun();
     this.syncScoreFromSystem();
   }
@@ -594,12 +600,16 @@ class SpaceBlasterScene extends Phaser.Scene {
     if (this.runStarted) return;
     this.runStarted = true;
     this.startTime = Date.now();
-    try {
-      await this.deps.sdk.startRun();
-    } catch {
-      this.canSubmitScore = false;
-      this.statusText.setText('Sign in to submit score');
+    const registration = await registerRunIfAuthenticated(this.deps.ctx);
+    if (registration === 'started') {
+      return;
     }
+    if (registration === 'skipped_unauthenticated') {
+      this.canSubmitScore = false;
+      return;
+    }
+    this.canSubmitScore = false;
+    this.statusText.setText('Sign in to submit score');
   }
 
   private onCountdownTick(remainingMs: number) {
