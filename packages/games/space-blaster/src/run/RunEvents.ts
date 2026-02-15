@@ -77,7 +77,12 @@ export type RunEventMap = {
   };
   [RUN_EVENT.PLAYER_SHOT_FIRED]: { nowMs: number };
   [RUN_EVENT.PLAYER_SHOT_HIT]: { nowMs: number };
-  [RUN_EVENT.ENEMY_KILLED]: { enemyId: string; nowMs: number };
+  [RUN_EVENT.ENEMY_KILLED]: {
+    enemyId: string;
+    nowMs: number;
+    x?: number;
+    y?: number;
+  };
   [RUN_EVENT.PLAYER_HIT]: { nowMs: number };
   [RUN_EVENT.SCORE_CHANGED]: {
     score: number;
