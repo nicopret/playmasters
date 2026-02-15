@@ -1,4 +1,4 @@
-import type { ComboTierV1 } from '@playmasters/types';
+import type { AccuracyThresholdV1, ComboTierV1 } from '@playmasters/types';
 import type { RunContext } from '../runtime';
 import { RUN_EVENT, type RunEventBus } from '../run';
 import {
@@ -53,6 +53,32 @@ export const computeComboTierIndex = (
   return selectedIndex;
 };
 
+export const computeAccuracy = (
+  shotsFired: number,
+  shotsHit: number,
+): number => {
+  const fired = Number.isFinite(shotsFired) ? shotsFired : 0;
+  const hit = Number.isFinite(shotsHit) ? shotsHit : 0;
+  const raw = hit / Math.max(1, fired);
+  return clamp(raw, 0, 1);
+};
+
+export const selectHighestAccuracyThreshold = (
+  thresholds: AccuracyThresholdV1[],
+  accuracy: number,
+): AccuracyThresholdV1 | null => {
+  if (thresholds.length === 0) return null;
+  let selected: AccuracyThresholdV1 | null = null;
+  for (const threshold of thresholds) {
+    if (accuracy >= threshold.minAccuracy) {
+      selected = threshold;
+    } else {
+      break;
+    }
+  }
+  return selected;
+};
+
 type ScoreSystemOptions = {
   ctx: RunContext;
   bus: RunEventBus;
@@ -73,7 +99,12 @@ export class ScoreSystem {
   private readonly levelMultiplierBase: number;
   private readonly levelMultiplierPerLevel: number;
   private readonly levelMultiplierMax: number;
+  private readonly waveClearBonusBase: number;
+  private readonly waveClearPerLifeBonus: number;
+  private readonly accuracyThresholds: AccuracyThresholdV1[];
+  private readonly scaleAccuracyBonusByLevelMultiplier: boolean;
   private readonly eventLogMax: number;
+  private readonly appliedWaveBonusKeys = new Set<string>();
   private readonly unsubscribeFns: Array<() => void> = [];
 
   constructor(options: ScoreSystemOptions) {
@@ -91,6 +122,17 @@ export class ScoreSystem {
       options.ctx.resolvedConfig.scoreConfig.levelScoreMultiplier.perLevel;
     this.levelMultiplierMax =
       options.ctx.resolvedConfig.scoreConfig.levelScoreMultiplier.max;
+    this.waveClearBonusBase =
+      options.ctx.resolvedConfig.scoreConfig.waveClearBonus.base;
+    this.waveClearPerLifeBonus =
+      options.ctx.resolvedConfig.scoreConfig.waveClearBonus.perLifeBonus;
+    this.accuracyThresholds = [
+      ...(options.ctx.resolvedConfig.scoreConfig.accuracyBonus?.thresholds ??
+        []),
+    ].sort((a, b) => a.minAccuracy - b.minAccuracy);
+    this.scaleAccuracyBonusByLevelMultiplier =
+      options.ctx.resolvedConfig.scoreConfig.accuracyBonus
+        ?.scaleByLevelMultiplier ?? false;
     const configuredEventLogSize = (
       options.ctx.resolvedConfig.scoreConfig as { eventLogSize?: number }
     ).eventLogSize;
@@ -113,11 +155,17 @@ export class ScoreSystem {
       options.bus.on(RUN_EVENT.PLAYER_SHOT_FIRED, ({ nowMs }) => {
         this.onShotFired(nowMs);
       }),
+      options.bus.on(RUN_EVENT.PLAYER_SHOT_HIT, () => {
+        this.onShotHit();
+      }),
       options.bus.on(RUN_EVENT.ENEMY_KILLED, ({ enemyId, nowMs }) => {
         this.onEnemyKilled(enemyId, nowMs);
       }),
       options.bus.on(RUN_EVENT.PLAYER_HIT, ({ nowMs }) => {
         this.onPlayerHit(nowMs);
+      }),
+      options.bus.on(RUN_EVENT.LEVEL_WAVE_CLEARED, (payload) => {
+        this.onWaveCleared(payload);
       }),
     );
   }
@@ -135,6 +183,7 @@ export class ScoreSystem {
 
   resetForNewRun(): void {
     this.state = createInitialScoreState();
+    this.appliedWaveBonusKeys.clear();
   }
 
   onShotFired(nowMs?: number): void {
@@ -142,6 +191,10 @@ export class ScoreSystem {
     if (typeof nowMs === 'number' && Number.isFinite(nowMs) && nowMs >= 0) {
       this.pushEvent({ type: 'SHOT_FIRED', atMs: nowMs });
     }
+  }
+
+  onShotHit(): void {
+    this.state.shotsHit += 1;
   }
 
   onEnemyKilled(enemyId: string, nowMs: number): void {
@@ -225,6 +278,68 @@ export class ScoreSystem {
     if (!Number.isFinite(nowMs) || nowMs < 0) return;
     if (!this.resetOnPlayerHit) return;
     this.resetComboState('PLAYER_HIT', nowMs);
+  }
+
+  onWaveCleared(args: {
+    levelNumber: number;
+    waveIndex: number;
+    livesRemaining: number;
+    nowMs: number;
+  }): void {
+    if (!Number.isFinite(args.nowMs) || args.nowMs < 0) return;
+    const levelNumber = Math.max(1, Math.floor(args.levelNumber));
+    const waveIndex = Math.max(0, Math.floor(args.waveIndex));
+    const livesRemaining = Math.max(0, Math.floor(args.livesRemaining));
+    const waveKey = `${levelNumber}:${waveIndex}`;
+    if (this.appliedWaveBonusKeys.has(waveKey)) {
+      return;
+    }
+
+    const levelMultiplier = computeLevelMultiplier({
+      levelNumber,
+      base: this.levelMultiplierBase,
+      perLevel: this.levelMultiplierPerLevel,
+      max: this.levelMultiplierMax,
+    });
+    const baseBonus = Math.round(this.waveClearBonusBase * levelMultiplier);
+    const perLifeBonus = Math.round(
+      this.waveClearPerLifeBonus * livesRemaining * levelMultiplier,
+    );
+    const totalWaveBonus = baseBonus + perLifeBonus;
+
+    this.appliedWaveBonusKeys.add(waveKey);
+    this.state.score += totalWaveBonus;
+    this.state.breakdownTotals.waveClearBonuses += totalWaveBonus;
+    this.assertBreakdownInvariant();
+  }
+
+  finalizeRun(nowMs: number): void {
+    if (!Number.isFinite(nowMs) || nowMs < 0) return;
+    if (this.state.finalized) return;
+
+    const accuracy = computeAccuracy(
+      this.state.shotsFired,
+      this.state.shotsHit,
+    );
+    const threshold = selectHighestAccuracyThreshold(
+      this.accuracyThresholds,
+      accuracy,
+    );
+    const rawBonus = threshold?.bonus ?? 0;
+    const levelMultiplier = computeLevelMultiplier({
+      levelNumber: this.getLevelNumber(),
+      base: this.levelMultiplierBase,
+      perLevel: this.levelMultiplierPerLevel,
+      max: this.levelMultiplierMax,
+    });
+    const bonus = this.scaleAccuracyBonusByLevelMultiplier
+      ? Math.round(rawBonus * levelMultiplier)
+      : rawBonus;
+
+    this.state.score += bonus;
+    this.state.breakdownTotals.accuracyBonus += bonus;
+    this.state.finalized = true;
+    this.assertBreakdownInvariant();
   }
 
   private computeNextComboCount(): number {
@@ -313,8 +428,8 @@ export class ScoreSystem {
       this.state.breakdownTotals.killPoints +
       this.state.breakdownTotals.comboExtra +
       this.state.breakdownTotals.tierBonuses +
-      this.state.breakdownTotals.waveBonuses +
-      this.state.breakdownTotals.accuracyBonuses
+      this.state.breakdownTotals.waveClearBonuses +
+      this.state.breakdownTotals.accuracyBonus
     );
   }
 

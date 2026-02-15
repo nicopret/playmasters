@@ -3,8 +3,10 @@ import type { RunContext } from '../runtime';
 import { RUN_EVENT, RunEventBus } from '../run';
 import {
   computeComboTierIndex,
+  computeAccuracy,
   computeLevelMultiplier,
   ScoreSystem,
+  selectHighestAccuracyThreshold,
   selectHighestComboTier,
 } from './ScoreSystem';
 
@@ -144,6 +146,26 @@ describe('ScoreSystem', () => {
     expect(computeComboTierIndex(tiers, 1)).toBe(0);
     expect(computeComboTierIndex(tiers, 3)).toBe(1);
     expect(computeComboTierIndex(tiers, 99)).toBe(2);
+  });
+
+  it('computes accuracy with edge-case handling and clamping', () => {
+    expect(computeAccuracy(0, 0)).toBe(0);
+    expect(computeAccuracy(10, 7)).toBe(0.7);
+    expect(computeAccuracy(0, 5)).toBe(1);
+  });
+
+  it('selects highest accuracy threshold met', () => {
+    const thresholds = [
+      { minAccuracy: 0.5, bonus: 100 },
+      { minAccuracy: 0.8, bonus: 300 },
+    ];
+    expect(selectHighestAccuracyThreshold(thresholds, 0.49)?.bonus ?? 0).toBe(
+      0,
+    );
+    expect(selectHighestAccuracyThreshold(thresholds, 0.5)?.bonus).toBe(100);
+    expect(selectHighestAccuracyThreshold(thresholds, 0.79)?.bonus).toBe(100);
+    expect(selectHighestAccuracyThreshold(thresholds, 0.8)?.bonus).toBe(300);
+    expect(selectHighestAccuracyThreshold(thresholds, 0.95)?.bonus).toBe(300);
   });
 
   it('awards rounded kill points from baseEnemyScore * levelMultiplier', () => {
@@ -312,9 +334,99 @@ describe('ScoreSystem', () => {
       state.breakdownTotals.killPoints +
       state.breakdownTotals.comboExtra +
       state.breakdownTotals.tierBonuses +
-      state.breakdownTotals.waveBonuses +
-      state.breakdownTotals.accuracyBonuses;
+      state.breakdownTotals.waveClearBonuses +
+      state.breakdownTotals.accuracyBonus;
     expect(sum).toBe(state.score);
+  });
+
+  it('applies wave clear bonus with level multiplier and per-life bonus', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.levelScoreMultiplier = {
+          base: 1.5,
+          perLevel: 0,
+          max: 1.5,
+        };
+        config.scoreConfig.waveClearBonus = {
+          base: 100,
+          perLifeBonus: 25,
+        };
+      }),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    system.onWaveCleared({
+      levelNumber: 1,
+      waveIndex: 0,
+      livesRemaining: 2,
+      nowMs: 500,
+    });
+
+    expect(system.getState().score).toBe(225);
+    expect(system.getState().breakdownTotals.waveClearBonuses).toBe(225);
+  });
+
+  it('applies wave clear bonus exactly once per levelNumber/waveIndex', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.waveClearBonus = {
+          base: 100,
+          perLifeBonus: 0,
+        };
+      }),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    system.onWaveCleared({
+      levelNumber: 1,
+      waveIndex: 0,
+      livesRemaining: 3,
+      nowMs: 100,
+    });
+    system.onWaveCleared({
+      levelNumber: 1,
+      waveIndex: 0,
+      livesRemaining: 3,
+      nowMs: 101,
+    });
+
+    expect(system.getState().score).toBe(100);
+    expect(system.getState().breakdownTotals.waveClearBonuses).toBe(100);
+  });
+
+  it('handles wave-clear bonus through level.waveCleared bus event', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.waveClearBonus = {
+          base: 80,
+          perLifeBonus: 10,
+        };
+      }),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    bus.emit(RUN_EVENT.LEVEL_WAVE_CLEARED, {
+      levelNumber: 2,
+      waveIndex: 1,
+      reason: 'ALL_ENEMIES_DEAD',
+      nowMs: 1000,
+      livesRemaining: 2,
+    });
+    bus.emit(RUN_EVENT.LEVEL_WAVE_CLEARED, {
+      levelNumber: 2,
+      waveIndex: 1,
+      reason: 'ALL_ENEMIES_DEAD',
+      nowMs: 1001,
+      livesRemaining: 2,
+    });
+
+    expect(system.getState().breakdownTotals.waveClearBonuses).toBe(125);
   });
 
   it('keeps event log bounded to configured max size', () => {
@@ -355,5 +467,60 @@ describe('ScoreSystem', () => {
     expect(system.getState().shotsFired).toBe(1);
     expect(system.getState().breakdownTotals.kills).toBe(1);
     expect(system.getState().comboCount).toBe(0);
+  });
+
+  it('tracks shot hits and applies highest accuracy bonus once on finalizeRun', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.accuracyBonus = {
+          scaleByLevelMultiplier: false,
+          thresholds: [
+            { minAccuracy: 0.5, bonus: 100 },
+            { minAccuracy: 0.8, bonus: 300 },
+          ],
+        };
+      }),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    for (let i = 0; i < 10; i += 1) {
+      system.onShotFired(i);
+    }
+    for (let i = 0; i < 8; i += 1) {
+      system.onShotHit();
+    }
+    system.finalizeRun(2000);
+    const firstScore = system.getState().score;
+
+    expect(system.getState().breakdownTotals.accuracyBonus).toBe(300);
+    expect(firstScore).toBe(300);
+
+    system.finalizeRun(3000);
+    expect(system.getState().score).toBe(firstScore);
+    expect(system.getState().breakdownTotals.accuracyBonus).toBe(300);
+  });
+
+  it('wires shot-hit and finalize via run bus events', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.accuracyBonus = {
+          scaleByLevelMultiplier: false,
+          thresholds: [{ minAccuracy: 0.5, bonus: 120 }],
+        };
+      }),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    bus.emit(RUN_EVENT.PLAYER_SHOT_FIRED, { nowMs: 10 });
+    bus.emit(RUN_EVENT.PLAYER_SHOT_HIT, { nowMs: 11 });
+    system.finalizeRun(100);
+
+    expect(system.getState().shotsFired).toBe(1);
+    expect(system.getState().shotsHit).toBe(1);
+    expect(system.getState().breakdownTotals.accuracyBonus).toBe(120);
   });
 });

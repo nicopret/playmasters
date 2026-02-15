@@ -125,7 +125,8 @@ describe('LevelSystem', () => {
       levelNumber: number;
       waveIndex: number;
       reason: 'ALL_ENEMIES_DEAD' | 'ENRAGE_TIMEOUT';
-      timestampMs: number;
+      nowMs: number;
+      livesRemaining: number;
     }> = [];
     bus.on(RUN_EVENT.LEVEL_WAVE_CLEARED, (payload) => {
       waveClearedEvents.push(payload);
@@ -143,6 +144,7 @@ describe('LevelSystem', () => {
         spawnFormation: jest.fn(),
       },
       getActiveEnemyCount: () => 0,
+      getWaveClearContext: () => ({ nowMs: 1234, livesRemaining: 2 }),
     });
 
     levelSystem.startLevel(0);
@@ -153,6 +155,8 @@ describe('LevelSystem', () => {
     expect(waveClearedEvents[0]?.levelNumber).toBe(1);
     expect(waveClearedEvents[0]?.waveIndex).toBe(0);
     expect(waveClearedEvents[0]?.reason).toBe('ALL_ENEMIES_DEAD');
+    expect(waveClearedEvents[0]?.nowMs).toBe(1234);
+    expect(waveClearedEvents[0]?.livesRemaining).toBe(2);
   });
 
   it('loads next wave config after WAVE_CLEAR -> COUNTDOWN -> PLAYING', () => {

@@ -269,6 +269,10 @@ class SpaceBlasterScene extends Phaser.Scene {
       runStateMachine: this.runStateMachine,
       formationSystem: this.formationSystem,
       getActiveEnemyCount: () => this.enemies.countActive(true),
+      getWaveClearContext: () => ({
+        nowMs: this.simNowMs,
+        livesRemaining: this.lifeSystem.lives,
+      }),
       onWaveStarted: ({ wave, level }) => {
         this.diveScheduler = this.createDiveScheduler(wave.enemyId, level);
         this.enemyFireSystem = this.createEnemyFireSystem(level);
@@ -280,6 +284,11 @@ class SpaceBlasterScene extends Phaser.Scene {
       bus: this.runBus,
       getLevelNumber: () => this.levelSystem.getLevelNumber(),
     });
+    this.disposables.add(
+      this.runBus.on(RUN_EVENT.LEVEL_WAVE_CLEARED, () => {
+        this.syncScoreFromSystem();
+      }),
+    );
 
     this.scoreText = this.add.text(16, 12, 'Score: 0', {
       fontFamily: 'Montserrat, Arial, sans-serif',
@@ -382,6 +391,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.enemyCanDive.delete(target);
         const enemyId = this.enemyProfile.get(target)?.enemyId;
         this.enemyProfile.delete(target);
+        this.runBus.emit(RUN_EVENT.PLAYER_SHOT_HIT, { nowMs: this.simNowMs });
         this.formationSystem.onEnemyDeath(target);
         target.destroy();
         if (enemyId) {
@@ -788,9 +798,13 @@ class SpaceBlasterScene extends Phaser.Scene {
         );
         break;
       case RunState.RUN_ENDING:
+        this.scoreSystem.finalizeRun(this.simNowMs);
+        this.syncScoreFromSystem();
         this.statusText.setText('Run over');
         break;
       case RunState.RESULTS:
+        this.scoreSystem.finalizeRun(this.simNowMs);
+        this.syncScoreFromSystem();
         this.playAgainBtn.setVisible(true);
         void this.submitScoreIfNeeded();
         break;
