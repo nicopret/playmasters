@@ -14,6 +14,7 @@ import {
   buildRunScoreSubmissionPayload,
   DisposableBag,
   createRunContext,
+  isRunStartTransition,
   registerRunIfAuthenticated,
   resetRunRegistration,
 } from './runtime';
@@ -790,7 +791,9 @@ class SpaceBlasterScene extends Phaser.Scene {
         if (from === RunState.PLAYER_RESPAWN) {
           this.lifeSystem.startRespawnInvulnerability();
         }
-        void this.ensureRunStarted();
+        if (isRunStartTransition(from, state)) {
+          void this.ensureRunStarted();
+        }
         break;
       case RunState.PLAYING:
         this.statusText.setText(
