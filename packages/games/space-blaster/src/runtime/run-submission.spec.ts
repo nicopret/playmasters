@@ -198,8 +198,10 @@ describe('attemptRunSubmission', () => {
     expect(first).toBe('success');
     expect(second).toBe('already_attempted');
     expect(sdk.submitScore).toHaveBeenCalledTimes(1);
-    expect(ctx.submissionStatus?.state).toBe('success');
-    expect(ctx.submissionStatus?.submittedAtMs).toBe(1000);
+    expect(ctx.submissionStatus).toEqual({
+      state: 'success',
+      submittedAtMs: 1000,
+    });
   });
 
   it('marks failed status with message when submitScore rejects', async () => {
@@ -227,8 +229,40 @@ describe('attemptRunSubmission', () => {
     });
 
     expect(result).toBe('fail');
-    expect(ctx.submissionStatus?.state).toBe('fail');
-    expect(ctx.submissionStatus?.errorMessage).toBe('submit_failed');
+    expect(ctx.submissionStatus).toEqual({
+      state: 'fail',
+      errorMessage: 'submit_failed',
+    });
+  });
+
+  it('stores optional leaderboard metadata when submitScore returns it', async () => {
+    const sdk = {
+      ...createSdkMock(),
+      submitScore: jest.fn(async () => ({
+        rank: 4,
+        personalBest: true,
+      })),
+    } as unknown as EmbeddedGameSdk;
+    const ctx = createRunContext({
+      sdk,
+      resolvedConfig: resolvedConfigExample,
+    });
+    await registerRunIfAuthenticated(ctx);
+    const payload = buildSubmitScorePayload(summary, ctx);
+
+    const result = await attemptRunSubmission({
+      ctx,
+      payload,
+      nowMs: 2222,
+    });
+
+    expect(result).toBe('success');
+    expect(ctx.submissionStatus).toEqual({
+      state: 'success',
+      submittedAtMs: 2222,
+      rank: 4,
+      personalBest: true,
+    });
   });
 
   it('skips when unauthenticated and does not call submit', async () => {
@@ -273,8 +307,9 @@ describe('attemptRunSubmission', () => {
 
     expect(result).toBe('skipped');
     expect(ctx.submissionStatus?.state).toBe('skipped');
-    expect(ctx.submissionStatus?.errorMessage).toBe(
-      'No runId available for submission.',
-    );
+    expect(ctx.submissionStatus).toEqual({
+      state: 'skipped',
+      reason: 'missingRunId',
+    });
   });
 });

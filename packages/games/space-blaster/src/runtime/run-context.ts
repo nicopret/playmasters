@@ -1,16 +1,11 @@
 import type { EmbeddedGameSdk, ResolvedGameConfigV1 } from '@playmasters/types';
+import type { SubmissionStatus } from '../submit';
 
 export type RuntimeConfigError = {
   code: 'CONFIG_INVALID';
   domain: string;
   path: string;
   message: string;
-};
-
-export type SubmissionStatus = {
-  state: 'idle' | 'submitting' | 'success' | 'fail' | 'skipped';
-  errorMessage?: string;
-  submittedAtMs?: number;
 };
 
 export type RunContext = {

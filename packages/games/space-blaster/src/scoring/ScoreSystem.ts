@@ -212,6 +212,9 @@ export class ScoreSystem {
 
     const comboCount = this.computeNextComboCount();
     this.state.comboCount = comboCount;
+    if (comboCount > this.state.maxComboCount) {
+      this.state.maxComboCount = comboCount;
+    }
     this.state.comboExpiresAtMs =
       this.comboEnabled && this.comboWindowMs > 0
         ? nowMs + this.comboWindowMs

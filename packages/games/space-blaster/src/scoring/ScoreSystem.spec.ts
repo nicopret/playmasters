@@ -523,4 +523,21 @@ describe('ScoreSystem', () => {
     expect(system.getState().shotsHit).toBe(1);
     expect(system.getState().breakdownTotals.accuracyBonus).toBe(120);
   });
+
+  it('tracks max combo reached across a run', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext(),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    system.onEnemyKilled('enemy-a', 10);
+    system.onEnemyKilled('enemy-a', 20);
+    system.onEnemyKilled('enemy-a', 30);
+    system.onEnemyKilled('enemy-a', 3000); // combo reset
+
+    expect(system.getState().comboCount).toBe(1);
+    expect(system.getState().maxComboCount).toBe(3);
+  });
 });
