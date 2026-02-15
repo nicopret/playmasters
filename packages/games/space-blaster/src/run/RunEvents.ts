@@ -28,6 +28,7 @@ export const RUN_EVENT = {
   SCORE_TIER_ENTERED: 'score.tierEntered',
   SCORE_COMBO_RESET: 'score.comboReset',
   PLAYER_LIVES_CHANGED: 'player.livesChanged',
+  ENEMY_DIVE_TELEGRAPH: 'enemy.diveTelegraph',
 } as const;
 
 export type TransitionReason =
@@ -106,5 +107,10 @@ export type RunEventMap = {
   [RUN_EVENT.PLAYER_LIVES_CHANGED]: {
     livesRemaining: number;
     nowMs: number;
+  };
+  [RUN_EVENT.ENEMY_DIVE_TELEGRAPH]: {
+    enemyId?: string;
+    nowMs: number;
+    leadMs: number;
   };
 };
