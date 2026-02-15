@@ -13,6 +13,7 @@ import {
 import { DisposableBag, createRunContext } from './runtime';
 import {
   orchestrateRunFrame,
+  RUN_EVENT,
   RunEventBus,
   RunState,
   RunStateMachine,
@@ -26,6 +27,7 @@ import { EnemyController } from './enemies/EnemyController';
 import { DiveScheduler } from './enemies/DiveScheduler';
 import { EnemyLocalState } from './enemies/EnemyLocalState';
 import { LevelSystem } from './levels/LevelSystem';
+import { ScoreSystem } from './scoring';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -64,6 +66,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   private enemyFireSystem?: EnemyFireSystem;
   private diveScheduler?: DiveScheduler<Phaser.GameObjects.Rectangle>;
   private levelSystem!: LevelSystem;
+  private scoreSystem!: ScoreSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
   private enemyControllers = new Map<
     Phaser.GameObjects.Rectangle,
@@ -81,6 +84,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   private submitting = false;
   private runStarted = false;
   private startRequested = false;
+  private simNowMs = 0;
 
   private scoreText!: Phaser.GameObjects.Text;
   private livesText!: Phaser.GameObjects.Text;
@@ -271,6 +275,11 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.initializeEnemyControllers(level);
       },
     });
+    this.scoreSystem = new ScoreSystem({
+      ctx: this.deps.ctx,
+      bus: this.runBus,
+      getLevelNumber: () => this.levelSystem.getLevelNumber(),
+    });
 
     this.scoreText = this.add.text(16, 12, 'Score: 0', {
       fontFamily: 'Montserrat, Arial, sans-serif',
@@ -371,10 +380,17 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.enemyControllers.get(target)?.setDead();
         this.enemyControllers.delete(target);
         this.enemyCanDive.delete(target);
+        const enemyId = this.enemyProfile.get(target)?.enemyId;
         this.enemyProfile.delete(target);
         this.formationSystem.onEnemyDeath(target);
         target.destroy();
-        this.addScore(10);
+        if (enemyId) {
+          this.runBus.emit(RUN_EVENT.ENEMY_KILLED, {
+            enemyId,
+            nowMs: this.simNowMs,
+          });
+          this.syncScoreFromSystem();
+        }
       },
       undefined,
       this,
@@ -416,6 +432,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         }
       },
       advanceSimulation: (dtMs) => {
+        this.simNowMs += dtMs;
         const inputAxis = this.cursors.left?.isDown
           ? -1
           : this.cursors.right?.isDown
@@ -492,12 +509,13 @@ class SpaceBlasterScene extends Phaser.Scene {
   private fireManualShot() {
     if (this.runStateMachine.state !== RunState.PLAYING) return;
     if (this.lifeSystem.invulnerable) return;
-    this.weaponSystem.tryFire(this.player.x, this.player.y - 20, -1);
-  }
-
-  private addScore(delta: number) {
-    this.score += delta;
-    this.scoreText.setText(`Score: ${this.score}`);
+    const fired = this.weaponSystem.tryFire(
+      this.player.x,
+      this.player.y - 20,
+      -1,
+    );
+    if (!fired) return;
+    this.runBus.emit(RUN_EVENT.PLAYER_SHOT_FIRED, { nowMs: this.simNowMs });
   }
 
   private updateLivesDisplay() {
@@ -511,6 +529,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     if (hitResult.kind === 'ignored') {
       return;
     }
+    this.runBus.emit(RUN_EVENT.PLAYER_HIT, { nowMs: this.simNowMs });
 
     this.updateLivesDisplay();
     if (hitResult.kind === 'end_run') {
@@ -552,11 +571,13 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.startRequested = false;
     this.score = 0;
     this.startTime = null;
-    this.scoreText.setText('Score: 0');
+    this.simNowMs = 0;
     this.canSubmitScore = true;
     this.lifeSystem.reset();
     this.updateLivesDisplay();
     this.levelSystem.startLevel(0);
+    this.scoreSystem.resetForNewRun();
+    this.syncScoreFromSystem();
   }
 
   private async ensureRunStarted() {
@@ -798,9 +819,15 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.enemyProfile.clear();
     this.sound?.stopAll();
     this.sound?.removeAll();
+    this.scoreSystem.dispose();
     this.runStateMachine.dispose();
     this.runBus.clear();
     this.disposables.disposeAll();
+  }
+
+  private syncScoreFromSystem(): void {
+    this.score = this.scoreSystem.getState().score;
+    this.scoreText.setText(`Score: ${this.score}`);
   }
 }
 

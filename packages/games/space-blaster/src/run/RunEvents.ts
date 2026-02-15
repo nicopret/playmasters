@@ -18,6 +18,9 @@ export const RUN_EVENT = {
   REQUEST_LEVEL_COMPLETE: 'run.requestLevelComplete',
   REQUEST_END: 'run.requestEnd',
   LEVEL_WAVE_CLEARED: 'level.waveCleared',
+  PLAYER_SHOT_FIRED: 'score.shotFired',
+  ENEMY_KILLED: 'score.enemyKilled',
+  PLAYER_HIT: 'score.playerHit',
 } as const;
 
 export type TransitionReason =
@@ -61,4 +64,7 @@ export type RunEventMap = {
     reason: 'ALL_ENEMIES_DEAD' | 'ENRAGE_TIMEOUT';
     timestampMs: number;
   };
+  [RUN_EVENT.PLAYER_SHOT_FIRED]: { nowMs: number };
+  [RUN_EVENT.ENEMY_KILLED]: { enemyId: string; nowMs: number };
+  [RUN_EVENT.PLAYER_HIT]: { nowMs: number };
 };
