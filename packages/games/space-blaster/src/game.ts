@@ -315,11 +315,15 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
     this.hudSystem.create();
     this.audioSystem = new AudioSystem({
-//     this.vfxSystem = new VfxSystem({
-//       scene: this,
-//       ctx: this.deps.ctx,
-//       bus: this.runBus,
-//     });
+      scene: this,
+      ctx: this.deps.ctx,
+      bus: this.runBus,
+    });
+    this.vfxSystem = new VfxSystem({
+      scene: this,
+      ctx: this.deps.ctx,
+      bus: this.runBus,
+    });
     this.audioSystem.start();
     this.runBus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
       livesRemaining: this.lifeSystem.lives,
@@ -437,8 +441,6 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.formationSystem.onEnemyDeath(target);
         const killX = target.x;
         const killY = target.y;
-        const explosionX = target.x;
-        const explosionY = target.y;
         target.destroy();
         if (enemyId) {
           this.runBus.emit(RUN_EVENT.ENEMY_KILLED, {
@@ -446,8 +448,6 @@ class SpaceBlasterScene extends Phaser.Scene {
             nowMs: this.simNowMs,
             x: killX,
             y: killY,
-//             x: explosionX,
-//             y: explosionY,
           });
           this.syncScoreFromSystem();
         }
