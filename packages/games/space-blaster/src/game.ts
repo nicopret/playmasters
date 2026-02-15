@@ -43,6 +43,7 @@ import { buildResultsViewModel } from './results/buildResultsViewModel';
 import { buildSubmitScorePayloadV1 } from './submit';
 import { HUDSystem } from './ui/HUDSystem';
 import { AudioSystem } from './audio/AudioSystem';
+import { VfxSystem } from './vfx/VfxSystem';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -85,6 +86,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   private scoreSystem!: ScoreSystem;
   private hudSystem!: HUDSystem;
   private audioSystem!: AudioSystem;
+  private vfxSystem!: VfxSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
   private enemyControllers = new Map<
     Phaser.GameObjects.Rectangle,
@@ -313,10 +315,11 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
     this.hudSystem.create();
     this.audioSystem = new AudioSystem({
-      scene: this,
-      ctx: this.deps.ctx,
-      bus: this.runBus,
-    });
+//     this.vfxSystem = new VfxSystem({
+//       scene: this,
+//       ctx: this.deps.ctx,
+//       bus: this.runBus,
+//     });
     this.audioSystem.start();
     this.runBus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
       livesRemaining: this.lifeSystem.lives,
@@ -434,6 +437,8 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.formationSystem.onEnemyDeath(target);
         const killX = target.x;
         const killY = target.y;
+        const explosionX = target.x;
+        const explosionY = target.y;
         target.destroy();
         if (enemyId) {
           this.runBus.emit(RUN_EVENT.ENEMY_KILLED, {
@@ -441,6 +446,8 @@ class SpaceBlasterScene extends Phaser.Scene {
             nowMs: this.simNowMs,
             x: killX,
             y: killY,
+//             x: explosionX,
+//             y: explosionY,
           });
           this.syncScoreFromSystem();
         }
@@ -520,6 +527,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
     this.hudSystem.update(this.simNowMs);
     this.audioSystem.setPauseOverlayActive(this.overlayBlockingGameplay);
+    this.vfxSystem.update(this.simNowMs);
 
     if (this.lifeSystem.invulnerable) {
       const flashVisible = Math.floor(_time / 80) % 2 === 0;
@@ -645,6 +653,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.finalSummary = null;
     this.submitting = false;
     this.hudSystem.clearTransientBanners();
+    this.vfxSystem.clear();
     this.lifeSystem.reset();
     this.runBus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
       livesRemaining: this.lifeSystem.lives,
@@ -933,6 +942,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.enemyWeaponSystem.clear();
     this.hudSystem.destroy();
     this.audioSystem.stop();
+    this.vfxSystem.destroy();
     this.diveScheduler = undefined;
     this.enemyCanDive.clear();
     this.enemyProfile.clear();
