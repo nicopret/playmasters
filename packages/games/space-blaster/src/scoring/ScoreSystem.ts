@@ -89,6 +89,7 @@ const DEFAULT_EVENT_LOG_SIZE = 50;
 
 export class ScoreSystem {
   private state: ScoreState = createInitialScoreState();
+  private readonly bus: RunEventBus;
   private readonly getLevelNumber: ScoreSystemOptions['getLevelNumber'];
   private readonly scoreByEnemyId = new Map<string, number>();
   private readonly fallbackEnemyScore = new Map<string, number>();
@@ -108,6 +109,7 @@ export class ScoreSystem {
   private readonly unsubscribeFns: Array<() => void> = [];
 
   constructor(options: ScoreSystemOptions) {
+    this.bus = options.bus;
     this.getLevelNumber = options.getLevelNumber;
     this.comboEnabled = options.ctx.resolvedConfig.scoreConfig.combo.enabled;
     this.resetOnPlayerHit =
@@ -184,6 +186,7 @@ export class ScoreSystem {
   resetForNewRun(): void {
     this.state = createInitialScoreState();
     this.appliedWaveBonusKeys.clear();
+    this.emitScoreChanged(0);
   }
 
   onShotFired(nowMs?: number): void {
@@ -273,7 +276,16 @@ export class ScoreSystem {
         minCount: enteredTier.minCount,
         tierBonus: enteredTier.tierBonus ?? 0,
       });
+      this.bus.emit(RUN_EVENT.SCORE_TIER_ENTERED, {
+        tierIndex: tierEntry.enteredTier,
+        minCount: enteredTier.minCount,
+        multiplier: enteredTier.multiplier,
+        tierBonus: enteredTier.tierBonus ?? 0,
+        comboCount,
+        nowMs,
+      });
     }
+    this.emitScoreChanged(nowMs);
     this.assertBreakdownInvariant();
   }
 
@@ -313,6 +325,7 @@ export class ScoreSystem {
     this.appliedWaveBonusKeys.add(waveKey);
     this.state.score += totalWaveBonus;
     this.state.breakdownTotals.waveClearBonuses += totalWaveBonus;
+    this.emitScoreChanged(args.nowMs);
     this.assertBreakdownInvariant();
   }
 
@@ -342,6 +355,7 @@ export class ScoreSystem {
     this.state.score += bonus;
     this.state.breakdownTotals.accuracyBonus += bonus;
     this.state.finalized = true;
+    this.emitScoreChanged(nowMs);
     this.assertBreakdownInvariant();
   }
 
@@ -408,6 +422,10 @@ export class ScoreSystem {
         atMs,
         reason,
       });
+      this.bus.emit(RUN_EVENT.SCORE_COMBO_RESET, {
+        reason,
+        nowMs: atMs,
+      });
     }
   }
 
@@ -442,5 +460,15 @@ export class ScoreSystem {
         `Score breakdown invariant failed: breakdown=${this.computeBreakdownSum()} score=${this.state.score}`,
       );
     }
+  }
+
+  private emitScoreChanged(nowMs: number): void {
+    this.bus.emit(RUN_EVENT.SCORE_CHANGED, {
+      score: this.state.score,
+      comboCount: this.state.comboCount,
+      maxComboCount: this.state.maxComboCount,
+      tierIndex: this.state.currentTierIndex,
+      nowMs,
+    });
   }
 }
