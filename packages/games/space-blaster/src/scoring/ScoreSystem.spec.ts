@@ -157,7 +157,7 @@ describe('ScoreSystem', () => {
     // baseEnemyScore=100; levelMultiplier=1.25 -> base points=125
     system.onEnemyKilled('enemy-a', 0);
     const state = system.getState();
-    expect(state.breakdownTotals.baseKillPoints).toBe(125);
+    expect(state.breakdownTotals.killPoints).toBe(125);
     expect(state.score).toBe(125);
   });
 
@@ -181,7 +181,7 @@ describe('ScoreSystem', () => {
     system.onEnemyKilled('enemy-a', 400); // combo 5 stays tier-2
 
     const state = system.getState();
-    expect(state.breakdownTotals.tierBonusesAwardedTotal).toBe(150);
+    expect(state.breakdownTotals.tierBonuses).toBe(150);
     expect(state.currentTierIndex).toBe(1);
     expect(state.lastTierReachedAtCount).toBe(4);
   });
@@ -240,7 +240,7 @@ describe('ScoreSystem', () => {
 
     system.onEnemyKilled('enemy-a', 0);
     system.onEnemyKilled('enemy-a', 100);
-    expect(system.getState().breakdownTotals.tierBonusesAwardedTotal).toBe(10);
+    expect(system.getState().breakdownTotals.tierBonuses).toBe(10);
 
     system.onPlayerHit(150);
     expect(system.getState().comboCount).toBe(0);
@@ -249,7 +249,7 @@ describe('ScoreSystem', () => {
 
     system.onEnemyKilled('enemy-a', 200);
     system.onEnemyKilled('enemy-a', 300);
-    expect(system.getState().breakdownTotals.tierBonusesAwardedTotal).toBe(20);
+    expect(system.getState().breakdownTotals.tierBonuses).toBe(20);
   });
 
   it('never decreases score across kills and combo resets', () => {
@@ -286,7 +286,56 @@ describe('ScoreSystem', () => {
     });
 
     system.onEnemyKilled('enemy-b', 0);
-    expect(system.getState().breakdownTotals.baseKillPoints).toBe(40);
+    expect(system.getState().breakdownTotals.killPoints).toBe(40);
+  });
+
+  it('keeps breakdown totals equal to score for kill/combo/tier points', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.combo.tiers = [
+          { minCount: 2, multiplier: 1.5, tierBonus: 25, name: 'tier-1' },
+          { minCount: 4, multiplier: 2, tierBonus: 40, name: 'tier-2' },
+        ];
+      }),
+      bus,
+      getLevelNumber: () => 2,
+    });
+
+    system.onEnemyKilled('enemy-a', 0);
+    system.onEnemyKilled('enemy-a', 100);
+    system.onEnemyKilled('enemy-a', 200);
+    system.onEnemyKilled('enemy-a', 300);
+
+    const state = system.getState();
+    const sum =
+      state.breakdownTotals.killPoints +
+      state.breakdownTotals.comboExtra +
+      state.breakdownTotals.tierBonuses +
+      state.breakdownTotals.waveBonuses +
+      state.breakdownTotals.accuracyBonuses;
+    expect(sum).toBe(state.score);
+  });
+
+  it('keeps event log bounded to configured max size', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.eventLogSize = 3;
+      }),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    for (let i = 0; i < 10; i += 1) {
+      system.onShotFired(i);
+    }
+
+    expect(system.getState().eventLog).toHaveLength(3);
+    const shotEvents = system.getState().eventLog;
+    expect(shotEvents[0]).toEqual({ type: 'SHOT_FIRED', atMs: 7 });
+    expect(shotEvents[1]).toEqual({ type: 'SHOT_FIRED', atMs: 8 });
+    expect(shotEvents[2]).toEqual({ type: 'SHOT_FIRED', atMs: 9 });
   });
 
   it('handles shot, kill, and player-hit events via bus API', () => {

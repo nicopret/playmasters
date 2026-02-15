@@ -1,7 +1,11 @@
 import type { ComboTierV1 } from '@playmasters/types';
 import type { RunContext } from '../runtime';
 import { RUN_EVENT, type RunEventBus } from '../run';
-import { createInitialScoreState, type ScoreState } from './ScoreState';
+import {
+  createInitialScoreState,
+  type ScoreEvent,
+  type ScoreState,
+} from './ScoreState';
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
@@ -55,6 +59,8 @@ type ScoreSystemOptions = {
   getLevelNumber: () => number;
 };
 
+const DEFAULT_EVENT_LOG_SIZE = 50;
+
 export class ScoreSystem {
   private state: ScoreState = createInitialScoreState();
   private readonly getLevelNumber: ScoreSystemOptions['getLevelNumber'];
@@ -67,6 +73,7 @@ export class ScoreSystem {
   private readonly levelMultiplierBase: number;
   private readonly levelMultiplierPerLevel: number;
   private readonly levelMultiplierMax: number;
+  private readonly eventLogMax: number;
   private readonly unsubscribeFns: Array<() => void> = [];
 
   constructor(options: ScoreSystemOptions) {
@@ -84,6 +91,15 @@ export class ScoreSystem {
       options.ctx.resolvedConfig.scoreConfig.levelScoreMultiplier.perLevel;
     this.levelMultiplierMax =
       options.ctx.resolvedConfig.scoreConfig.levelScoreMultiplier.max;
+    const configuredEventLogSize = (
+      options.ctx.resolvedConfig.scoreConfig as { eventLogSize?: number }
+    ).eventLogSize;
+    this.eventLogMax =
+      typeof configuredEventLogSize === 'number' &&
+      Number.isFinite(configuredEventLogSize) &&
+      configuredEventLogSize > 0
+        ? Math.floor(configuredEventLogSize)
+        : DEFAULT_EVENT_LOG_SIZE;
 
     for (const entry of options.ctx.resolvedConfig.scoreConfig
       .baseEnemyScores) {
@@ -94,8 +110,8 @@ export class ScoreSystem {
     }
 
     this.unsubscribeFns.push(
-      options.bus.on(RUN_EVENT.PLAYER_SHOT_FIRED, () => {
-        this.onShotFired();
+      options.bus.on(RUN_EVENT.PLAYER_SHOT_FIRED, ({ nowMs }) => {
+        this.onShotFired(nowMs);
       }),
       options.bus.on(RUN_EVENT.ENEMY_KILLED, ({ enemyId, nowMs }) => {
         this.onEnemyKilled(enemyId, nowMs);
@@ -121,8 +137,11 @@ export class ScoreSystem {
     this.state = createInitialScoreState();
   }
 
-  onShotFired(): void {
+  onShotFired(nowMs?: number): void {
     this.state.shotsFired += 1;
+    if (typeof nowMs === 'number' && Number.isFinite(nowMs) && nowMs >= 0) {
+      this.pushEvent({ type: 'SHOT_FIRED', atMs: nowMs });
+    }
   }
 
   onEnemyKilled(enemyId: string, nowMs: number): void {
@@ -154,28 +173,58 @@ export class ScoreSystem {
     const killPointsFromMultiplier = Math.round(
       killPointsBase * tierMultiplier,
     );
-    const tierBonusAwarded = this.computeTierEntryBonus(tierIndex, comboCount);
-    const killPointsFinal = killPointsFromMultiplier + tierBonusAwarded;
+    const comboExtra = killPointsFromMultiplier - killPointsBase;
+    const tierEntry = this.computeTierEntryBonus(tierIndex, comboCount);
+    const tierBonusAwarded = tierEntry.bonus;
 
-    this.state.score += killPointsFinal;
+    this.state.score += killPointsBase;
     this.state.breakdownTotals.kills += 1;
-    this.state.breakdownTotals.baseKillPoints += killPointsBase;
-    this.state.breakdownTotals.comboBonusPoints +=
-      killPointsFromMultiplier - killPointsBase;
-    this.state.breakdownTotals.tierBonusesAwardedTotal += tierBonusAwarded;
+    this.state.breakdownTotals.killPoints += killPointsBase;
+    if (comboExtra > 0) {
+      this.state.score += comboExtra;
+      this.state.breakdownTotals.comboExtra += comboExtra;
+    }
+    if (tierBonusAwarded > 0) {
+      this.state.score += tierBonusAwarded;
+      this.state.breakdownTotals.tierBonuses += tierBonusAwarded;
+    }
     this.state.lastKillAtMs = nowMs;
 
+    const killPointsFinal = killPointsFromMultiplier + tierBonusAwarded;
     const existing = this.state.perEnemy[enemyId] ?? { kills: 0, points: 0 };
     this.state.perEnemy[enemyId] = {
       kills: existing.kills + 1,
       points: existing.points + killPointsFinal,
     };
+
+    this.pushEvent({
+      type: 'KILL',
+      atMs: nowMs,
+      enemyId,
+      baseKillPoints: killPointsBase,
+      comboExtra,
+      tierBonus: tierBonusAwarded,
+      comboCount,
+      tierIndex,
+      levelMultiplier,
+    });
+    if (tierEntry.enteredTier !== null) {
+      const enteredTier = this.comboTiers[tierEntry.enteredTier];
+      this.pushEvent({
+        type: 'TIER_ENTER',
+        atMs: nowMs,
+        tierIndex: tierEntry.enteredTier,
+        minCount: enteredTier.minCount,
+        tierBonus: enteredTier.tierBonus ?? 0,
+      });
+    }
+    this.assertBreakdownInvariant();
   }
 
   onPlayerHit(nowMs: number): void {
     if (!Number.isFinite(nowMs) || nowMs < 0) return;
     if (!this.resetOnPlayerHit) return;
-    this.resetComboState('PLAYER_HIT');
+    this.resetComboState('PLAYER_HIT', nowMs);
   }
 
   private computeNextComboCount(): number {
@@ -189,10 +238,10 @@ export class ScoreSystem {
   private computeTierEntryBonus(
     newTierIndex: number | null,
     comboCount: number,
-  ): number {
+  ): { bonus: number; enteredTier: number | null } {
     if (newTierIndex === null) {
       this.state.currentTierIndex = null;
-      return 0;
+      return { bonus: 0, enteredTier: null };
     }
 
     const enteredNewTier =
@@ -201,11 +250,14 @@ export class ScoreSystem {
     this.state.currentTierIndex = newTierIndex;
 
     if (!enteredNewTier) {
-      return 0;
+      return { bonus: 0, enteredTier: null };
     }
 
     this.state.lastTierReachedAtCount = comboCount;
-    return this.comboTiers[newTierIndex].tierBonus ?? 0;
+    return {
+      bonus: this.comboTiers[newTierIndex].tierBonus ?? 0,
+      enteredTier: newTierIndex,
+    };
   }
 
   private resetComboIfExpired(nowMs: number): void {
@@ -214,16 +266,31 @@ export class ScoreSystem {
       return;
     }
     if (nowMs > this.state.comboExpiresAtMs) {
-      this.resetComboState('EXPIRED');
+      this.resetComboState('EXPIRED', nowMs);
     }
   }
 
-  private resetComboState(reason: 'EXPIRED' | 'PLAYER_HIT' | 'MANUAL'): void {
+  private resetComboState(
+    reason: 'EXPIRED' | 'PLAYER_HIT' | 'MANUAL',
+    atMs?: number,
+  ): void {
     this.state.comboCount = 0;
     this.state.comboExpiresAtMs = null;
     this.state.currentTierIndex = null;
     this.state.lastTierReachedAtCount = 0;
     this.state.lastResetReason = reason;
+    if (
+      (reason === 'EXPIRED' || reason === 'PLAYER_HIT') &&
+      typeof atMs === 'number' &&
+      Number.isFinite(atMs) &&
+      atMs >= 0
+    ) {
+      this.pushEvent({
+        type: 'COMBO_RESET',
+        atMs,
+        reason,
+      });
+    }
   }
 
   private resolveBaseEnemyScore(enemyId: string): number {
@@ -232,5 +299,30 @@ export class ScoreSystem {
       return fromScoreConfig;
     }
     return this.fallbackEnemyScore.get(enemyId) ?? 0;
+  }
+
+  private pushEvent(event: ScoreEvent): void {
+    this.state.eventLog.push(event);
+    if (this.state.eventLog.length > this.eventLogMax) {
+      this.state.eventLog.shift();
+    }
+  }
+
+  private computeBreakdownSum(): number {
+    return (
+      this.state.breakdownTotals.killPoints +
+      this.state.breakdownTotals.comboExtra +
+      this.state.breakdownTotals.tierBonuses +
+      this.state.breakdownTotals.waveBonuses +
+      this.state.breakdownTotals.accuracyBonuses
+    );
+  }
+
+  private assertBreakdownInvariant(): void {
+    if (this.computeBreakdownSum() !== this.state.score) {
+      throw new Error(
+        `Score breakdown invariant failed: breakdown=${this.computeBreakdownSum()} score=${this.state.score}`,
+      );
+    }
   }
 }

@@ -157,6 +157,7 @@ export interface ScoreConfigV1 {
     scaleByLevelMultiplier?: boolean;
     thresholds: AccuracyThresholdV1[];
   };
+  eventLogSize?: number;
   baseEnemyScores: ScoreEnemyEntryV1[];
   combo: {
     enabled: boolean;

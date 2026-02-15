@@ -3,6 +3,28 @@ export type EnemyScoreBreakdown = {
   points: number;
 };
 
+export type ScoreEvent =
+  | { type: 'SHOT_FIRED'; atMs: number }
+  | {
+      type: 'KILL';
+      atMs: number;
+      enemyId: string;
+      baseKillPoints: number;
+      comboExtra: number;
+      tierBonus: number;
+      comboCount: number;
+      tierIndex: number | null;
+      levelMultiplier: number;
+    }
+  | {
+      type: 'TIER_ENTER';
+      atMs: number;
+      tierIndex: number;
+      minCount: number;
+      tierBonus: number;
+    }
+  | { type: 'COMBO_RESET'; atMs: number; reason: 'EXPIRED' | 'PLAYER_HIT' };
+
 export type ScoreState = {
   score: number;
   comboCount: number;
@@ -13,13 +35,14 @@ export type ScoreState = {
   shotsHit: number;
   breakdownTotals: {
     kills: number;
-    baseKillPoints: number;
-    comboBonusPoints: number;
-    tierBonusesAwardedTotal: number;
-    waveBonusPoints: number;
-    accuracyBonusPoints: number;
+    killPoints: number;
+    comboExtra: number;
+    tierBonuses: number;
+    waveBonuses: number;
+    accuracyBonuses: number;
   };
   perEnemy: Record<string, EnemyScoreBreakdown>;
+  eventLog: ScoreEvent[];
   lastKillAtMs?: number;
   lastResetReason?: 'EXPIRED' | 'PLAYER_HIT' | 'MANUAL';
 };
@@ -34,11 +57,12 @@ export const createInitialScoreState = (): ScoreState => ({
   shotsHit: 0,
   breakdownTotals: {
     kills: 0,
-    baseKillPoints: 0,
-    comboBonusPoints: 0,
-    tierBonusesAwardedTotal: 0,
-    waveBonusPoints: 0,
-    accuracyBonusPoints: 0,
+    killPoints: 0,
+    comboExtra: 0,
+    tierBonuses: 0,
+    waveBonuses: 0,
+    accuracyBonuses: 0,
   },
   perEnemy: {},
+  eventLog: [],
 });
