@@ -7,6 +7,11 @@ import {
   resolvePauseVolumes,
   type AudioPauseMode,
 } from './audio-routing';
+import {
+  resolveDefaultSessionSettings,
+  setSessionMusicVolume,
+  setSessionSfxVolume,
+} from '../settings/SessionSettings';
 
 type AudioConfig = {
   music: {
@@ -66,6 +71,7 @@ const isDevRuntime = (): boolean => {
 export class AudioSystem {
   private readonly scene: Phaser.Scene;
   private readonly bus: RunEventBus;
+  private readonly ctx: RunContext;
   private readonly config: AudioConfig;
   private readonly enemyById = new Map<string, EnemyCatalogEntryV1>();
   private readonly unsubscribers: Array<() => void> = [];
@@ -80,6 +86,7 @@ export class AudioSystem {
   constructor(options: AudioSystemOptions) {
     this.scene = options.scene;
     this.bus = options.bus;
+    this.ctx = options.ctx;
     for (const enemy of options.ctx.resolvedConfig.enemyCatalog.entries) {
       this.enemyById.set(enemy.enemyId, enemy);
     }
@@ -109,8 +116,13 @@ export class AudioSystem {
       },
     };
 
-    this.musicVolume = Math.max(0, Math.min(1, this.config.music.volume));
-    this.sfxVolume = Math.max(0, Math.min(1, this.config.sfx.volume));
+    const sessionSettings =
+      this.ctx.sessionSettings ??
+      resolveDefaultSessionSettings(options.ctx.resolvedConfig);
+    this.ctx.sessionSettings = sessionSettings;
+
+    this.musicVolume = Math.max(0, Math.min(1, sessionSettings.musicVolume));
+    this.sfxVolume = Math.max(0, Math.min(1, sessionSettings.sfxVolume));
 
     const hero = options.ctx.resolvedConfig.heroCatalog.entries[0];
     const defaultAmmoId = hero?.defaultAmmoId;
@@ -199,6 +211,9 @@ export class AudioSystem {
 
   setMusicVolume(volume: number): void {
     this.musicVolume = Math.max(0, Math.min(1, volume));
+    if (this.ctx.sessionSettings) {
+      setSessionMusicVolume(this.ctx.sessionSettings, this.musicVolume);
+    }
     if (this.music && !this.overlayPaused) {
       this.applyMusicVolume(this.musicVolume);
     }
@@ -206,9 +221,20 @@ export class AudioSystem {
 
   setSfxVolume(volume: number): void {
     this.sfxVolume = Math.max(0, Math.min(1, volume));
+    if (this.ctx.sessionSettings) {
+      setSessionSfxVolume(this.ctx.sessionSettings, this.sfxVolume);
+    }
     if (!this.overlayPaused) {
       this.scene.sound.volume = this.sfxVolume;
     }
+  }
+
+  getMusicVolume(): number {
+    return this.musicVolume;
+  }
+
+  getSfxVolume(): number {
+    return this.sfxVolume;
   }
 
   private startMusic(): void {

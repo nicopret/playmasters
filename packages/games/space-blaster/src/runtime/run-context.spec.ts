@@ -46,6 +46,11 @@ describe('createRunContext', () => {
       expect(context.configHash).toBe(resolvedConfigExample.configHash);
       expect(context.versionHash).toBeUndefined();
       expect(context.hasPendingUpdate).toBe(false);
+      expect(context.sessionSettings).toEqual({
+        musicVolume: 0.7,
+        sfxVolume: 0.9,
+        initializedFromConfig: false,
+      });
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       Object.assign(globalThis, { fetch: originalFetch });

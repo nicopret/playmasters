@@ -42,6 +42,7 @@ import {
 import { buildResultsViewModel } from './results/buildResultsViewModel';
 import { buildSubmitScorePayloadV1 } from './submit';
 import { HUDSystem } from './ui/HUDSystem';
+import { SettingsOverlay } from './ui/SettingsOverlay';
 import { AudioSystem } from './audio/AudioSystem';
 import { VfxSystem } from './vfx/VfxSystem';
 
@@ -85,6 +86,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   private levelSystem!: LevelSystem;
   private scoreSystem!: ScoreSystem;
   private hudSystem!: HUDSystem;
+  private settingsOverlay!: SettingsOverlay;
   private audioSystem!: AudioSystem;
   private vfxSystem!: VfxSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
@@ -113,11 +115,14 @@ class SpaceBlasterScene extends Phaser.Scene {
   private playAgainBtn!: Phaser.GameObjects.Text;
 
   private keyboardSpaceHandler?: () => void;
+  private keyboardEscHandler?: () => void;
   private pointerDownHandler?: () => void;
   private visibilityChangeHandler?: () => void;
   private blurHandler?: () => void;
   private focusHandler?: () => void;
   private overlayBlockingGameplay = false;
+  private userPauseBlocked = false;
+  private visibilityBlocked = false;
   private runBus = new RunEventBus();
   private runStateMachine = new RunStateMachine(
     this.runBus,
@@ -319,6 +324,18 @@ class SpaceBlasterScene extends Phaser.Scene {
       ctx: this.deps.ctx,
       bus: this.runBus,
     });
+    this.settingsOverlay = new SettingsOverlay({
+      scene: this,
+      getMusicVolume: () => this.audioSystem.getMusicVolume(),
+      getSfxVolume: () => this.audioSystem.getSfxVolume(),
+      onMusicVolumeChanged: (value) => this.audioSystem.setMusicVolume(value),
+      onSfxVolumeChanged: (value) => this.audioSystem.setSfxVolume(value),
+      onResumeRequested: () => {
+        this.settingsOverlay.hideAll();
+        this.setUserPauseBlocked(false);
+      },
+    });
+    this.settingsOverlay.create();
     this.vfxSystem = new VfxSystem({
       scene: this,
       ctx: this.deps.ctx,
@@ -373,13 +390,18 @@ class SpaceBlasterScene extends Phaser.Scene {
     }
     this.cursors = keyboard.createCursorKeys();
     this.keyboardSpaceHandler = () => this.handleSpace();
+    this.keyboardEscHandler = () => this.handleEscape();
     this.pointerDownHandler = () => this.handleSpace();
     keyboard.on('keydown-SPACE', this.keyboardSpaceHandler);
+    keyboard.on('keydown-ESC', this.keyboardEscHandler);
     this.input.on('pointerdown', this.pointerDownHandler);
 
     this.disposables.add(() => {
       if (this.keyboardSpaceHandler) {
         keyboard.off('keydown-SPACE', this.keyboardSpaceHandler);
+      }
+      if (this.keyboardEscHandler) {
+        keyboard.off('keydown-ESC', this.keyboardEscHandler);
       }
       if (this.pointerDownHandler) {
         this.input.off('pointerdown', this.pointerDownHandler);
@@ -387,9 +409,11 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
 
     if (typeof document !== 'undefined') {
-      this.overlayBlockingGameplay = document.hidden;
+      this.visibilityBlocked = document.hidden;
+      this.syncOverlayBlockingGameplay();
       this.visibilityChangeHandler = () => {
-        this.overlayBlockingGameplay = document.hidden;
+        this.visibilityBlocked = document.hidden;
+        this.syncOverlayBlockingGameplay();
       };
       document.addEventListener(
         'visibilitychange',
@@ -407,10 +431,12 @@ class SpaceBlasterScene extends Phaser.Scene {
 
     if (typeof window !== 'undefined') {
       this.blurHandler = () => {
-        this.overlayBlockingGameplay = true;
+        this.visibilityBlocked = true;
+        this.syncOverlayBlockingGameplay();
       };
       this.focusHandler = () => {
-        this.overlayBlockingGameplay = false;
+        this.visibilityBlocked = false;
+        this.syncOverlayBlockingGameplay();
       };
       window.addEventListener('blur', this.blurHandler);
       window.addEventListener('focus', this.focusHandler);
@@ -538,6 +564,9 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private handleSpace() {
+    if (this.userPauseBlocked) {
+      return;
+    }
     if (
       this.runStateMachine.state === RunState.READY ||
       this.runStateMachine.state === RunState.RESULTS
@@ -551,6 +580,28 @@ class SpaceBlasterScene extends Phaser.Scene {
     if (this.runStateMachine.state === RunState.PLAYING) {
       this.fireManualShot();
     }
+  }
+
+  private handleEscape() {
+    if (this.settingsOverlay.handleEscape()) {
+      this.setUserPauseBlocked(this.settingsOverlay.isPauseMenuVisible());
+      return;
+    }
+
+    if (this.runStateMachine.state === RunState.PLAYING) {
+      this.settingsOverlay.showPauseMenu();
+      this.setUserPauseBlocked(true);
+    }
+  }
+
+  private setUserPauseBlocked(blocked: boolean): void {
+    this.userPauseBlocked = blocked;
+    this.syncOverlayBlockingGameplay();
+  }
+
+  private syncOverlayBlockingGameplay(): void {
+    this.overlayBlockingGameplay =
+      this.userPauseBlocked || this.visibilityBlocked;
   }
 
   private resetEntities() {
@@ -572,6 +623,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private fireManualShot() {
     if (this.runStateMachine.state !== RunState.PLAYING) return;
+    if (this.overlayBlockingGameplay) return;
     if (this.lifeSystem.invulnerable) return;
     const fired = this.weaponSystem.tryFire(
       this.player.x,
@@ -652,6 +704,8 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.maxWaveReached = 1;
     this.finalSummary = null;
     this.submitting = false;
+    this.settingsOverlay.hideAll();
+    this.setUserPauseBlocked(false);
     this.hudSystem.clearTransientBanners();
     this.vfxSystem.clear();
     this.lifeSystem.reset();
@@ -851,6 +905,10 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private onEnterRunState(state: RunState, from: RunState) {
     this.levelSystem.onEnterRunState(state, from);
+    if (state !== RunState.PLAYING) {
+      this.settingsOverlay.hideAll();
+      this.setUserPauseBlocked(false);
+    }
     switch (state) {
       case RunState.READY:
         this.resetEntities();
@@ -940,6 +998,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.formationSystem.clear();
     this.weaponSystem.clear();
     this.enemyWeaponSystem.clear();
+    this.settingsOverlay.destroy();
     this.hudSystem.destroy();
     this.audioSystem.stop();
     this.vfxSystem.destroy();
