@@ -198,8 +198,10 @@ describe('attemptRunSubmission', () => {
     expect(first).toBe('success');
     expect(second).toBe('already_attempted');
     expect(sdk.submitScore).toHaveBeenCalledTimes(1);
-    expect(ctx.submissionStatus?.state).toBe('success');
-    expect(ctx.submissionStatus?.submittedAtMs).toBe(1000);
+    expect(ctx.submissionStatus).toEqual({
+      state: 'success',
+      submittedAtMs: 1000,
+    });
   });
 
   it('marks failed status with message when submitScore rejects', async () => {
@@ -227,8 +229,10 @@ describe('attemptRunSubmission', () => {
     });
 
     expect(result).toBe('fail');
-    expect(ctx.submissionStatus?.state).toBe('fail');
-    expect(ctx.submissionStatus?.errorMessage).toBe('submit_failed');
+    expect(ctx.submissionStatus).toEqual({
+      state: 'fail',
+      errorMessage: 'submit_failed',
+    });
   });
 
   it('skips when unauthenticated and does not call submit', async () => {
@@ -273,8 +277,9 @@ describe('attemptRunSubmission', () => {
 
     expect(result).toBe('skipped');
     expect(ctx.submissionStatus?.state).toBe('skipped');
-    expect(ctx.submissionStatus?.errorMessage).toBe(
-      'No runId available for submission.',
-    );
+    expect(ctx.submissionStatus).toEqual({
+      state: 'skipped',
+      reason: 'missingRunId',
+    });
   });
 });

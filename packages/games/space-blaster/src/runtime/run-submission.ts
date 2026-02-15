@@ -1,5 +1,6 @@
 import type { RunContext } from './run-context';
 import type { SubmitScorePayload } from '../submit';
+import type { SubmissionStatus } from '../submit';
 
 export type RunSubmissionResult =
   | 'already_attempted'
@@ -33,13 +34,16 @@ export const attemptRunSubmission = async (args: {
   ctx.submissionStatus = { state: 'submitting' };
 
   if (!isSdkAuthenticated(ctx)) {
-    ctx.submissionStatus = { state: 'skipped' };
+    ctx.submissionStatus = {
+      state: 'skipped',
+      reason: 'unauthenticated',
+    } satisfies SubmissionStatus;
     return 'skipped';
   }
   if (!ctx.runId) {
     ctx.submissionStatus = {
       state: 'skipped',
-      errorMessage: 'No runId available for submission.',
+      reason: 'missingRunId',
     };
     return 'skipped';
   }
@@ -55,7 +59,7 @@ export const attemptRunSubmission = async (args: {
     ctx.submissionStatus = {
       state: 'fail',
       errorMessage: toSafeErrorMessage(error),
-    };
+    } satisfies SubmissionStatus;
     return 'fail';
   }
 };

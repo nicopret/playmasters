@@ -910,23 +910,28 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private syncSubmissionStatusText(): void {
-    const status = this.deps.ctx.submissionStatus?.state ?? 'idle';
-    if (status === 'success') {
+    const status = this.deps.ctx.submissionStatus ?? { state: 'idle' as const };
+    if (status.state === 'success') {
       this.statusText.setText('Score submitted');
       return;
     }
-    if (status === 'submitting') {
+    if (status.state === 'submitting') {
       this.statusText.setText('Submitting score...');
       return;
     }
-    if (status === 'skipped') {
-      this.statusText.setText('Score not submitted');
+    if (status.state === 'skipped') {
+      this.statusText.setText(
+        status.reason === 'missingRunId'
+          ? 'Not submitted (missing run id)'
+          : 'Not submitted (not signed in)',
+      );
       return;
     }
-    if (status === 'fail') {
-      const message = this.deps.ctx.submissionStatus?.errorMessage;
+    if (status.state === 'fail') {
       this.statusText.setText(
-        message ? `Submission failed: ${message}` : 'Submission failed',
+        status.errorMessage
+          ? `Submission failed: ${status.errorMessage}`
+          : 'Submission failed',
       );
       return;
     }
