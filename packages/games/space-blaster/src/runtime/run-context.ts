@@ -1,5 +1,9 @@
 import type { EmbeddedGameSdk, ResolvedGameConfigV1 } from '@playmasters/types';
 import type { SubmissionStatus } from '../submit';
+import {
+  resolveDefaultSessionSettings,
+  type SessionSettings,
+} from '../settings/SessionSettings';
 
 export type RuntimeConfigError = {
   code: 'CONFIG_INVALID';
@@ -22,6 +26,7 @@ export type RunContext = {
   runRegistrationStarted?: boolean;
   submissionAttempted?: boolean;
   submissionStatus?: SubmissionStatus;
+  sessionSettings?: SessionSettings;
   pendingResolvedConfig?: ResolvedGameConfigV1;
   pendingConfigHash?: string;
   pendingVersionHash?: string;
@@ -312,6 +317,7 @@ export const createRunContext = (opts: {
     runRegistrationStarted: false,
     submissionAttempted: false,
     submissionStatus: { state: 'idle' },
+    sessionSettings: resolveDefaultSessionSettings(validation.config),
     hasPendingUpdate: false,
   };
 };
