@@ -29,6 +29,7 @@ export type ScoreState = {
   score: number;
   finalized: boolean;
   comboCount: number;
+  maxComboCount: number;
   comboExpiresAtMs: number | null;
   currentTierIndex: number | null;
   lastTierReachedAtCount: number;
@@ -52,6 +53,7 @@ export const createInitialScoreState = (): ScoreState => ({
   score: 0,
   finalized: false,
   comboCount: 0,
+  maxComboCount: 0,
   comboExpiresAtMs: null,
   currentTierIndex: null,
   lastTierReachedAtCount: 0,

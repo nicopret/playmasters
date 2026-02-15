@@ -34,7 +34,12 @@ import { EnemyController } from './enemies/EnemyController';
 import { DiveScheduler } from './enemies/DiveScheduler';
 import { EnemyLocalState } from './enemies/EnemyLocalState';
 import { LevelSystem } from './levels/LevelSystem';
-import { buildFinalScoreSummary, ScoreSystem } from './scoring';
+import {
+  buildFinalScoreSummary,
+  type FinalScoreSummary,
+  ScoreSystem,
+} from './scoring';
+import { buildResultsViewModel } from './results/buildResultsViewModel';
 import { buildSubmitScorePayloadV1 } from './submit';
 
 type MountOptions = {
@@ -88,7 +93,6 @@ class SpaceBlasterScene extends Phaser.Scene {
   >();
 
   private score = 0;
-  private startTime: number | null = null;
   private submitting = false;
   private runStarted = false;
   private startRequested = false;
@@ -96,10 +100,12 @@ class SpaceBlasterScene extends Phaser.Scene {
   private wavesCleared = 0;
   private maxLevelReached = 1;
   private maxWaveReached = 1;
+  private finalSummary: FinalScoreSummary | null = null;
 
   private scoreText!: Phaser.GameObjects.Text;
   private livesText!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
+  private resultsText!: Phaser.GameObjects.Text;
   private playAgainBtn!: Phaser.GameObjects.Text;
 
   private keyboardSpaceHandler?: () => void;
@@ -320,6 +326,16 @@ class SpaceBlasterScene extends Phaser.Scene {
       fontSize: '14px',
       color: '#d5d8e0',
     });
+
+    this.resultsText = this.add
+      .text(WORLD_WIDTH - 16, 88, '', {
+        fontFamily: 'Montserrat, Arial, sans-serif',
+        fontSize: '14px',
+        color: '#d5d8e0',
+        align: 'right',
+      })
+      .setOrigin(1, 0)
+      .setVisible(false);
 
     this.playAgainBtn = this.add
       .text(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 'Play again', {
@@ -567,14 +583,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private async submitScoreInSubmitting() {
     if (this.submitting) return;
-    const durationMs = this.startTime ? Date.now() - this.startTime : undefined;
-    const summary = buildFinalScoreSummary({
-      scoreState: this.scoreSystem.getState(),
-      durationMs,
-      levelReached: this.maxLevelReached,
-      waveReached: this.maxWaveReached,
-      wavesCleared: this.wavesCleared,
-    });
+    const summary = this.getOrBuildFinalSummary();
     this.submitting = true;
 
     try {
@@ -616,11 +625,11 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.runStarted = false;
     this.startRequested = false;
     this.score = 0;
-    this.startTime = null;
     this.simNowMs = 0;
     this.wavesCleared = 0;
     this.maxLevelReached = 1;
     this.maxWaveReached = 1;
+    this.finalSummary = null;
     this.submitting = false;
     this.lifeSystem.reset();
     this.updateLivesDisplay();
@@ -633,7 +642,6 @@ class SpaceBlasterScene extends Phaser.Scene {
   private async ensureRunStarted() {
     if (this.runStarted) return;
     this.runStarted = true;
-    this.startTime = Date.now();
     try {
       const registration = await registerRunIfAuthenticated(this.deps.ctx);
       if (registration === 'started') {
@@ -804,11 +812,13 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.resetEntities();
         this.beginNewRunSession();
         this.playAgainBtn.setVisible(false);
+        this.resultsText.setVisible(false);
         this.statusText.setText('Press space or tap to start');
         this.onReady?.();
         break;
       case RunState.COUNTDOWN:
         this.resetEntities();
+        this.resultsText.setVisible(false);
         if (from === RunState.READY || from === RunState.RESULTS) {
           this.beginNewRunSession();
         }
@@ -820,6 +830,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         }
         break;
       case RunState.PLAYING:
+        this.resultsText.setVisible(false);
         this.statusText.setText(
           `Run live - ${this.lifeSystem.lives} lives left`,
         );
@@ -848,15 +859,18 @@ class SpaceBlasterScene extends Phaser.Scene {
         break;
       case RunState.RUN_ENDING:
         this.scoreSystem.finalizeRun(this.simNowMs);
+        this.finalSummary = this.buildFinalSummary();
         this.syncScoreFromSystem();
         this.statusText.setText('Run over');
         break;
       case RunState.SUBMITTING:
+        this.resultsText.setVisible(false);
         this.statusText.setText('Submitting score...');
         void this.submitScoreInSubmitting();
         break;
       case RunState.RESULTS:
         this.scoreSystem.finalizeRun(this.simNowMs);
+        this.finalSummary = this.getOrBuildFinalSummary();
         this.syncScoreFromSystem();
         this.playAgainBtn.setVisible(true);
         this.syncSubmissionStatusText();
@@ -898,6 +912,23 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.scoreText.setText(`Score: ${this.score}`);
   }
 
+  private buildFinalSummary(): FinalScoreSummary {
+    return buildFinalScoreSummary({
+      scoreState: this.scoreSystem.getState(),
+      durationMs: this.simNowMs,
+      levelReached: this.maxLevelReached,
+      waveReached: this.maxWaveReached,
+      wavesCleared: this.wavesCleared,
+    });
+  }
+
+  private getOrBuildFinalSummary(): FinalScoreSummary {
+    if (!this.finalSummary) {
+      this.finalSummary = this.buildFinalSummary();
+    }
+    return this.finalSummary;
+  }
+
   private syncReachedProgress(): void {
     const levelReached = this.levelSystem.getLevelNumber();
     const waveReached = this.levelSystem.getWaveIndex() + 1;
@@ -913,10 +944,12 @@ class SpaceBlasterScene extends Phaser.Scene {
     const status = this.deps.ctx.submissionStatus ?? { state: 'idle' as const };
     if (status.state === 'success') {
       this.statusText.setText('Score submitted');
+      this.syncResultsOverlay();
       return;
     }
     if (status.state === 'submitting') {
       this.statusText.setText('Submitting score...');
+      this.syncResultsOverlay();
       return;
     }
     if (status.state === 'skipped') {
@@ -925,6 +958,7 @@ class SpaceBlasterScene extends Phaser.Scene {
           ? 'Not submitted (missing run id)'
           : 'Not submitted (not signed in)',
       );
+      this.syncResultsOverlay();
       return;
     }
     if (status.state === 'fail') {
@@ -933,9 +967,46 @@ class SpaceBlasterScene extends Phaser.Scene {
           ? `Submission failed: ${status.errorMessage}`
           : 'Submission failed',
       );
+      this.syncResultsOverlay();
       return;
     }
     this.statusText.setText('Run finished');
+    this.syncResultsOverlay();
+  }
+
+  private syncResultsOverlay(): void {
+    if (this.runStateMachine.state !== RunState.RESULTS) {
+      this.resultsText.setVisible(false);
+      return;
+    }
+
+    const viewModel = buildResultsViewModel({
+      finalScore: this.getOrBuildFinalSummary(),
+      scoreState: this.scoreSystem.getState(),
+      submissionStatus: this.deps.ctx.submissionStatus,
+    });
+
+    const lines = [
+      `Final score: ${viewModel.finalScore}`,
+      `Level reached: ${viewModel.levelReached}`,
+      `Wave reached: ${viewModel.waveReached}`,
+      `Accuracy: ${viewModel.accuracyPercent}%`,
+      `Max combo: ${viewModel.maxCombo}`,
+      `Wave bonuses: ${viewModel.waveBonuses}`,
+      viewModel.submissionStatusLabel,
+    ];
+    if (viewModel.submissionStatusDetail) {
+      lines.push(viewModel.submissionStatusDetail);
+    }
+    if (viewModel.rankLabel) {
+      lines.push(viewModel.rankLabel);
+    }
+    if (viewModel.personalBestLabel) {
+      lines.push(viewModel.personalBestLabel);
+    }
+
+    this.resultsText.setText(lines.join('\n'));
+    this.resultsText.setVisible(true);
   }
 }
 
