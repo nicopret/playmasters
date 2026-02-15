@@ -489,7 +489,7 @@ describe('ScoreSystem', () => {
       system.onShotFired(i);
     }
     for (let i = 0; i < 8; i += 1) {
-      system.onShotHit(100 + i);
+      system.onShotHit();
     }
     system.finalizeRun(2000);
     const firstScore = system.getState().score;
