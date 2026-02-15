@@ -3,6 +3,7 @@ import { FireCooldown } from './fire-cooldown';
 import { FixedObjectPool } from './object-pool';
 
 type Bounds = { minX: number; maxX: number; minY: number; maxY: number };
+const PROJECTILE_DEPTH = 20;
 
 export type WeaponSystemConfig = {
   fireCooldownMs: number;
@@ -39,6 +40,7 @@ export class WeaponSystem {
       body.enable = false;
       projectile.setVisible(false);
       projectile.setActive(false);
+      projectile.setDepth(PROJECTILE_DEPTH);
       this.group.add(projectile);
       return projectile;
     });
