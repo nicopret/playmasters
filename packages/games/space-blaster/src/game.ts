@@ -12,7 +12,6 @@ import {
 } from './bootstrap';
 import {
   attemptRunSubmission,
-  buildRunSubmissionPayload,
   DisposableBag,
   createRunContext,
   isRunStartTransition,
@@ -36,6 +35,7 @@ import { DiveScheduler } from './enemies/DiveScheduler';
 import { EnemyLocalState } from './enemies/EnemyLocalState';
 import { LevelSystem } from './levels/LevelSystem';
 import { buildFinalScoreSummary, ScoreSystem } from './scoring';
+import { buildSubmitScorePayload } from './submit';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -578,7 +578,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.submitting = true;
 
     try {
-      const payload = buildRunSubmissionPayload(summary, this.deps.ctx);
+      const payload = buildSubmitScorePayload(summary, this.deps.ctx);
       const result = await attemptRunSubmission({
         ctx: this.deps.ctx,
         payload,
@@ -905,6 +905,10 @@ class SpaceBlasterScene extends Phaser.Scene {
     const status = this.deps.ctx.submissionStatus?.state ?? 'idle';
     if (status === 'success') {
       this.statusText.setText('Score submitted');
+      return;
+    }
+    if (status === 'submitting') {
+      this.statusText.setText('Submitting score...');
       return;
     }
     if (status === 'skipped') {

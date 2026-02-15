@@ -8,7 +8,7 @@ export type RuntimeConfigError = {
 };
 
 export type SubmissionStatus = {
-  state: 'idle' | 'success' | 'fail' | 'skipped';
+  state: 'idle' | 'submitting' | 'success' | 'fail' | 'skipped';
   errorMessage?: string;
   submittedAtMs?: number;
 };

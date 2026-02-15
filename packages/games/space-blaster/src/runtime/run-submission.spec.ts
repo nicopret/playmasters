@@ -2,10 +2,8 @@ import type { EmbeddedGameSdk } from '@playmasters/types';
 import type { FinalScoreSummary } from '../scoring';
 import { createRunContext } from './run-context';
 import { registerRunIfAuthenticated } from './run-registration';
-import {
-  attemptRunSubmission,
-  buildRunSubmissionPayload,
-} from './run-submission';
+import { attemptRunSubmission } from './run-submission';
+import { buildSubmitScorePayload } from '../submit';
 
 const resolvedConfigExample = {
   configHash: 'f'.repeat(64),
@@ -55,7 +53,7 @@ describe('run submission payload', () => {
     });
     await registerRunIfAuthenticated(ctx);
 
-    const payload = buildRunSubmissionPayload(summary, ctx);
+    const payload = buildSubmitScorePayload(summary, ctx);
     expect(payload).toEqual({
       runId: 'run-123',
       score: 1234,
@@ -82,7 +80,7 @@ describe('run submission payload', () => {
     const captured = ctx.runConfigHash;
     (ctx as unknown as { configHash: string }).configHash = '0'.repeat(64);
 
-    const payload = buildRunSubmissionPayload(
+    const payload = buildSubmitScorePayload(
       { ...summary, score: 99, durationMs: 1 },
       ctx,
     );
@@ -106,7 +104,7 @@ describe('run submission payload', () => {
         cheatFlags: ['godmode'],
       },
     } as unknown as FinalScoreSummary;
-    const payload = buildRunSubmissionPayload(noisySummary, ctx);
+    const payload = buildSubmitScorePayload(noisySummary, ctx);
 
     expect(payload).toEqual({
       runId: 'run-123',
@@ -138,8 +136,8 @@ describe('run submission payload', () => {
     });
     await registerRunIfAuthenticated(ctx);
 
-    const a = buildRunSubmissionPayload(summary, ctx);
-    const b = buildRunSubmissionPayload(summary, ctx);
+    const a = buildSubmitScorePayload(summary, ctx);
+    const b = buildSubmitScorePayload(summary, ctx);
     expect(a).toEqual(b);
   });
 
@@ -157,7 +155,7 @@ describe('run submission payload', () => {
     });
     ctx.runConfigHash = ctx.configHash;
 
-    const payload = buildRunSubmissionPayload(summary, ctx);
+    const payload = buildSubmitScorePayload(summary, ctx);
     expect(payload.runId).toBeUndefined();
     expect(payload.configHash).toBe(resolvedConfigExample.configHash);
   });
@@ -184,7 +182,7 @@ describe('attemptRunSubmission', () => {
       resolvedConfig: resolvedConfigExample,
     });
     await registerRunIfAuthenticated(ctx);
-    const payload = buildRunSubmissionPayload(summary, ctx);
+    const payload = buildSubmitScorePayload(summary, ctx);
 
     const first = await attemptRunSubmission({
       ctx,
@@ -220,7 +218,7 @@ describe('attemptRunSubmission', () => {
       resolvedConfig: resolvedConfigExample,
     });
     await registerRunIfAuthenticated(ctx);
-    const payload = buildRunSubmissionPayload(summary, ctx);
+    const payload = buildSubmitScorePayload(summary, ctx);
 
     const result = await attemptRunSubmission({
       ctx,
@@ -246,7 +244,7 @@ describe('attemptRunSubmission', () => {
       resolvedConfig: resolvedConfigExample,
     });
     ctx.runConfigHash = ctx.configHash;
-    const payload = buildRunSubmissionPayload(summary, ctx);
+    const payload = buildSubmitScorePayload(summary, ctx);
 
     const result = await attemptRunSubmission({
       ctx,
@@ -265,7 +263,7 @@ describe('attemptRunSubmission', () => {
       resolvedConfig: resolvedConfigExample,
     });
     ctx.runConfigHash = ctx.configHash;
-    const payload = buildRunSubmissionPayload(summary, ctx);
+    const payload = buildSubmitScorePayload(summary, ctx);
 
     const result = await attemptRunSubmission({
       ctx,
