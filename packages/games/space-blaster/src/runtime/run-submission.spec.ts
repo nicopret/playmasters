@@ -233,6 +233,7 @@ describe('attemptRunSubmission', () => {
       state: 'fail',
       errorMessage: 'submit_failed',
     });
+<<<<<<< HEAD
   });
 
   it('stores optional leaderboard metadata when submitScore returns it', async () => {
@@ -263,6 +264,8 @@ describe('attemptRunSubmission', () => {
       rank: 4,
       personalBest: true,
     });
+=======
+>>>>>>> c46f2e7 (Task 38.2 - Wire sdk.submitScore with non-blocking flow + status)
   });
 
   it('skips when unauthenticated and does not call submit', async () => {
