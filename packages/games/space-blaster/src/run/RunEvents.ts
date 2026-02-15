@@ -19,6 +19,7 @@ export const RUN_EVENT = {
   REQUEST_END: 'run.requestEnd',
   LEVEL_WAVE_CLEARED: 'level.waveCleared',
   PLAYER_SHOT_FIRED: 'score.shotFired',
+  PLAYER_SHOT_HIT: 'score.shotHit',
   ENEMY_KILLED: 'score.enemyKilled',
   PLAYER_HIT: 'score.playerHit',
 } as const;
@@ -66,6 +67,7 @@ export type RunEventMap = {
     livesRemaining: number;
   };
   [RUN_EVENT.PLAYER_SHOT_FIRED]: { nowMs: number };
+  [RUN_EVENT.PLAYER_SHOT_HIT]: { nowMs: number };
   [RUN_EVENT.ENEMY_KILLED]: { enemyId: string; nowMs: number };
   [RUN_EVENT.PLAYER_HIT]: { nowMs: number };
 };

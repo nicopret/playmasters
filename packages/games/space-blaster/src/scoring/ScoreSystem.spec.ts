@@ -3,8 +3,10 @@ import type { RunContext } from '../runtime';
 import { RUN_EVENT, RunEventBus } from '../run';
 import {
   computeComboTierIndex,
+  computeAccuracy,
   computeLevelMultiplier,
   ScoreSystem,
+  selectHighestAccuracyThreshold,
   selectHighestComboTier,
 } from './ScoreSystem';
 
@@ -144,6 +146,26 @@ describe('ScoreSystem', () => {
     expect(computeComboTierIndex(tiers, 1)).toBe(0);
     expect(computeComboTierIndex(tiers, 3)).toBe(1);
     expect(computeComboTierIndex(tiers, 99)).toBe(2);
+  });
+
+  it('computes accuracy with edge-case handling and clamping', () => {
+    expect(computeAccuracy(0, 0)).toBe(0);
+    expect(computeAccuracy(10, 7)).toBe(0.7);
+    expect(computeAccuracy(0, 5)).toBe(1);
+  });
+
+  it('selects highest accuracy threshold met', () => {
+    const thresholds = [
+      { minAccuracy: 0.5, bonus: 100 },
+      { minAccuracy: 0.8, bonus: 300 },
+    ];
+    expect(selectHighestAccuracyThreshold(thresholds, 0.49)?.bonus ?? 0).toBe(
+      0,
+    );
+    expect(selectHighestAccuracyThreshold(thresholds, 0.5)?.bonus).toBe(100);
+    expect(selectHighestAccuracyThreshold(thresholds, 0.79)?.bonus).toBe(100);
+    expect(selectHighestAccuracyThreshold(thresholds, 0.8)?.bonus).toBe(300);
+    expect(selectHighestAccuracyThreshold(thresholds, 0.95)?.bonus).toBe(300);
   });
 
   it('awards rounded kill points from baseEnemyScore * levelMultiplier', () => {
@@ -313,7 +335,7 @@ describe('ScoreSystem', () => {
       state.breakdownTotals.comboExtra +
       state.breakdownTotals.tierBonuses +
       state.breakdownTotals.waveClearBonuses +
-      state.breakdownTotals.accuracyBonuses;
+      state.breakdownTotals.accuracyBonus;
     expect(sum).toBe(state.score);
   });
 
@@ -445,5 +467,60 @@ describe('ScoreSystem', () => {
     expect(system.getState().shotsFired).toBe(1);
     expect(system.getState().breakdownTotals.kills).toBe(1);
     expect(system.getState().comboCount).toBe(0);
+  });
+
+  it('tracks shot hits and applies highest accuracy bonus once on finalizeRun', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.accuracyBonus = {
+          scaleByLevelMultiplier: false,
+          thresholds: [
+            { minAccuracy: 0.5, bonus: 100 },
+            { minAccuracy: 0.8, bonus: 300 },
+          ],
+        };
+      }),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    for (let i = 0; i < 10; i += 1) {
+      system.onShotFired(i);
+    }
+    for (let i = 0; i < 8; i += 1) {
+      system.onShotHit(100 + i);
+    }
+    system.finalizeRun(2000);
+    const firstScore = system.getState().score;
+
+    expect(system.getState().breakdownTotals.accuracyBonus).toBe(300);
+    expect(firstScore).toBe(300);
+
+    system.finalizeRun(3000);
+    expect(system.getState().score).toBe(firstScore);
+    expect(system.getState().breakdownTotals.accuracyBonus).toBe(300);
+  });
+
+  it('wires shot-hit and finalize via run bus events', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.accuracyBonus = {
+          scaleByLevelMultiplier: false,
+          thresholds: [{ minAccuracy: 0.5, bonus: 120 }],
+        };
+      }),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    bus.emit(RUN_EVENT.PLAYER_SHOT_FIRED, { nowMs: 10 });
+    bus.emit(RUN_EVENT.PLAYER_SHOT_HIT, { nowMs: 11 });
+    system.finalizeRun(100);
+
+    expect(system.getState().shotsFired).toBe(1);
+    expect(system.getState().shotsHit).toBe(1);
+    expect(system.getState().breakdownTotals.accuracyBonus).toBe(120);
   });
 });

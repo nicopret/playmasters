@@ -27,6 +27,7 @@ export type ScoreEvent =
 
 export type ScoreState = {
   score: number;
+  finalized: boolean;
   comboCount: number;
   comboExpiresAtMs: number | null;
   currentTierIndex: number | null;
@@ -39,7 +40,7 @@ export type ScoreState = {
     comboExtra: number;
     tierBonuses: number;
     waveClearBonuses: number;
-    accuracyBonuses: number;
+    accuracyBonus: number;
   };
   perEnemy: Record<string, EnemyScoreBreakdown>;
   eventLog: ScoreEvent[];
@@ -49,6 +50,7 @@ export type ScoreState = {
 
 export const createInitialScoreState = (): ScoreState => ({
   score: 0,
+  finalized: false,
   comboCount: 0,
   comboExpiresAtMs: null,
   currentTierIndex: null,
@@ -61,7 +63,7 @@ export const createInitialScoreState = (): ScoreState => ({
     comboExtra: 0,
     tierBonuses: 0,
     waveClearBonuses: 0,
-    accuracyBonuses: 0,
+    accuracyBonus: 0,
   },
   perEnemy: {},
   eventLog: [],

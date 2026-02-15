@@ -391,6 +391,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.enemyCanDive.delete(target);
         const enemyId = this.enemyProfile.get(target)?.enemyId;
         this.enemyProfile.delete(target);
+        this.runBus.emit(RUN_EVENT.PLAYER_SHOT_HIT, { nowMs: this.simNowMs });
         this.formationSystem.onEnemyDeath(target);
         target.destroy();
         if (enemyId) {
@@ -797,9 +798,13 @@ class SpaceBlasterScene extends Phaser.Scene {
         );
         break;
       case RunState.RUN_ENDING:
+        this.scoreSystem.finalizeRun(this.simNowMs);
+        this.syncScoreFromSystem();
         this.statusText.setText('Run over');
         break;
       case RunState.RESULTS:
+        this.scoreSystem.finalizeRun(this.simNowMs);
+        this.syncScoreFromSystem();
         this.playAgainBtn.setVisible(true);
         void this.submitScoreIfNeeded();
         break;
