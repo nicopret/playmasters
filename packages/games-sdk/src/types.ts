@@ -20,14 +20,17 @@ export type ScoreSubmission = {
   runId: string;
   score: number;
   durationMs?: number;
+  configHash: string;
+  versionHash?: string;
 };
 
 export type GameSdk = {
+  isAuthenticated?: boolean;
   startRun(): Promise<{ run: GameRun; sessionToken: string }>;
   submitScore(
     payload: Omit<ScoreSubmission, 'sessionToken' | 'runId' | 'gameId'> & {
       score: number;
       durationMs?: number;
-    }
+    },
   ): Promise<void>;
 };

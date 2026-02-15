@@ -22,7 +22,9 @@ export function createGameSdk(ctx: GameContext): GameSdk {
 
     const json = await safeJson(response);
     if (!response.ok || !json?.token) {
-      throw new Error((json as { error?: string } | null)?.error ?? 'session_failed');
+      throw new Error(
+        (json as { error?: string } | null)?.error ?? 'session_failed',
+      );
     }
 
     sessionToken = json.token as string;
@@ -31,7 +33,12 @@ export function createGameSdk(ctx: GameContext): GameSdk {
     return { run, sessionToken };
   };
 
-  const submitScore: GameSdk['submitScore'] = async ({ score, durationMs }) => {
+  const submitScore: GameSdk['submitScore'] = async ({
+    score,
+    durationMs,
+    configHash,
+    versionHash,
+  }) => {
     if (!run || !sessionToken) {
       throw new Error('run_not_started');
     }
@@ -43,16 +50,23 @@ export function createGameSdk(ctx: GameContext): GameSdk {
         gameId: ctx.gameId,
         score,
         durationMs,
+        configHash,
+        versionHash,
         runId: run.runId,
         sessionToken,
       }),
     });
 
     const json = await safeJson(response);
-    if (!response.ok || (json as { ok?: boolean; error?: string } | null)?.ok === false) {
-      throw new Error((json as { error?: string } | null)?.error ?? 'submit_failed');
+    if (
+      !response.ok ||
+      (json as { ok?: boolean; error?: string } | null)?.ok === false
+    ) {
+      throw new Error(
+        (json as { error?: string } | null)?.error ?? 'submit_failed',
+      );
     }
   };
 
-  return { startRun, submitScore };
+  return { isAuthenticated: Boolean(ctx.user), startRun, submitScore };
 }

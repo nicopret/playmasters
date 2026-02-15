@@ -10,7 +10,14 @@ import {
   createBootstrapDependencies,
   type SpaceBlasterBootstrapDeps,
 } from './bootstrap';
-import { DisposableBag, createRunContext } from './runtime';
+import {
+  buildRunScoreSubmissionPayload,
+  DisposableBag,
+  createRunContext,
+  isRunStartTransition,
+  registerRunIfAuthenticated,
+  resetRunRegistration,
+} from './runtime';
 import {
   orchestrateRunFrame,
   RUN_EVENT,
@@ -561,7 +568,12 @@ class SpaceBlasterScene extends Phaser.Scene {
 
     try {
       this.statusText.setText('Submitting...');
-      await this.deps.sdk.submitScore({ score: this.score, durationMs });
+      const payload = buildRunScoreSubmissionPayload(
+        this.deps.ctx,
+        this.score,
+        durationMs,
+      );
+      await this.deps.sdk.submitScore(payload);
       this.statusText.setText('Score submitted');
       window.dispatchEvent(
         new CustomEvent('playmasters:refresh-leaderboard', {
@@ -586,6 +598,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.lifeSystem.reset();
     this.updateLivesDisplay();
     this.levelSystem.startLevel(0);
+    resetRunRegistration(this.deps.ctx);
     this.scoreSystem.resetForNewRun();
     this.syncScoreFromSystem();
   }
@@ -595,10 +608,20 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.runStarted = true;
     this.startTime = Date.now();
     try {
-      await this.deps.sdk.startRun();
-    } catch {
+      const registration = await registerRunIfAuthenticated(this.deps.ctx);
+      if (registration === 'started') {
+        return;
+      }
+      if (registration === 'skipped_unauthenticated') {
+        this.canSubmitScore = false;
+        return;
+      }
       this.canSubmitScore = false;
       this.statusText.setText('Sign in to submit score');
+    } catch (error) {
+      this.canSubmitScore = false;
+      this.statusText.setText((error as Error).message);
+      this.runStateMachine.requestEndRun('run_start_failed');
     }
   }
 
@@ -768,7 +791,9 @@ class SpaceBlasterScene extends Phaser.Scene {
         if (from === RunState.PLAYER_RESPAWN) {
           this.lifeSystem.startRespawnInvulnerability();
         }
-        void this.ensureRunStarted();
+        if (isRunStartTransition(from, state)) {
+          void this.ensureRunStarted();
+        }
         break;
       case RunState.PLAYING:
         this.statusText.setText(
