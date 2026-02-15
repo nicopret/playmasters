@@ -955,12 +955,6 @@ class SpaceBlasterScene extends Phaser.Scene {
       return;
     }
     if (status.state === 'skipped') {
-<<<<<<< HEAD
-      this.statusText.setText(
-        status.reason === 'missingRunId'
-          ? 'Not submitted (missing run id)'
-          : 'Not submitted (not signed in)',
-=======
       this.statusText.setText(
         status.reason === 'missingRunId'
           ? 'Not submitted (missing run id)'
@@ -974,21 +968,8 @@ class SpaceBlasterScene extends Phaser.Scene {
         status.errorMessage
           ? `Submission failed: ${status.errorMessage}`
           : 'Submission failed',
->>>>>>> c46f2e7 (Task 38.2 - Wire sdk.submitScore with non-blocking flow + status)
       );
       this.syncResultsOverlay();
-<<<<<<< HEAD
-      return;
-    }
-    if (status.state === 'fail') {
-      this.statusText.setText(
-        status.errorMessage
-          ? `Submission failed: ${status.errorMessage}`
-          : 'Submission failed',
-      );
-      this.syncResultsOverlay();
-=======
->>>>>>> 4eaccd8 (Results screen - score breakdown + submissions status + leaderboard view)
       return;
     }
     this.statusText.setText('Run finished');
