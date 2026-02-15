@@ -34,13 +34,21 @@ export function createGameSdk(ctx: GameContext): GameSdk {
   };
 
   const submitScore: GameSdk['submitScore'] = async ({
+    runId,
     score,
     durationMs,
+    levelReached,
+    waveReached,
+    stats,
     configHash,
     versionHash,
   }) => {
     if (!run || !sessionToken) {
       throw new Error('run_not_started');
+    }
+    const submissionRunId = runId ?? run.runId;
+    if (runId && runId !== run.runId) {
+      throw new Error('run_id_mismatch');
     }
 
     const response = await fetch(`${apiBaseUrl}/api/scores/submit`, {
@@ -50,9 +58,12 @@ export function createGameSdk(ctx: GameContext): GameSdk {
         gameId: ctx.gameId,
         score,
         durationMs,
+        levelReached,
+        waveReached,
+        stats,
         configHash,
         versionHash,
-        runId: run.runId,
+        runId: submissionRunId,
         sessionToken,
       }),
     });

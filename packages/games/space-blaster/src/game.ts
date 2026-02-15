@@ -11,7 +11,7 @@ import {
   type SpaceBlasterBootstrapDeps,
 } from './bootstrap';
 import {
-  buildRunScoreSubmissionPayload,
+  attemptRunSubmission,
   DisposableBag,
   createRunContext,
   isRunStartTransition,
@@ -34,7 +34,8 @@ import { EnemyController } from './enemies/EnemyController';
 import { DiveScheduler } from './enemies/DiveScheduler';
 import { EnemyLocalState } from './enemies/EnemyLocalState';
 import { LevelSystem } from './levels/LevelSystem';
-import { ScoreSystem } from './scoring';
+import { buildFinalScoreSummary, ScoreSystem } from './scoring';
+import { buildSubmitScorePayload } from './submit';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -55,6 +56,7 @@ const RESPAWN_DELAY_MS = 650;
 const WAVE_CLEAR_MS = 750;
 const LEVEL_COMPLETE_MS = 900;
 const RUN_ENDING_DELAY_MS = 900;
+const SUBMITTING_TIMEOUT_MS = 7000;
 
 class SpaceBlasterScene extends Phaser.Scene {
   private deps: SpaceBlasterBootstrapDeps;
@@ -87,11 +89,13 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private score = 0;
   private startTime: number | null = null;
-  private canSubmitScore = true;
   private submitting = false;
   private runStarted = false;
   private startRequested = false;
   private simNowMs = 0;
+  private wavesCleared = 0;
+  private maxLevelReached = 1;
+  private maxWaveReached = 1;
 
   private scoreText!: Phaser.GameObjects.Text;
   private livesText!: Phaser.GameObjects.Text;
@@ -113,6 +117,7 @@ class SpaceBlasterScene extends Phaser.Scene {
       waveClearMs: WAVE_CLEAR_MS,
       levelCompleteMs: LEVEL_COMPLETE_MS,
       runEndingDelayMs: RUN_ENDING_DELAY_MS,
+      submittingTimeoutMs: SUBMITTING_TIMEOUT_MS,
     },
     {
       onEnterState: (state, from) => this.onEnterRunState(state, from),
@@ -293,6 +298,8 @@ class SpaceBlasterScene extends Phaser.Scene {
     });
     this.disposables.add(
       this.runBus.on(RUN_EVENT.LEVEL_WAVE_CLEARED, () => {
+        this.wavesCleared += 1;
+        this.syncReachedProgress();
         this.syncScoreFromSystem();
       }),
     );
@@ -476,6 +483,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         });
 
         this.levelSystem.update(dtMs);
+        this.syncReachedProgress();
 
         this.weaponSystem.update(dtMs);
         this.enemyWeaponSystem.update(dtMs);
@@ -557,34 +565,42 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.runStateMachine.requestRespawn();
   }
 
-  private async submitScoreIfNeeded() {
-    if (!this.canSubmitScore || this.submitting) {
-      this.onGameOver?.(this.score);
-      return;
-    }
-
-    this.submitting = true;
+  private async submitScoreInSubmitting() {
+    if (this.submitting) return;
     const durationMs = this.startTime ? Date.now() - this.startTime : undefined;
+    const summary = buildFinalScoreSummary({
+      scoreState: this.scoreSystem.getState(),
+      durationMs,
+      levelReached: this.maxLevelReached,
+      waveReached: this.maxWaveReached,
+      wavesCleared: this.wavesCleared,
+    });
+    this.submitting = true;
 
     try {
-      this.statusText.setText('Submitting...');
-      const payload = buildRunScoreSubmissionPayload(
-        this.deps.ctx,
-        this.score,
-        durationMs,
-      );
-      await this.deps.sdk.submitScore(payload);
-      this.statusText.setText('Score submitted');
-      window.dispatchEvent(
-        new CustomEvent('playmasters:refresh-leaderboard', {
-          detail: { gameId: GAME_ID },
-        }),
-      );
-    } catch {
-      this.statusText.setText('Error submitting score');
+      const payload = buildSubmitScorePayload(summary, this.deps.ctx);
+      const result = await attemptRunSubmission({
+        ctx: this.deps.ctx,
+        payload,
+        nowMs: this.simNowMs,
+      });
+      if (result === 'success') {
+        window.dispatchEvent(
+          new CustomEvent('playmasters:refresh-leaderboard', {
+            detail: { gameId: GAME_ID },
+          }),
+        );
+      }
+    } catch (error) {
+      this.deps.ctx.submissionStatus = {
+        state: 'fail',
+        errorMessage:
+          error instanceof Error ? error.message : 'Submission failed.',
+      };
     } finally {
       this.submitting = false;
-      this.onGameOver?.(this.score);
+      this.syncSubmissionStatusText();
+      this.runStateMachine.requestSubmissionComplete();
     }
   }
 
@@ -594,7 +610,10 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.score = 0;
     this.startTime = null;
     this.simNowMs = 0;
-    this.canSubmitScore = true;
+    this.wavesCleared = 0;
+    this.maxLevelReached = 1;
+    this.maxWaveReached = 1;
+    this.submitting = false;
     this.lifeSystem.reset();
     this.updateLivesDisplay();
     this.levelSystem.startLevel(0);
@@ -613,13 +632,10 @@ class SpaceBlasterScene extends Phaser.Scene {
         return;
       }
       if (registration === 'skipped_unauthenticated') {
-        this.canSubmitScore = false;
         return;
       }
-      this.canSubmitScore = false;
       this.statusText.setText('Sign in to submit score');
     } catch (error) {
-      this.canSubmitScore = false;
       this.statusText.setText((error as Error).message);
       this.runStateMachine.requestEndRun('run_start_failed');
     }
@@ -827,11 +843,16 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.syncScoreFromSystem();
         this.statusText.setText('Run over');
         break;
+      case RunState.SUBMITTING:
+        this.statusText.setText('Submitting score...');
+        void this.submitScoreInSubmitting();
+        break;
       case RunState.RESULTS:
         this.scoreSystem.finalizeRun(this.simNowMs);
         this.syncScoreFromSystem();
         this.playAgainBtn.setVisible(true);
-        void this.submitScoreIfNeeded();
+        this.syncSubmissionStatusText();
+        this.onGameOver?.(this.score);
         break;
       case RunState.ERROR:
         this.statusText.setText('Runtime error');
@@ -867,6 +888,41 @@ class SpaceBlasterScene extends Phaser.Scene {
   private syncScoreFromSystem(): void {
     this.score = this.scoreSystem.getState().score;
     this.scoreText.setText(`Score: ${this.score}`);
+  }
+
+  private syncReachedProgress(): void {
+    const levelReached = this.levelSystem.getLevelNumber();
+    const waveReached = this.levelSystem.getWaveIndex() + 1;
+    if (levelReached > this.maxLevelReached) {
+      this.maxLevelReached = levelReached;
+    }
+    if (waveReached > this.maxWaveReached) {
+      this.maxWaveReached = waveReached;
+    }
+  }
+
+  private syncSubmissionStatusText(): void {
+    const status = this.deps.ctx.submissionStatus?.state ?? 'idle';
+    if (status === 'success') {
+      this.statusText.setText('Score submitted');
+      return;
+    }
+    if (status === 'submitting') {
+      this.statusText.setText('Submitting score...');
+      return;
+    }
+    if (status === 'skipped') {
+      this.statusText.setText('Score not submitted');
+      return;
+    }
+    if (status === 'fail') {
+      const message = this.deps.ctx.submissionStatus?.errorMessage;
+      this.statusText.setText(
+        message ? `Submission failed: ${message}` : 'Submission failed',
+      );
+      return;
+    }
+    this.statusText.setText('Run finished');
   }
 }
 

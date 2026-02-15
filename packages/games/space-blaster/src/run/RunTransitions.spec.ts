@@ -34,7 +34,10 @@ describe('RunTransitions', () => {
     expect(isAllowedTransition(RunState.PLAYING, RunState.RUN_ENDING)).toBe(
       true,
     );
-    expect(isAllowedTransition(RunState.RUN_ENDING, RunState.RESULTS)).toBe(
+    expect(isAllowedTransition(RunState.RUN_ENDING, RunState.SUBMITTING)).toBe(
+      true,
+    );
+    expect(isAllowedTransition(RunState.SUBMITTING, RunState.RESULTS)).toBe(
       true,
     );
   });

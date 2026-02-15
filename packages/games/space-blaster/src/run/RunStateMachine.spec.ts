@@ -12,12 +12,13 @@ const createMachine = (bus: RunEventBus) =>
       waveClearMs: 250,
       levelCompleteMs: 400,
       runEndingDelayMs: 300,
+      submittingTimeoutMs: 500,
     },
     {},
   );
 
 describe('RunStateMachine', () => {
-  it('runs BOOT -> READY -> COUNTDOWN -> PLAYING -> RUN_ENDING -> RESULTS deterministically', () => {
+  it('runs BOOT -> READY -> COUNTDOWN -> PLAYING -> RUN_ENDING -> SUBMITTING -> RESULTS deterministically', () => {
     const bus = new RunEventBus();
     const machine = createMachine(bus);
     const sequence: string[] = [];
@@ -42,6 +43,8 @@ describe('RunStateMachine', () => {
     machine.update(0);
     expect(machine.state).toBe(RunState.RUN_ENDING);
     machine.update(300);
+    expect(machine.state).toBe(RunState.SUBMITTING);
+    machine.update(500);
     expect(machine.state).toBe(RunState.RESULTS);
 
     expect(sequence).toEqual([
@@ -49,7 +52,8 @@ describe('RunStateMachine', () => {
       'READY->COUNTDOWN',
       'COUNTDOWN->PLAYING',
       'PLAYING->RUN_ENDING',
-      'RUN_ENDING->RESULTS',
+      'RUN_ENDING->SUBMITTING',
+      'SUBMITTING->RESULTS',
     ]);
   });
 
@@ -132,6 +136,8 @@ describe('RunStateMachine', () => {
     expect(machine.state).toBe(RunState.RUN_ENDING);
 
     machine.update(300);
+    expect(machine.state).toBe(RunState.SUBMITTING);
+    machine.update(500);
     expect(machine.state).toBe(RunState.RESULTS);
   });
 
@@ -145,6 +151,7 @@ describe('RunStateMachine', () => {
         waveClearMs: 250,
         levelCompleteMs: 400,
         runEndingDelayMs: 300,
+        submittingTimeoutMs: 500,
       },
       {
         onEnterState: (state) => {
@@ -163,7 +170,9 @@ describe('RunStateMachine', () => {
     machine.requestEndRun('manual_stop');
     machine.update(0);
 
-    expect(() => machine.update(300)).toThrow('submission failed');
+    machine.update(300);
+    expect(machine.state).toBe(RunState.SUBMITTING);
+    expect(() => machine.update(500)).toThrow('submission failed');
     expect(machine.state).toBe(RunState.RESULTS);
   });
 
@@ -185,5 +194,23 @@ describe('RunStateMachine', () => {
       ).transition(RunState.PLAYING, 'start_requested');
     }).toThrow('Illegal run state transition: READY -> PLAYING');
     expect(errors).toContain('Illegal run state transition: READY -> PLAYING');
+  });
+
+  it('allows SUBMITTING to complete early via requestSubmissionComplete', () => {
+    const bus = new RunEventBus();
+    const machine = createMachine(bus);
+    machine.requestBootComplete();
+    machine.update(0);
+    machine.requestStart();
+    machine.update(0);
+    machine.update(1000);
+    machine.requestEndRun('manual_stop');
+    machine.update(0);
+    machine.update(300);
+    expect(machine.state).toBe(RunState.SUBMITTING);
+
+    machine.requestSubmissionComplete();
+    machine.update(0);
+    expect(machine.state).toBe(RunState.RESULTS);
   });
 });

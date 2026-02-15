@@ -9,7 +9,8 @@ type RunIntent =
   | { type: 'RESPAWN_REQUESTED' }
   | { type: 'WAVE_CLEAR_REQUESTED' }
   | { type: 'LEVEL_COMPLETE_REQUESTED' }
-  | { type: 'RUN_END_REQUESTED'; reason: string };
+  | { type: 'RUN_END_REQUESTED'; reason: string }
+  | { type: 'SUBMISSION_COMPLETE_REQUESTED' };
 
 export type RunStateMachineConfig = {
   countdownMs: number;
@@ -17,6 +18,7 @@ export type RunStateMachineConfig = {
   waveClearMs: number;
   levelCompleteMs: number;
   runEndingDelayMs: number;
+  submittingTimeoutMs: number;
 };
 
 export type RunStateController = {
@@ -63,6 +65,9 @@ export class RunStateMachine {
       this.bus.on(RUN_EVENT.REQUEST_END, ({ reason }) => {
         this.intents.push({ type: 'RUN_END_REQUESTED', reason });
       }),
+      this.bus.on(RUN_EVENT.REQUEST_SUBMISSION_COMPLETE, () => {
+        this.intents.push({ type: 'SUBMISSION_COMPLETE_REQUESTED' });
+      }),
     );
   }
 
@@ -103,6 +108,10 @@ export class RunStateMachine {
 
   requestLevelComplete(): void {
     this.bus.emit(RUN_EVENT.REQUEST_LEVEL_COMPLETE, undefined);
+  }
+
+  requestSubmissionComplete(): void {
+    this.bus.emit(RUN_EVENT.REQUEST_SUBMISSION_COMPLETE, undefined);
   }
 
   update(dtMs: number): void {
@@ -146,7 +155,13 @@ export class RunStateMachine {
       }
       case RunState.RUN_ENDING: {
         if (this.elapsedInStateMs >= this.config.runEndingDelayMs) {
-          this.transition(RunState.RESULTS, 'run_end_complete');
+          this.transition(RunState.SUBMITTING, 'run_end_complete');
+        }
+        break;
+      }
+      case RunState.SUBMITTING: {
+        if (this.elapsedInStateMs >= this.config.submittingTimeoutMs) {
+          this.transition(RunState.RESULTS, 'submission_complete');
         }
         break;
       }
@@ -199,6 +214,11 @@ export class RunStateMachine {
             this.transition(RunState.RUN_ENDING, 'run_end_requested');
           }
           break;
+        case 'SUBMISSION_COMPLETE_REQUESTED':
+          if (this._state === RunState.SUBMITTING) {
+            this.transition(RunState.RESULTS, 'submission_complete');
+          }
+          break;
         default:
           break;
       }
@@ -236,6 +256,9 @@ export class RunStateMachine {
         break;
       case RunState.RUN_ENDING:
         this.bus.emit(RUN_EVENT.ENDING, undefined);
+        break;
+      case RunState.SUBMITTING:
+        this.bus.emit(RUN_EVENT.SUBMITTING, undefined);
         break;
       case RunState.RESULTS:
         this.bus.emit(RUN_EVENT.RESULTS, undefined);

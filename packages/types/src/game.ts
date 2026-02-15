@@ -5,8 +5,17 @@ export type EmbeddedGameSdk = {
     sessionToken: string;
   }>;
   submitScore(payload: {
+    runId?: string;
     score: number;
-    durationMs?: number;
+    durationMs: number;
+    levelReached: number;
+    waveReached: number;
+    stats: {
+      shotsFired: number;
+      shotsHit: number;
+      kills: number;
+      wavesCleared: number;
+    };
     configHash: string;
     versionHash?: string;
   }): Promise<void>;

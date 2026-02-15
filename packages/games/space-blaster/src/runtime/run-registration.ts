@@ -15,6 +15,8 @@ export const resetRunRegistration = (ctx: RunContext): void => {
   ctx.runId = undefined;
   ctx.runConfigHash = undefined;
   ctx.runVersionHash = undefined;
+  ctx.submissionAttempted = false;
+  ctx.submissionStatus = { state: 'idle' };
 };
 
 const captureRunHashesAtStart = (ctx: RunContext): void => {

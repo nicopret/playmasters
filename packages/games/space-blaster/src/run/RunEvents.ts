@@ -9,6 +9,7 @@ export const RUN_EVENT = {
   WAVE_CLEAR: 'run.waveClear',
   LEVEL_COMPLETE: 'run.levelComplete',
   ENDING: 'run.ending',
+  SUBMITTING: 'run.submitting',
   RESULTS: 'run.results',
   ERROR: 'run.error',
   REQUEST_BOOT_COMPLETE: 'run.requestBootComplete',
@@ -17,6 +18,7 @@ export const RUN_EVENT = {
   REQUEST_WAVE_CLEAR: 'run.requestWaveClear',
   REQUEST_LEVEL_COMPLETE: 'run.requestLevelComplete',
   REQUEST_END: 'run.requestEnd',
+  REQUEST_SUBMISSION_COMPLETE: 'run.requestSubmissionComplete',
   LEVEL_WAVE_CLEARED: 'level.waveCleared',
   PLAYER_SHOT_FIRED: 'score.shotFired',
   PLAYER_SHOT_HIT: 'score.shotHit',
@@ -36,6 +38,7 @@ export type TransitionReason =
   | 'level_complete_complete'
   | 'run_end_requested'
   | 'run_end_complete'
+  | 'submission_complete'
   | 'error';
 
 export type RunEventMap = {
@@ -51,6 +54,7 @@ export type RunEventMap = {
   [RUN_EVENT.WAVE_CLEAR]: undefined;
   [RUN_EVENT.LEVEL_COMPLETE]: undefined;
   [RUN_EVENT.ENDING]: undefined;
+  [RUN_EVENT.SUBMITTING]: undefined;
   [RUN_EVENT.RESULTS]: undefined;
   [RUN_EVENT.ERROR]: { message: string };
   [RUN_EVENT.REQUEST_BOOT_COMPLETE]: undefined;
@@ -59,6 +63,7 @@ export type RunEventMap = {
   [RUN_EVENT.REQUEST_WAVE_CLEAR]: undefined;
   [RUN_EVENT.REQUEST_LEVEL_COMPLETE]: undefined;
   [RUN_EVENT.REQUEST_END]: { reason: string };
+  [RUN_EVENT.REQUEST_SUBMISSION_COMPLETE]: undefined;
   [RUN_EVENT.LEVEL_WAVE_CLEARED]: {
     levelNumber: number;
     waveIndex: number;

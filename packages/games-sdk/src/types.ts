@@ -19,7 +19,15 @@ export type ScoreSubmission = {
   sessionToken: string;
   runId: string;
   score: number;
-  durationMs?: number;
+  durationMs: number;
+  levelReached: number;
+  waveReached: number;
+  stats: {
+    shotsFired: number;
+    shotsHit: number;
+    kills: number;
+    wavesCleared: number;
+  };
   configHash: string;
   versionHash?: string;
 };
@@ -29,8 +37,9 @@ export type GameSdk = {
   startRun(): Promise<{ run: GameRun; sessionToken: string }>;
   submitScore(
     payload: Omit<ScoreSubmission, 'sessionToken' | 'runId' | 'gameId'> & {
+      runId?: string;
       score: number;
-      durationMs?: number;
+      durationMs: number;
     },
   ): Promise<void>;
 };
