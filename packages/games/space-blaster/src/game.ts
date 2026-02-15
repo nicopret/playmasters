@@ -35,7 +35,7 @@ import { DiveScheduler } from './enemies/DiveScheduler';
 import { EnemyLocalState } from './enemies/EnemyLocalState';
 import { LevelSystem } from './levels/LevelSystem';
 import { buildFinalScoreSummary, ScoreSystem } from './scoring';
-import { buildSubmitScorePayload } from './submit';
+import { buildSubmitScorePayloadV1 } from './submit';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -578,7 +578,15 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.submitting = true;
 
     try {
-      const payload = buildSubmitScorePayload(summary, this.deps.ctx);
+      const payload = buildSubmitScorePayloadV1({
+        finalScore: summary,
+        run: this.deps.ctx,
+        levelProgress: {
+          levelNumber: this.maxLevelReached,
+          waveIndex: Math.max(0, this.maxWaveReached - 1),
+          wavesCleared: this.wavesCleared,
+        },
+      });
       const result = await attemptRunSubmission({
         ctx: this.deps.ctx,
         payload,
