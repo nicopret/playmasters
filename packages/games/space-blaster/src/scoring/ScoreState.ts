@@ -38,7 +38,7 @@ export type ScoreState = {
     killPoints: number;
     comboExtra: number;
     tierBonuses: number;
-    waveBonuses: number;
+    waveClearBonuses: number;
     accuracyBonuses: number;
   };
   perEnemy: Record<string, EnemyScoreBreakdown>;
@@ -60,7 +60,7 @@ export const createInitialScoreState = (): ScoreState => ({
     killPoints: 0,
     comboExtra: 0,
     tierBonuses: 0,
-    waveBonuses: 0,
+    waveClearBonuses: 0,
     accuracyBonuses: 0,
   },
   perEnemy: {},

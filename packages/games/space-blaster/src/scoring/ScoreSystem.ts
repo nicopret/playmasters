@@ -73,7 +73,10 @@ export class ScoreSystem {
   private readonly levelMultiplierBase: number;
   private readonly levelMultiplierPerLevel: number;
   private readonly levelMultiplierMax: number;
+  private readonly waveClearBonusBase: number;
+  private readonly waveClearPerLifeBonus: number;
   private readonly eventLogMax: number;
+  private readonly appliedWaveBonusKeys = new Set<string>();
   private readonly unsubscribeFns: Array<() => void> = [];
 
   constructor(options: ScoreSystemOptions) {
@@ -91,6 +94,10 @@ export class ScoreSystem {
       options.ctx.resolvedConfig.scoreConfig.levelScoreMultiplier.perLevel;
     this.levelMultiplierMax =
       options.ctx.resolvedConfig.scoreConfig.levelScoreMultiplier.max;
+    this.waveClearBonusBase =
+      options.ctx.resolvedConfig.scoreConfig.waveClearBonus.base;
+    this.waveClearPerLifeBonus =
+      options.ctx.resolvedConfig.scoreConfig.waveClearBonus.perLifeBonus;
     const configuredEventLogSize = (
       options.ctx.resolvedConfig.scoreConfig as { eventLogSize?: number }
     ).eventLogSize;
@@ -119,6 +126,9 @@ export class ScoreSystem {
       options.bus.on(RUN_EVENT.PLAYER_HIT, ({ nowMs }) => {
         this.onPlayerHit(nowMs);
       }),
+      options.bus.on(RUN_EVENT.LEVEL_WAVE_CLEARED, (payload) => {
+        this.onWaveCleared(payload);
+      }),
     );
   }
 
@@ -135,6 +145,7 @@ export class ScoreSystem {
 
   resetForNewRun(): void {
     this.state = createInitialScoreState();
+    this.appliedWaveBonusKeys.clear();
   }
 
   onShotFired(nowMs?: number): void {
@@ -227,6 +238,39 @@ export class ScoreSystem {
     this.resetComboState('PLAYER_HIT', nowMs);
   }
 
+  onWaveCleared(args: {
+    levelNumber: number;
+    waveIndex: number;
+    livesRemaining: number;
+    nowMs: number;
+  }): void {
+    if (!Number.isFinite(args.nowMs) || args.nowMs < 0) return;
+    const levelNumber = Math.max(1, Math.floor(args.levelNumber));
+    const waveIndex = Math.max(0, Math.floor(args.waveIndex));
+    const livesRemaining = Math.max(0, Math.floor(args.livesRemaining));
+    const waveKey = `${levelNumber}:${waveIndex}`;
+    if (this.appliedWaveBonusKeys.has(waveKey)) {
+      return;
+    }
+
+    const levelMultiplier = computeLevelMultiplier({
+      levelNumber,
+      base: this.levelMultiplierBase,
+      perLevel: this.levelMultiplierPerLevel,
+      max: this.levelMultiplierMax,
+    });
+    const baseBonus = Math.round(this.waveClearBonusBase * levelMultiplier);
+    const perLifeBonus = Math.round(
+      this.waveClearPerLifeBonus * livesRemaining * levelMultiplier,
+    );
+    const totalWaveBonus = baseBonus + perLifeBonus;
+
+    this.appliedWaveBonusKeys.add(waveKey);
+    this.state.score += totalWaveBonus;
+    this.state.breakdownTotals.waveClearBonuses += totalWaveBonus;
+    this.assertBreakdownInvariant();
+  }
+
   private computeNextComboCount(): number {
     if (!this.comboEnabled || this.comboWindowMs <= 0) return 0;
     if (this.state.comboCount > 0 && this.state.comboExpiresAtMs !== null) {
@@ -313,7 +357,7 @@ export class ScoreSystem {
       this.state.breakdownTotals.killPoints +
       this.state.breakdownTotals.comboExtra +
       this.state.breakdownTotals.tierBonuses +
-      this.state.breakdownTotals.waveBonuses +
+      this.state.breakdownTotals.waveClearBonuses +
       this.state.breakdownTotals.accuracyBonuses
     );
   }

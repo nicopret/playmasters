@@ -269,6 +269,10 @@ class SpaceBlasterScene extends Phaser.Scene {
       runStateMachine: this.runStateMachine,
       formationSystem: this.formationSystem,
       getActiveEnemyCount: () => this.enemies.countActive(true),
+      getWaveClearContext: () => ({
+        nowMs: this.simNowMs,
+        livesRemaining: this.lifeSystem.lives,
+      }),
       onWaveStarted: ({ wave, level }) => {
         this.diveScheduler = this.createDiveScheduler(wave.enemyId, level);
         this.enemyFireSystem = this.createEnemyFireSystem(level);
@@ -280,6 +284,11 @@ class SpaceBlasterScene extends Phaser.Scene {
       bus: this.runBus,
       getLevelNumber: () => this.levelSystem.getLevelNumber(),
     });
+    this.disposables.add(
+      this.runBus.on(RUN_EVENT.LEVEL_WAVE_CLEARED, () => {
+        this.syncScoreFromSystem();
+      }),
+    );
 
     this.scoreText = this.add.text(16, 12, 'Score: 0', {
       fontFamily: 'Montserrat, Arial, sans-serif',

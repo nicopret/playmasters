@@ -312,9 +312,99 @@ describe('ScoreSystem', () => {
       state.breakdownTotals.killPoints +
       state.breakdownTotals.comboExtra +
       state.breakdownTotals.tierBonuses +
-      state.breakdownTotals.waveBonuses +
+      state.breakdownTotals.waveClearBonuses +
       state.breakdownTotals.accuracyBonuses;
     expect(sum).toBe(state.score);
+  });
+
+  it('applies wave clear bonus with level multiplier and per-life bonus', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.levelScoreMultiplier = {
+          base: 1.5,
+          perLevel: 0,
+          max: 1.5,
+        };
+        config.scoreConfig.waveClearBonus = {
+          base: 100,
+          perLifeBonus: 25,
+        };
+      }),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    system.onWaveCleared({
+      levelNumber: 1,
+      waveIndex: 0,
+      livesRemaining: 2,
+      nowMs: 500,
+    });
+
+    expect(system.getState().score).toBe(225);
+    expect(system.getState().breakdownTotals.waveClearBonuses).toBe(225);
+  });
+
+  it('applies wave clear bonus exactly once per levelNumber/waveIndex', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.waveClearBonus = {
+          base: 100,
+          perLifeBonus: 0,
+        };
+      }),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    system.onWaveCleared({
+      levelNumber: 1,
+      waveIndex: 0,
+      livesRemaining: 3,
+      nowMs: 100,
+    });
+    system.onWaveCleared({
+      levelNumber: 1,
+      waveIndex: 0,
+      livesRemaining: 3,
+      nowMs: 101,
+    });
+
+    expect(system.getState().score).toBe(100);
+    expect(system.getState().breakdownTotals.waveClearBonuses).toBe(100);
+  });
+
+  it('handles wave-clear bonus through level.waveCleared bus event', () => {
+    const bus = new RunEventBus();
+    const system = new ScoreSystem({
+      ctx: createContext((config) => {
+        config.scoreConfig.waveClearBonus = {
+          base: 80,
+          perLifeBonus: 10,
+        };
+      }),
+      bus,
+      getLevelNumber: () => 1,
+    });
+
+    bus.emit(RUN_EVENT.LEVEL_WAVE_CLEARED, {
+      levelNumber: 2,
+      waveIndex: 1,
+      reason: 'ALL_ENEMIES_DEAD',
+      nowMs: 1000,
+      livesRemaining: 2,
+    });
+    bus.emit(RUN_EVENT.LEVEL_WAVE_CLEARED, {
+      levelNumber: 2,
+      waveIndex: 1,
+      reason: 'ALL_ENEMIES_DEAD',
+      nowMs: 1001,
+      livesRemaining: 2,
+    });
+
+    expect(system.getState().breakdownTotals.waveClearBonuses).toBe(125);
   });
 
   it('keeps event log bounded to configured max size', () => {

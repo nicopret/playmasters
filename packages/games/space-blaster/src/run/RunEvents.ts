@@ -62,7 +62,8 @@ export type RunEventMap = {
     levelNumber: number;
     waveIndex: number;
     reason: 'ALL_ENEMIES_DEAD' | 'ENRAGE_TIMEOUT';
-    timestampMs: number;
+    nowMs: number;
+    livesRemaining: number;
   };
   [RUN_EVENT.PLAYER_SHOT_FIRED]: { nowMs: number };
   [RUN_EVENT.ENEMY_KILLED]: { enemyId: string; nowMs: number };

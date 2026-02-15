@@ -22,6 +22,7 @@ type LevelSystemOptions = {
   runStateMachine: LevelRunStatePort;
   formationSystem: LevelFormationPort;
   getActiveEnemyCount: () => number;
+  getWaveClearContext?: () => { nowMs: number; livesRemaining: number };
   onWaveStarted?: (payload: {
     levelIndex: number;
     waveIndex: number;
@@ -36,6 +37,9 @@ export class LevelSystem {
   private readonly runStateMachine: LevelRunStatePort;
   private readonly formationSystem: LevelFormationPort;
   private readonly getActiveEnemyCount: LevelSystemOptions['getActiveEnemyCount'];
+  private readonly getWaveClearContext: NonNullable<
+    LevelSystemOptions['getWaveClearContext']
+  >;
   private readonly onWaveStarted?: LevelSystemOptions['onWaveStarted'];
   private activeLevelIndex = 0;
   private activeWaveIndex = 0;
@@ -47,6 +51,8 @@ export class LevelSystem {
     this.runStateMachine = options.runStateMachine;
     this.formationSystem = options.formationSystem;
     this.getActiveEnemyCount = options.getActiveEnemyCount;
+    this.getWaveClearContext =
+      options.getWaveClearContext ?? (() => ({ nowMs: 0, livesRemaining: 0 }));
     this.onWaveStarted = options.onWaveStarted;
   }
 
@@ -166,12 +172,14 @@ export class LevelSystem {
   ): void {
     if (this.progressionRequested) return;
     this.progressionRequested = true;
+    const { nowMs, livesRemaining } = this.getWaveClearContext();
     this.bus.emit(RUN_EVENT.LEVEL_WAVE_CLEARED, {
       levelNumber: this.getLevelNumber(),
       waveIndex: this.activeWaveIndex,
       reason:
         reason === 'ENRAGE_TIMEOUT' ? 'ENRAGE_TIMEOUT' : 'ALL_ENEMIES_DEAD',
-      timestampMs: Date.now(),
+      nowMs,
+      livesRemaining,
     });
     const hasMoreWaves = this.hasNextWave();
     if (hasMoreWaves) {
