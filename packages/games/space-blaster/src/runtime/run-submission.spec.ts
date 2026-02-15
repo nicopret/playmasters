@@ -268,6 +268,36 @@ describe('attemptRunSubmission', () => {
 >>>>>>> c46f2e7 (Task 38.2 - Wire sdk.submitScore with non-blocking flow + status)
   });
 
+  it('stores optional leaderboard metadata when submitScore returns it', async () => {
+    const sdk = {
+      ...createSdkMock(),
+      submitScore: jest.fn(async () => ({
+        rank: 4,
+        personalBest: true,
+      })),
+    } as unknown as EmbeddedGameSdk;
+    const ctx = createRunContext({
+      sdk,
+      resolvedConfig: resolvedConfigExample,
+    });
+    await registerRunIfAuthenticated(ctx);
+    const payload = buildSubmitScorePayload(summary, ctx);
+
+    const result = await attemptRunSubmission({
+      ctx,
+      payload,
+      nowMs: 2222,
+    });
+
+    expect(result).toBe('success');
+    expect(ctx.submissionStatus).toEqual({
+      state: 'success',
+      submittedAtMs: 2222,
+      rank: 4,
+      personalBest: true,
+    });
+  });
+
   it('skips when unauthenticated and does not call submit', async () => {
     const unauthSdk: EmbeddedGameSdk = {
       isAuthenticated: false,
