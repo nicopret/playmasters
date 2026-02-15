@@ -52,6 +52,8 @@ describe('run registration lifecycle', () => {
 
     expect(sdk.startRun).toHaveBeenCalledTimes(1);
     expect(ctx.runId).toBe('run-123');
+    expect(ctx.runConfigHash).toBe(resolvedConfigExample.configHash);
+    expect(ctx.runVersionHash).toBeUndefined();
   });
 
   it('skips startRun for unauthenticated sessions', async () => {
@@ -66,6 +68,7 @@ describe('run registration lifecycle', () => {
     expect(result).toBe('skipped_unauthenticated');
     expect(sdk.startRun).not.toHaveBeenCalled();
     expect(ctx.runId).toBeUndefined();
+    expect(ctx.runConfigHash).toBe(resolvedConfigExample.configHash);
   });
 
   it('handles startRun failure without throwing and keeps runId undefined', async () => {
@@ -91,8 +94,39 @@ describe('run registration lifecycle', () => {
 
     await registerRunIfAuthenticated(ctx);
     resetRunRegistration(ctx);
+    expect(ctx.runConfigHash).toBeUndefined();
     await registerRunIfAuthenticated(ctx);
 
     expect(sdk.startRun).toHaveBeenCalledTimes(2);
+    expect(ctx.runConfigHash).toBe(resolvedConfigExample.configHash);
+  });
+
+  it('captures hash once at run start and keeps it stable', async () => {
+    const sdk = createSdkMock({ isAuthenticated: true });
+    const ctx = createRunContext({
+      sdk,
+      resolvedConfig: resolvedConfigExample,
+    });
+
+    await registerRunIfAuthenticated(ctx);
+    const captured = ctx.runConfigHash;
+    (ctx as unknown as { configHash: string }).configHash = '0'.repeat(64);
+
+    expect(ctx.runConfigHash).toBe(captured);
+  });
+
+  it('fails fast when config hash is missing at run start', async () => {
+    const sdk = createSdkMock({ isAuthenticated: true });
+    const ctx = createRunContext({
+      sdk,
+      resolvedConfig: resolvedConfigExample,
+    });
+    (ctx as unknown as { configHash: string }).configHash = ' ';
+
+    await expect(registerRunIfAuthenticated(ctx)).rejects.toThrow(
+      'Run start aborted: missing configHash in RunContext.',
+    );
+    expect(ctx.runRegistrationStarted).toBe(false);
+    expect(sdk.startRun).not.toHaveBeenCalled();
   });
 });

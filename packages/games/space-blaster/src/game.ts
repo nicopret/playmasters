@@ -11,6 +11,7 @@ import {
   type SpaceBlasterBootstrapDeps,
 } from './bootstrap';
 import {
+  buildRunScoreSubmissionPayload,
   DisposableBag,
   createRunContext,
   registerRunIfAuthenticated,
@@ -566,7 +567,12 @@ class SpaceBlasterScene extends Phaser.Scene {
 
     try {
       this.statusText.setText('Submitting...');
-      await this.deps.sdk.submitScore({ score: this.score, durationMs });
+      const payload = buildRunScoreSubmissionPayload(
+        this.deps.ctx,
+        this.score,
+        durationMs,
+      );
+      await this.deps.sdk.submitScore(payload);
       this.statusText.setText('Score submitted');
       window.dispatchEvent(
         new CustomEvent('playmasters:refresh-leaderboard', {
@@ -600,16 +606,22 @@ class SpaceBlasterScene extends Phaser.Scene {
     if (this.runStarted) return;
     this.runStarted = true;
     this.startTime = Date.now();
-    const registration = await registerRunIfAuthenticated(this.deps.ctx);
-    if (registration === 'started') {
-      return;
-    }
-    if (registration === 'skipped_unauthenticated') {
+    try {
+      const registration = await registerRunIfAuthenticated(this.deps.ctx);
+      if (registration === 'started') {
+        return;
+      }
+      if (registration === 'skipped_unauthenticated') {
+        this.canSubmitScore = false;
+        return;
+      }
       this.canSubmitScore = false;
-      return;
+      this.statusText.setText('Sign in to submit score');
+    } catch (error) {
+      this.canSubmitScore = false;
+      this.statusText.setText((error as Error).message);
+      this.runStateMachine.requestEndRun('run_start_failed');
     }
-    this.canSubmitScore = false;
-    this.statusText.setText('Sign in to submit score');
   }
 
   private onCountdownTick(remainingMs: number) {

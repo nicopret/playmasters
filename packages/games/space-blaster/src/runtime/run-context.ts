@@ -16,7 +16,9 @@ export type RunContext = {
   readonly publishedAt?: string;
   readonly mountedAt: string;
   runId?: string;
-  runRegistrationStarted: boolean;
+  runConfigHash?: string;
+  runVersionHash?: string;
+  runRegistrationStarted?: boolean;
   pendingResolvedConfig?: ResolvedGameConfigV1;
   pendingConfigHash?: string;
   pendingVersionHash?: string;
@@ -302,6 +304,8 @@ export const createRunContext = (opts: {
     publishedAt: validation.config.publishedAt,
     mountedAt: new Date().toISOString(),
     runId: undefined,
+    runConfigHash: undefined,
+    runVersionHash: undefined,
     runRegistrationStarted: false,
     hasPendingUpdate: false,
   };

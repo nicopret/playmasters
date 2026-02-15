@@ -4,7 +4,12 @@ export type EmbeddedGameSdk = {
     run: { runId: string; startedAt: string };
     sessionToken: string;
   }>;
-  submitScore(payload: { score: number; durationMs?: number }): Promise<void>;
+  submitScore(payload: {
+    score: number;
+    durationMs?: number;
+    configHash: string;
+    versionHash?: string;
+  }): Promise<void>;
 };
 
 export type EmbeddedGame = {

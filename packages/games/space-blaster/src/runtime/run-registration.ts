@@ -13,6 +13,20 @@ export const isSdkAuthenticated = (sdk: EmbeddedGameSdk): boolean =>
 export const resetRunRegistration = (ctx: RunContext): void => {
   ctx.runRegistrationStarted = false;
   ctx.runId = undefined;
+  ctx.runConfigHash = undefined;
+  ctx.runVersionHash = undefined;
+};
+
+const captureRunHashesAtStart = (ctx: RunContext): void => {
+  if (ctx.runConfigHash) return;
+  const configHash = ctx.configHash.trim();
+  if (configHash.length === 0) {
+    throw new Error('Run start aborted: missing configHash in RunContext.');
+  }
+  ctx.runConfigHash = configHash;
+  const versionHash = ctx.versionHash?.trim();
+  ctx.runVersionHash =
+    versionHash && versionHash.length > 0 ? versionHash : undefined;
 };
 
 export const registerRunIfAuthenticated = async (
@@ -21,6 +35,7 @@ export const registerRunIfAuthenticated = async (
   if (ctx.runRegistrationStarted) {
     return 'already_started';
   }
+  captureRunHashesAtStart(ctx);
   ctx.runRegistrationStarted = true;
   ctx.runId = undefined;
 

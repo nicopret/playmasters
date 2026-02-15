@@ -33,7 +33,12 @@ export function createGameSdk(ctx: GameContext): GameSdk {
     return { run, sessionToken };
   };
 
-  const submitScore: GameSdk['submitScore'] = async ({ score, durationMs }) => {
+  const submitScore: GameSdk['submitScore'] = async ({
+    score,
+    durationMs,
+    configHash,
+    versionHash,
+  }) => {
     if (!run || !sessionToken) {
       throw new Error('run_not_started');
     }
@@ -45,6 +50,8 @@ export function createGameSdk(ctx: GameContext): GameSdk {
         gameId: ctx.gameId,
         score,
         durationMs,
+        configHash,
+        versionHash,
         runId: run.runId,
         sessionToken,
       }),

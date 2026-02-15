@@ -20,6 +20,8 @@ export type ScoreSubmission = {
   runId: string;
   score: number;
   durationMs?: number;
+  configHash: string;
+  versionHash?: string;
 };
 
 export type GameSdk = {
