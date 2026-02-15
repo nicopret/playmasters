@@ -10,6 +10,7 @@ describe('SimulationGating', () => {
     expect(isSimulationRunning(RunState.WAVE_CLEAR, false)).toBe(false);
     expect(isSimulationRunning(RunState.LEVEL_COMPLETE, false)).toBe(false);
     expect(isSimulationRunning(RunState.RUN_ENDING, false)).toBe(false);
+    expect(isSimulationRunning(RunState.SUBMITTING, false)).toBe(false);
   });
 
   it('does not advance simulation when not PLAYING', () => {

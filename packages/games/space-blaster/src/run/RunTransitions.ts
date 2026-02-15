@@ -30,7 +30,8 @@ export const allowedTransitions: Record<RunState, ReadonlySet<RunState>> = {
     RunState.RUN_ENDING,
     RunState.ERROR,
   ]),
-  [RunState.RUN_ENDING]: new Set([RunState.RESULTS, RunState.ERROR]),
+  [RunState.RUN_ENDING]: new Set([RunState.SUBMITTING, RunState.ERROR]),
+  [RunState.SUBMITTING]: new Set([RunState.RESULTS, RunState.ERROR]),
   [RunState.RESULTS]: new Set([RunState.COUNTDOWN, RunState.ERROR]),
   [RunState.ERROR]: new Set([]),
 };

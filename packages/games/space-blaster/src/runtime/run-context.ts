@@ -7,6 +7,12 @@ export type RuntimeConfigError = {
   message: string;
 };
 
+export type SubmissionStatus = {
+  state: 'idle' | 'success' | 'fail' | 'skipped';
+  errorMessage?: string;
+  submittedAtMs?: number;
+};
+
 export type RunContext = {
   readonly sdk: EmbeddedGameSdk;
   readonly resolvedConfig: ResolvedGameConfigV1;
@@ -19,6 +25,8 @@ export type RunContext = {
   runConfigHash?: string;
   runVersionHash?: string;
   runRegistrationStarted?: boolean;
+  submissionAttempted?: boolean;
+  submissionStatus?: SubmissionStatus;
   pendingResolvedConfig?: ResolvedGameConfigV1;
   pendingConfigHash?: string;
   pendingVersionHash?: string;
@@ -307,6 +315,8 @@ export const createRunContext = (opts: {
     runConfigHash: undefined,
     runVersionHash: undefined,
     runRegistrationStarted: false,
+    submissionAttempted: false,
+    submissionStatus: { state: 'idle' },
     hasPendingUpdate: false,
   };
 };

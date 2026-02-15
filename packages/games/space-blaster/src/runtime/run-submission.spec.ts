@@ -2,7 +2,10 @@ import type { EmbeddedGameSdk } from '@playmasters/types';
 import type { FinalScoreSummary } from '../scoring';
 import { createRunContext } from './run-context';
 import { registerRunIfAuthenticated } from './run-registration';
-import { buildRunSubmissionPayload } from './run-submission';
+import {
+  attemptRunSubmission,
+  buildRunSubmissionPayload,
+} from './run-submission';
 
 const resolvedConfigExample = {
   configHash: 'f'.repeat(64),
@@ -31,7 +34,7 @@ const createSdkMock = (): EmbeddedGameSdk => ({
   submitScore: jest.fn(async () => undefined),
 });
 
-describe('buildRunScoreSubmissionPayload', () => {
+describe('run submission payload', () => {
   const summary: FinalScoreSummary = {
     score: 1234,
     durationMs: 4567,
@@ -157,5 +160,123 @@ describe('buildRunScoreSubmissionPayload', () => {
     const payload = buildRunSubmissionPayload(summary, ctx);
     expect(payload.runId).toBeUndefined();
     expect(payload.configHash).toBe(resolvedConfigExample.configHash);
+  });
+});
+
+describe('attemptRunSubmission', () => {
+  const summary: FinalScoreSummary = {
+    score: 4500,
+    durationMs: 1000,
+    levelReached: 2,
+    waveReached: 3,
+    stats: {
+      shotsFired: 20,
+      shotsHit: 12,
+      kills: 10,
+      wavesCleared: 2,
+    },
+  };
+
+  it('submits exactly once per run when authenticated and runId exists', async () => {
+    const sdk = createSdkMock();
+    const ctx = createRunContext({
+      sdk,
+      resolvedConfig: resolvedConfigExample,
+    });
+    await registerRunIfAuthenticated(ctx);
+    const payload = buildRunSubmissionPayload(summary, ctx);
+
+    const first = await attemptRunSubmission({
+      ctx,
+      payload,
+      nowMs: 1000,
+    });
+    const second = await attemptRunSubmission({
+      ctx,
+      payload,
+      nowMs: 1100,
+    });
+
+    expect(first).toBe('success');
+    expect(second).toBe('already_attempted');
+    expect(sdk.submitScore).toHaveBeenCalledTimes(1);
+    expect(ctx.submissionStatus?.state).toBe('success');
+    expect(ctx.submissionStatus?.submittedAtMs).toBe(1000);
+  });
+
+  it('marks failed status with message when submitScore rejects', async () => {
+    const sdk: EmbeddedGameSdk = {
+      isAuthenticated: true,
+      startRun: jest.fn(async () => ({
+        run: { runId: 'run-123', startedAt: '2026-02-16T00:00:00.000Z' },
+        sessionToken: 'token-123',
+      })),
+      submitScore: jest.fn(async () => {
+        throw new Error('submit_failed');
+      }),
+    };
+    const ctx = createRunContext({
+      sdk,
+      resolvedConfig: resolvedConfigExample,
+    });
+    await registerRunIfAuthenticated(ctx);
+    const payload = buildRunSubmissionPayload(summary, ctx);
+
+    const result = await attemptRunSubmission({
+      ctx,
+      payload,
+      nowMs: 2000,
+    });
+
+    expect(result).toBe('fail');
+    expect(ctx.submissionStatus?.state).toBe('fail');
+    expect(ctx.submissionStatus?.errorMessage).toBe('submit_failed');
+  });
+
+  it('skips when unauthenticated and does not call submit', async () => {
+    const unauthSdk: EmbeddedGameSdk = {
+      isAuthenticated: false,
+      startRun: jest.fn(async () => {
+        throw new Error('auth_required');
+      }),
+      submitScore: jest.fn(async () => undefined),
+    };
+    const ctx = createRunContext({
+      sdk: unauthSdk,
+      resolvedConfig: resolvedConfigExample,
+    });
+    ctx.runConfigHash = ctx.configHash;
+    const payload = buildRunSubmissionPayload(summary, ctx);
+
+    const result = await attemptRunSubmission({
+      ctx,
+      payload,
+      nowMs: 50,
+    });
+
+    expect(result).toBe('skipped');
+    expect(unauthSdk.submitScore).not.toHaveBeenCalled();
+    expect(ctx.submissionStatus?.state).toBe('skipped');
+  });
+
+  it('skips when runId is missing', async () => {
+    const ctx = createRunContext({
+      sdk: createSdkMock(),
+      resolvedConfig: resolvedConfigExample,
+    });
+    ctx.runConfigHash = ctx.configHash;
+    const payload = buildRunSubmissionPayload(summary, ctx);
+
+    const result = await attemptRunSubmission({
+      ctx,
+      payload,
+      nowMs: 75,
+    });
+
+    expect(result).toBe('skipped');
+    expect(ctx.submissionStatus?.state).toBe('skipped');
+    expect(ctx.submissionStatus?.errorMessage).toBe(
+      'No runId available for submission.',
+    );
   });
 });
