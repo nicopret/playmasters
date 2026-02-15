@@ -37,9 +37,16 @@ describe('DiveScheduler', () => {
         attackTickMs: 200,
         diveChancePerTick: 1,
         maxConcurrentDivers: 2,
+        telegraphLeadMs: 0,
       },
       getCandidates: () => [
-        { enemy, active: enemy.active, canDive: true, controller },
+        {
+          enemy,
+          enemyId: enemy.id,
+          active: enemy.active,
+          canDive: true,
+          controller,
+        },
       ],
       randomFloat: createRng([0, 0, 0, 0]),
     });
@@ -63,10 +70,12 @@ describe('DiveScheduler', () => {
         attackTickMs: 100,
         diveChancePerTick: 0,
         maxConcurrentDivers: 1,
+        telegraphLeadMs: 0,
       },
       getCandidates: () => [
         {
           enemy,
+          enemyId: enemy.id,
           active: enemy.active,
           canDive: true,
           controller: controllerNever,
@@ -83,10 +92,12 @@ describe('DiveScheduler', () => {
         attackTickMs: 100,
         diveChancePerTick: 1,
         maxConcurrentDivers: 1,
+        telegraphLeadMs: 0,
       },
       getCandidates: () => [
         {
           enemy,
+          enemyId: enemy.id,
           active: enemy.active,
           canDive: true,
           controller: controllerAlways,
@@ -110,10 +121,12 @@ describe('DiveScheduler', () => {
         attackTickMs: 100,
         diveChancePerTick: 1,
         maxConcurrentDivers: 2,
+        telegraphLeadMs: 0,
       },
       getCandidates: () =>
         enemies.map((enemy, index) => ({
           enemy,
+          enemyId: enemy.id,
           active: enemy.active,
           canDive: true,
           controller: controllers[index],
@@ -159,22 +172,26 @@ describe('DiveScheduler', () => {
         attackTickMs: 100,
         diveChancePerTick: 1,
         maxConcurrentDivers: 3,
+        telegraphLeadMs: 0,
       },
       getCandidates: () => [
         {
           enemy: enemies[0],
+          enemyId: enemies[0].id,
           active: true,
           canDive: true,
           controller: controllers[0],
         },
         {
           enemy: enemies[1],
+          enemyId: enemies[1].id,
           active: true,
           canDive: false,
           controller: controllers[1],
         },
         {
           enemy: enemies[2],
+          enemyId: enemies[2].id,
           active: true,
           canDive: true,
           controller: controllers[2],
@@ -197,9 +214,16 @@ describe('DiveScheduler', () => {
         attackTickMs: 100,
         diveChancePerTick: 1,
         maxConcurrentDivers: 1,
+        telegraphLeadMs: 0,
       },
       getCandidates: () => [
-        { enemy, active: enemy.active, canDive: true, controller },
+        {
+          enemy,
+          enemyId: enemy.id,
+          active: enemy.active,
+          canDive: true,
+          controller,
+        },
       ],
       randomFloat: createRng([0, 0]),
     });
@@ -208,6 +232,41 @@ describe('DiveScheduler', () => {
     expect(controller.state).toBe(EnemyLocalState.FORMATION);
 
     scheduler.update(100);
+    expect(controller.state).toBe(EnemyLocalState.DIVING);
+  });
+
+  it('emits telegraph before dive begins when telegraphLeadMs is configured', () => {
+    const enemy: TestEnemy = { id: 'e1', active: true };
+    const controller = createController();
+    const telegraphs: Array<{ enemyId?: string; leadMs: number }> = [];
+    const scheduler = new DiveScheduler({
+      config: {
+        attackTickMs: 100,
+        diveChancePerTick: 1,
+        maxConcurrentDivers: 1,
+        telegraphLeadMs: 300,
+      },
+      getCandidates: () => [
+        {
+          enemy,
+          enemyId: enemy.id,
+          active: enemy.active,
+          canDive: true,
+          controller,
+        },
+      ],
+      randomFloat: createRng([0, 0]),
+      onDiveTelegraph: (payload) => telegraphs.push(payload),
+    });
+
+    scheduler.update(100);
+    expect(telegraphs).toEqual([{ enemyId: 'e1', leadMs: 300 }]);
+    expect(controller.state).toBe(EnemyLocalState.FORMATION);
+
+    scheduler.update(299);
+    expect(controller.state).toBe(EnemyLocalState.FORMATION);
+
+    scheduler.update(1);
     expect(controller.state).toBe(EnemyLocalState.DIVING);
   });
 });

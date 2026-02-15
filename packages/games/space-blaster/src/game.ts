@@ -42,6 +42,7 @@ import {
 import { buildResultsViewModel } from './results/buildResultsViewModel';
 import { buildSubmitScorePayloadV1 } from './submit';
 import { HUDSystem } from './ui/HUDSystem';
+import { AudioSystem } from './audio/AudioSystem';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -83,6 +84,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   private levelSystem!: LevelSystem;
   private scoreSystem!: ScoreSystem;
   private hudSystem!: HUDSystem;
+  private audioSystem!: AudioSystem;
   private enemies!: Phaser.Physics.Arcade.Group;
   private enemyControllers = new Map<
     Phaser.GameObjects.Rectangle,
@@ -310,6 +312,12 @@ class SpaceBlasterScene extends Phaser.Scene {
       getLives: () => this.lifeSystem.lives,
     });
     this.hudSystem.create();
+    this.audioSystem = new AudioSystem({
+      scene: this,
+      ctx: this.deps.ctx,
+      bus: this.runBus,
+    });
+    this.audioSystem.start();
     this.runBus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
       livesRemaining: this.lifeSystem.lives,
       nowMs: this.simNowMs,
@@ -424,11 +432,15 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.enemyProfile.delete(target);
         this.runBus.emit(RUN_EVENT.PLAYER_SHOT_HIT, { nowMs: this.simNowMs });
         this.formationSystem.onEnemyDeath(target);
+        const killX = target.x;
+        const killY = target.y;
         target.destroy();
         if (enemyId) {
           this.runBus.emit(RUN_EVENT.ENEMY_KILLED, {
             enemyId,
             nowMs: this.simNowMs,
+            x: killX,
+            y: killY,
           });
           this.syncScoreFromSystem();
         }
@@ -507,6 +519,7 @@ class SpaceBlasterScene extends Phaser.Scene {
       },
     });
     this.hudSystem.update(this.simNowMs);
+    this.audioSystem.setPauseOverlayActive(this.overlayBlockingGameplay);
 
     if (this.lifeSystem.invulnerable) {
       const flashVisible = Math.floor(_time / 80) % 2 === 0;
@@ -695,6 +708,13 @@ class SpaceBlasterScene extends Phaser.Scene {
           1,
       ),
     );
+    const telegraphLeadMs = Math.max(
+      0,
+      Math.floor(
+        (level?.diveScheduler as { telegraphLeadMs?: number } | undefined)
+          ?.telegraphLeadMs ?? 300,
+      ),
+    );
 
     if (
       attackTickMs <= 0 ||
@@ -709,23 +729,34 @@ class SpaceBlasterScene extends Phaser.Scene {
         attackTickMs,
         diveChancePerTick,
         maxConcurrentDivers,
+        telegraphLeadMs,
       },
       getCandidates: () => {
         const candidates: Array<{
           enemy: Phaser.GameObjects.Rectangle;
+          enemyId?: string;
           active: boolean;
           canDive: boolean;
           controller: EnemyController;
         }> = [];
         this.enemyControllers.forEach((controller, enemy) => {
+          const profile = this.enemyProfile.get(enemy);
           candidates.push({
             enemy,
+            enemyId: profile?.enemyId,
             active: enemy.active,
             canDive: this.enemyCanDive.get(enemy) ?? true,
             controller,
           });
         });
         return candidates;
+      },
+      onDiveTelegraph: ({ enemyId, leadMs }) => {
+        this.runBus.emit(RUN_EVENT.ENEMY_DIVE_TELEGRAPH, {
+          enemyId,
+          nowMs: this.simNowMs,
+          leadMs,
+        });
       },
     });
   }
@@ -901,6 +932,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.weaponSystem.clear();
     this.enemyWeaponSystem.clear();
     this.hudSystem.destroy();
+    this.audioSystem.stop();
     this.diveScheduler = undefined;
     this.enemyCanDive.clear();
     this.enemyProfile.clear();
