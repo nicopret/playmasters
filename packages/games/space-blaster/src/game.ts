@@ -506,6 +506,7 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.enemyWeaponSystem.update(dtMs);
       },
     });
+    this.hudSystem.update(this.simNowMs);
 
     if (this.lifeSystem.invulnerable) {
       const flashVisible = Math.floor(_time / 80) % 2 === 0;
@@ -630,6 +631,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.maxWaveReached = 1;
     this.finalSummary = null;
     this.submitting = false;
+    this.hudSystem.clearTransientBanners();
     this.lifeSystem.reset();
     this.runBus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
       livesRemaining: this.lifeSystem.lives,

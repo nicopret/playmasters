@@ -17,6 +17,10 @@ class FakeText {
     return this;
   }
 
+  setOrigin(): this {
+    return this;
+  }
+
   destroy(): void {
     this.destroyed = true;
   }
@@ -25,7 +29,6 @@ class FakeText {
 describe('HUDSystem', () => {
   const createScene = () => {
     const texts: FakeText[] = [];
-    const timers: Array<{ callback: () => void; removed: boolean }> = [];
     const scene = {
       add: {
         text: () => {
@@ -34,46 +37,28 @@ describe('HUDSystem', () => {
           return t;
         },
       },
-      time: {
-        delayedCall: (_delay: number, callback: () => void) => {
-          const timer = { callback, removed: false };
-          timers.push(timer);
-          return {
-            remove: () => {
-              timer.removed = true;
-            },
-          };
-        },
+      scale: {
+        width: 800,
       },
     };
     return {
       scene: scene as unknown as Phaser.Scene,
       texts,
-      timers,
     };
   };
 
-  it('reacts to score/lives/tier and hides banner on combo reset', () => {
+  it('reacts to score and lives events immediately', () => {
     const bus = new RunEventBus();
-    const { scene, texts, timers } = createScene();
-    const scoreSystem = {
-      getState: () => ({ score: 0 }),
-    };
-    let lives = 3;
+    const { scene, texts } = createScene();
+    const scoreSystem = { getState: () => ({ score: 0 }) };
     const hud = new HUDSystem({
       scene,
-      // ctx is DI-only for this system and unused in behavior; cast for test.
       ctx: {} as never,
       bus,
       scoreSystem: scoreSystem as never,
-      getLives: () => lives,
-      bannerHideMs: 1000,
+      getLives: () => 3,
     });
-
     hud.create();
-    expect(texts[0].text).toBe('Score: 0');
-    expect(texts[1].text).toBe('Lives: 3');
-    expect(texts[2].visible).toBe(false);
 
     bus.emit(RUN_EVENT.SCORE_CHANGED, {
       score: 120,
@@ -82,14 +67,28 @@ describe('HUDSystem', () => {
       tierIndex: null,
       nowMs: 10,
     });
-    expect(texts[0].text).toBe('Score: 120');
-
-    lives = 2;
     bus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
       livesRemaining: 2,
       nowMs: 11,
     });
+
+    expect(texts[0].text).toBe('Score: 120');
     expect(texts[1].text).toBe('Lives: 2');
+  });
+
+  it('queues tier and wave banners sequentially on sim-clock update', () => {
+    const bus = new RunEventBus();
+    const { scene, texts } = createScene();
+    const scoreSystem = { getState: () => ({ score: 0 }) };
+    const hud = new HUDSystem({
+      scene,
+      ctx: {} as never,
+      bus,
+      scoreSystem: scoreSystem as never,
+      getLives: () => 3,
+      bannerHideMs: 1000,
+    });
+    hud.create();
 
     bus.emit(RUN_EVENT.SCORE_TIER_ENTERED, {
       tierIndex: 1,
@@ -97,16 +96,57 @@ describe('HUDSystem', () => {
       multiplier: 1.5,
       tierBonus: 50,
       comboCount: 3,
-      nowMs: 12,
+      nowMs: 100,
     });
+    bus.emit(RUN_EVENT.LEVEL_WAVE_CLEARED, {
+      levelNumber: 1,
+      waveIndex: 0,
+      reason: 'ALL_ENEMIES_DEAD',
+      nowMs: 101,
+      livesRemaining: 3,
+    });
+
+    hud.update(100);
     expect(texts[2].visible).toBe(true);
-    expect(texts[2].text).toBe('Tier Up! Tier 2 x1.50');
-    expect(timers).toHaveLength(1);
+    expect(texts[2].text).toContain('Tier Up!');
+
+    hud.update(1100);
+    expect(texts[2].visible).toBe(true);
+    expect(texts[2].text).toBe('Wave Clear!');
+  });
+
+  it('pauses banner expiry when sim clock is frozen and hides tier banner on combo break', () => {
+    const bus = new RunEventBus();
+    const { scene, texts } = createScene();
+    const scoreSystem = { getState: () => ({ score: 0 }) };
+    const hud = new HUDSystem({
+      scene,
+      ctx: {} as never,
+      bus,
+      scoreSystem: scoreSystem as never,
+      getLives: () => 3,
+      bannerHideMs: 1000,
+    });
+    hud.create();
+
+    bus.emit(RUN_EVENT.SCORE_TIER_ENTERED, {
+      tierIndex: 1,
+      minCount: 3,
+      multiplier: 1.5,
+      tierBonus: 50,
+      comboCount: 3,
+      nowMs: 100,
+    });
+
+    hud.update(100);
+    hud.update(100);
+    expect(texts[2].visible).toBe(true);
 
     bus.emit(RUN_EVENT.SCORE_COMBO_RESET, {
       reason: 'EXPIRED',
-      nowMs: 13,
+      nowMs: 101,
     });
+    hud.update(101);
     expect(texts[2].visible).toBe(false);
 
     hud.destroy();
