@@ -29,7 +29,9 @@ const createResolvedConfig = (): ResolvedGameConfigV1 => ({
     ],
   },
   enemyCatalog: {
-    entries: [{ enemyId: 'enemy-a', hp: 1, spriteKey: 'enemy-a', baseScore: 50 }],
+    entries: [
+      { enemyId: 'enemy-a', hp: 1, spriteKey: 'enemy-a', baseScore: 50 },
+    ],
   },
   ammoCatalog: {
     entries: [
@@ -128,9 +130,9 @@ describe('ScoreSystem ticket #35 acceptance', () => {
 
     expect(system.getState().shotsFired).toBe(3);
     expect(system.getState().shotsHit).toBe(2);
-    expect(computeAccuracy(system.getState().shotsFired, system.getState().shotsHit)).toBeCloseTo(
-      2 / 3,
-    );
+    expect(
+      computeAccuracy(system.getState().shotsFired, system.getState().shotsHit),
+    ).toBeCloseTo(2 / 3);
     expect(computeAccuracy(0, 0)).toBe(0);
   });
 
