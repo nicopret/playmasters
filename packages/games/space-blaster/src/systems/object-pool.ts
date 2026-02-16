@@ -1,48 +1,51 @@
+import { ObjectPool } from '../perf/ObjectPool';
+
 export class FixedObjectPool<T> {
   static create<T>(size: number, factory: () => T): FixedObjectPool<T> {
-    const items: T[] = [];
-    for (let i = 0; i < size; i += 1) {
-      items.push(factory());
-    }
-    return new FixedObjectPool(items);
+    const pool = new ObjectPool<T>({
+      initial: size,
+      max: size,
+      create: factory,
+    });
+    return new FixedObjectPool(pool);
   }
 
-  private readonly free: T[];
-  private readonly active = new Set<T>();
+  private readonly pool: ObjectPool<T>;
 
-  constructor(items: readonly T[]) {
-    this.free = [...items];
+  constructor(itemsOrPool: readonly T[] | ObjectPool<T>) {
+    if (itemsOrPool instanceof ObjectPool) {
+      this.pool = itemsOrPool;
+      return;
+    }
+    let index = 0;
+    this.pool = new ObjectPool<T>({
+      initial: itemsOrPool.length,
+      max: itemsOrPool.length,
+      create: () => itemsOrPool[index++] as T,
+    });
   }
 
   acquire(): T | undefined {
-    const item = this.free.pop();
-    if (!item) return undefined;
-    this.active.add(item);
-    return item;
+    return this.pool.acquire() ?? undefined;
   }
 
   release(item: T): void {
-    if (!this.active.has(item)) return;
-    this.active.delete(item);
-    this.free.push(item);
+    this.pool.release(item);
   }
 
   clear(): void {
-    for (const item of this.active) {
-      this.free.push(item);
-    }
-    this.active.clear();
+    this.pool.resetAll();
   }
 
   activeCount(): number {
-    return this.active.size;
+    return this.pool.activeCount();
   }
 
   freeCount(): number {
-    return this.free.length;
+    return this.pool.freeCount();
   }
 
   activeItems(): readonly T[] {
-    return [...this.active];
+    return this.pool.activeItems();
   }
 }
