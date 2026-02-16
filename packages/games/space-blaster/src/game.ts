@@ -46,6 +46,13 @@ import { SettingsOverlay } from './ui/SettingsOverlay';
 import { AudioSystem } from './audio/AudioSystem';
 import { VfxSystem } from './vfx/VfxSystem';
 import { PoolLimits } from './perf/poolLimits';
+import { PoolMetricsOverlay } from './dev/PoolMetricsOverlay';
+import {
+  assertAtBaseline,
+  captureBaseline,
+  type PoolBaselineSnapshot,
+  type PoolMetricsSnapshot,
+} from './dev/poolLeakChecks';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -67,6 +74,12 @@ const WAVE_CLEAR_MS = 750;
 const LEVEL_COMPLETE_MS = 900;
 const RUN_ENDING_DELAY_MS = 900;
 const SUBMITTING_TIMEOUT_MS = 7000;
+const IS_DEV_RUNTIME = (() => {
+  const globalWithProcess = globalThis as {
+    process?: { env?: { NODE_ENV?: string } };
+  };
+  return globalWithProcess.process?.env?.NODE_ENV !== 'production';
+})();
 
 class SpaceBlasterScene extends Phaser.Scene {
   private deps: SpaceBlasterBootstrapDeps;
@@ -90,6 +103,8 @@ class SpaceBlasterScene extends Phaser.Scene {
   private settingsOverlay!: SettingsOverlay;
   private audioSystem!: AudioSystem;
   private vfxSystem!: VfxSystem;
+  private poolMetricsOverlay?: PoolMetricsOverlay;
+  private poolBaseline?: PoolBaselineSnapshot;
   private enemies!: Phaser.Physics.Arcade.Group;
   private enemyControllers = new Map<
     Phaser.GameObjects.Rectangle,
@@ -348,6 +363,13 @@ class SpaceBlasterScene extends Phaser.Scene {
       particlePoolSize: PoolLimits.particles.initial,
       particlePoolMax: PoolLimits.particles.max,
     });
+    if (IS_DEV_RUNTIME) {
+      this.poolBaseline = captureBaseline(this.getPoolMetricsSnapshot());
+      this.poolMetricsOverlay = new PoolMetricsOverlay({
+        scene: this,
+        getMetrics: () => this.getPoolMetricsSnapshot(),
+      });
+    }
     this.audioSystem.start();
     this.runBus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
       livesRemaining: this.lifeSystem.lives,
@@ -561,6 +583,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.hudSystem.update(this.simNowMs);
     this.audioSystem.setPauseOverlayActive(this.overlayBlockingGameplay);
     this.vfxSystem.update(this.simNowMs);
+    this.poolMetricsOverlay?.update(this.simNowMs);
 
     if (this.lifeSystem.invulnerable) {
       const flashVisible = Math.floor(_time / 80) % 2 === 0;
@@ -724,6 +747,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     resetRunRegistration(this.deps.ctx);
     this.scoreSystem.resetForNewRun();
     this.syncScoreFromSystem();
+    this.checkPoolBaselineIfDev();
   }
 
   private async ensureRunStarted() {
@@ -1009,6 +1033,8 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.hudSystem.destroy();
     this.audioSystem.stop();
     this.vfxSystem.destroy();
+    this.poolMetricsOverlay?.destroy();
+    this.poolMetricsOverlay = undefined;
     this.diveScheduler = undefined;
     this.enemyCanDive.clear();
     this.enemyProfile.clear();
@@ -1119,6 +1145,33 @@ class SpaceBlasterScene extends Phaser.Scene {
 
     this.resultsText.setText(lines.join('\n'));
     this.resultsText.setVisible(true);
+  }
+
+  private getPoolMetricsSnapshot(): PoolMetricsSnapshot {
+    const player = this.weaponSystem.getPoolStats();
+    const enemy = this.enemyWeaponSystem.getPoolStats();
+    const vfx = this.vfxSystem.getPoolStats();
+    return {
+      playerBullets: player,
+      enemyBullets: enemy,
+      explosions: vfx.explosions,
+      particles: {
+        inUse: vfx.particles.inUse,
+        max: vfx.particles.maxBudget,
+        activeBursts: vfx.particles.activeBursts,
+      },
+    };
+  }
+
+  private checkPoolBaselineIfDev(): void {
+    if (!IS_DEV_RUNTIME || !this.poolBaseline) {
+      return;
+    }
+    const report = assertAtBaseline(
+      this.getPoolMetricsSnapshot(),
+      this.poolBaseline,
+    );
+    this.poolMetricsOverlay?.setLeakReport(report);
   }
 }
 

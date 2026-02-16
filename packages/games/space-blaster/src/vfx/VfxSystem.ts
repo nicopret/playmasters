@@ -38,6 +38,19 @@ type ActiveParticle = {
   endsAtMs: number;
 };
 
+export type VfxPoolStats = {
+  explosions: { free: number; active: number; total: number; max: number };
+  particles: {
+    free: number;
+    active: number;
+    total: number;
+    max: number;
+    inUse: number;
+    maxBudget: number;
+    activeBursts: number;
+  };
+};
+
 const clampNonNegativeInt = (value: number, fallback: number): number => {
   if (!Number.isFinite(value)) return fallback;
   return Math.max(0, Math.floor(value));
@@ -225,14 +238,28 @@ export class VfxSystem {
     particleInUse: number;
     activeBursts: number;
   } {
-    const explosionStats = this.explosionPool.stats();
+    const pools = this.getPoolStats();
     return {
-      activeExplosions: explosionStats.active,
+      activeExplosions: pools.explosions.active,
       activeParticles: this.activeParticles.length,
-      freeExplosions: explosionStats.free,
-      freeParticles: this.particlePool.freeCount(),
-      particleInUse: this.particleBudget.getInUse(),
-      activeBursts: this.particleBudget.getActiveBurstCount(),
+      freeExplosions: pools.explosions.free,
+      freeParticles: pools.particles.free,
+      particleInUse: pools.particles.inUse,
+      activeBursts: pools.particles.activeBursts,
+    };
+  }
+
+  getPoolStats(): VfxPoolStats {
+    const explosionStats = this.explosionPool.stats();
+    const particleStats = this.particlePool.stats();
+    return {
+      explosions: explosionStats,
+      particles: {
+        ...particleStats,
+        inUse: this.particleBudget.getInUse(),
+        maxBudget: this.maxActiveParticles,
+        activeBursts: this.particleBudget.getActiveBurstCount(),
+      },
     };
   }
 
