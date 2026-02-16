@@ -714,7 +714,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.settingsOverlay.hideAll();
     this.setUserPauseBlocked(false);
     this.hudSystem.clearTransientBanners();
-    this.vfxSystem.clear();
+    this.vfxSystem.resetAll();
     this.lifeSystem.reset();
     this.runBus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
       livesRemaining: this.lifeSystem.lives,

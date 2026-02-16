@@ -3,18 +3,17 @@ import type { RunContext } from '../runtime';
 import { RUN_EVENT, type RunEventBus } from '../run';
 import { ObjectPool } from '../perf/ObjectPool';
 import { PoolLimits } from '../perf/poolLimits';
+import { ExplosionPool } from './ExplosionPool';
+import { ParticleBudget } from './ParticleBudget';
 
 const DEFAULT_EXPLOSION_POOL_SIZE = PoolLimits.explosions.initial;
 const DEFAULT_EXPLOSION_POOL_MAX = PoolLimits.explosions.max;
 const DEFAULT_PARTICLE_POOL_SIZE = PoolLimits.particles.initial;
 const DEFAULT_PARTICLE_POOL_MAX = PoolLimits.particles.max;
-const DEFAULT_EXPLOSION_DURATION_MS = 260;
 const DEFAULT_PARTICLE_DURATION_MS = 180;
-const DEFAULT_MAX_ACTIVE_PARTICLES = 40;
 const DEFAULT_MAX_PARTICLES_PER_BURST = 10;
 const EXPLOSION_DEPTH = 10;
 const PARTICLE_DEPTH = 9;
-const EXPLOSION_ALPHA = 0.68;
 const PARTICLE_ALPHA = 0.55;
 
 type VfxSystemOptions = {
@@ -25,17 +24,10 @@ type VfxSystemOptions = {
   explosionPoolMax?: number;
   particlePoolSize?: number;
   particlePoolMax?: number;
-  explosionDurationMs?: number;
   particleDurationMs?: number;
   maxActiveParticles?: number;
   maxParticlesPerBurst?: number;
   enableSubtleCameraShake?: boolean;
-};
-
-type ActiveExplosion = {
-  sprite: Phaser.GameObjects.Arc;
-  startedAtMs: number;
-  endsAtMs: number;
 };
 
 type ActiveParticle = {
@@ -68,43 +60,45 @@ export const computeParticleSpawnCount = (args: {
 export class VfxSystem {
   private readonly scene: Phaser.Scene;
   private readonly bus: RunEventBus;
-  private readonly explosionPool: ObjectPool<Phaser.GameObjects.Arc>;
+  private readonly explosionPool: ExplosionPool;
   private readonly particlePool: ObjectPool<Phaser.GameObjects.Arc>;
-  private readonly explosionSprites: Phaser.GameObjects.Arc[] = [];
   private readonly particleSprites: Phaser.GameObjects.Arc[] = [];
-  private readonly explosionDurationMs: number;
   private readonly particleDurationMs: number;
   private readonly maxActiveParticles: number;
   private readonly maxParticlesPerBurst: number;
   private readonly enableSubtleCameraShake: boolean;
+  private readonly particleBudget: ParticleBudget;
   private readonly unsubscribers: Array<() => void> = [];
 
-  private activeExplosions: ActiveExplosion[] = [];
   private activeParticles: ActiveParticle[] = [];
   private lastNowMs = 0;
 
   constructor(options: VfxSystemOptions) {
     this.scene = options.scene;
     this.bus = options.bus;
-    this.explosionDurationMs = clampNonNegativeInt(
-      options.explosionDurationMs ?? DEFAULT_EXPLOSION_DURATION_MS,
-      DEFAULT_EXPLOSION_DURATION_MS,
-    );
     this.particleDurationMs = clampNonNegativeInt(
       options.particleDurationMs ?? DEFAULT_PARTICLE_DURATION_MS,
       DEFAULT_PARTICLE_DURATION_MS,
-    );
-    this.maxActiveParticles = clampNonNegativeInt(
-      options.maxActiveParticles ?? DEFAULT_MAX_ACTIVE_PARTICLES,
-      DEFAULT_MAX_ACTIVE_PARTICLES,
     );
     this.maxParticlesPerBurst = clampNonNegativeInt(
       options.maxParticlesPerBurst ?? DEFAULT_MAX_PARTICLES_PER_BURST,
       DEFAULT_MAX_PARTICLES_PER_BURST,
     );
+    const particlePoolMax = clampNonNegativeInt(
+      options.particlePoolMax ?? DEFAULT_PARTICLE_POOL_MAX,
+      DEFAULT_PARTICLE_POOL_MAX,
+    );
+    this.maxActiveParticles = Math.min(
+      particlePoolMax,
+      clampNonNegativeInt(
+        options.maxActiveParticles ?? particlePoolMax,
+        particlePoolMax,
+      ),
+    );
     this.enableSubtleCameraShake = options.enableSubtleCameraShake ?? false;
 
-    this.explosionPool = new ObjectPool({
+    this.explosionPool = new ExplosionPool({
+      scene: this.scene,
       initial: clampNonNegativeInt(
         options.explosionPoolSize ?? DEFAULT_EXPLOSION_POOL_SIZE,
         DEFAULT_EXPLOSION_POOL_SIZE,
@@ -113,28 +107,29 @@ export class VfxSystem {
         options.explosionPoolMax ?? DEFAULT_EXPLOSION_POOL_MAX,
         DEFAULT_EXPLOSION_POOL_MAX,
       ),
-      create: () => this.createExplosionSprite(),
-      onRelease: (sprite) => {
-        sprite.setVisible(false);
-        sprite.setActive(false);
-        sprite.setPosition(-1000, -1000);
-      },
+      depth: EXPLOSION_DEPTH,
+      fallbackDurationMs: 260,
     });
+
     this.particlePool = new ObjectPool({
       initial: clampNonNegativeInt(
         options.particlePoolSize ?? DEFAULT_PARTICLE_POOL_SIZE,
         DEFAULT_PARTICLE_POOL_SIZE,
       ),
-      max: clampNonNegativeInt(
-        options.particlePoolMax ?? DEFAULT_PARTICLE_POOL_MAX,
-        DEFAULT_PARTICLE_POOL_MAX,
-      ),
+      max: particlePoolMax,
       create: () => this.createParticleSprite(),
       onRelease: (sprite) => {
         sprite.setVisible(false);
         sprite.setActive(false);
         sprite.setPosition(-1000, -1000);
+        sprite.setAlpha(1);
       },
+    });
+
+    this.particleBudget = new ParticleBudget({
+      maxActiveParticles: this.maxActiveParticles,
+      maxParticlesPerBurst: this.maxParticlesPerBurst,
+      burstLifetimeMs: this.particleDurationMs,
     });
 
     this.unsubscribers.push(
@@ -150,23 +145,8 @@ export class VfxSystem {
     if (!Number.isFinite(nowMs) || nowMs < 0) return;
     const dtMs = Math.max(0, nowMs - this.lastNowMs);
     this.lastNowMs = nowMs;
-
-    const remainingExplosions: ActiveExplosion[] = [];
-    for (const explosion of this.activeExplosions) {
-      if (nowMs >= explosion.endsAtMs) {
-        this.releaseExplosion(explosion.sprite);
-        continue;
-      }
-      const lifeRatio =
-        this.explosionDurationMs <= 0
-          ? 1
-          : (nowMs - explosion.startedAtMs) / this.explosionDurationMs;
-      const clampedLifeRatio = Math.max(0, Math.min(1, lifeRatio));
-      explosion.sprite.setScale(0.5 + clampedLifeRatio * 1.1);
-      explosion.sprite.setAlpha(EXPLOSION_ALPHA * (1 - clampedLifeRatio));
-      remainingExplosions.push(explosion);
-    }
-    this.activeExplosions = remainingExplosions;
+    this.particleBudget.update(nowMs);
+    this.explosionPool.update(nowMs, (sprite) => this.releaseExplosion(sprite));
 
     const dtSeconds = dtMs / 1000;
     const remainingParticles: ActiveParticle[] = [];
@@ -194,21 +174,15 @@ export class VfxSystem {
 
   spawnExplosion(x: number, y: number, nowMs: number): void {
     if (!Number.isFinite(nowMs) || nowMs < 0) return;
-    const explosion = this.explosionPool.acquire();
-    if (!explosion) {
+    const sprite = this.explosionPool.spawn({
+      x,
+      y,
+      nowMs,
+      onComplete: (completed) => this.releaseExplosion(completed),
+    });
+    if (!sprite) {
       return;
     }
-
-    explosion.setPosition(x, y);
-    explosion.setScale(0.5);
-    explosion.setAlpha(EXPLOSION_ALPHA);
-    explosion.setVisible(true);
-    explosion.setActive(true);
-    this.activeExplosions.push({
-      sprite: explosion,
-      startedAtMs: nowMs,
-      endsAtMs: nowMs + this.explosionDurationMs,
-    });
 
     this.spawnParticles(x, y, nowMs);
     if (this.enableSubtleCameraShake) {
@@ -217,16 +191,17 @@ export class VfxSystem {
   }
 
   clear(): void {
-    for (const active of this.activeExplosions) {
-      this.releaseExplosion(active.sprite);
-    }
     for (const active of this.activeParticles) {
       this.releaseParticle(active.sprite);
     }
-    this.activeExplosions = [];
     this.activeParticles = [];
+    this.particleBudget.reset();
     this.explosionPool.resetAll();
     this.particlePool.resetAll();
+  }
+
+  resetAll(): void {
+    this.clear();
   }
 
   destroy(): void {
@@ -235,13 +210,10 @@ export class VfxSystem {
       unsubscribe();
     }
     this.unsubscribers.length = 0;
-    for (const sprite of this.explosionSprites) {
-      sprite.destroy();
-    }
+    this.explosionPool.destroy();
     for (const sprite of this.particleSprites) {
       sprite.destroy();
     }
-    this.explosionSprites.length = 0;
     this.particleSprites.length = 0;
   }
 
@@ -250,22 +222,18 @@ export class VfxSystem {
     activeParticles: number;
     freeExplosions: number;
     freeParticles: number;
+    particleInUse: number;
+    activeBursts: number;
   } {
+    const explosionStats = this.explosionPool.stats();
     return {
-      activeExplosions: this.activeExplosions.length,
+      activeExplosions: explosionStats.active,
       activeParticles: this.activeParticles.length,
-      freeExplosions: this.explosionPool.freeCount(),
+      freeExplosions: explosionStats.free,
       freeParticles: this.particlePool.freeCount(),
+      particleInUse: this.particleBudget.getInUse(),
+      activeBursts: this.particleBudget.getActiveBurstCount(),
     };
-  }
-
-  private createExplosionSprite(): Phaser.GameObjects.Arc {
-    const sprite = this.scene.add.circle(-1000, -1000, 8, 0xffa766);
-    sprite.setVisible(false);
-    sprite.setActive(false);
-    sprite.setDepth(EXPLOSION_DEPTH);
-    this.explosionSprites.push(sprite);
-    return sprite;
   }
 
   private createParticleSprite(): Phaser.GameObjects.Arc {
@@ -277,7 +245,7 @@ export class VfxSystem {
     return sprite;
   }
 
-  private releaseExplosion(sprite: Phaser.GameObjects.Arc): void {
+  private releaseExplosion(sprite: Phaser.GameObjects.Sprite): void {
     this.explosionPool.release(sprite);
   }
 
@@ -286,19 +254,18 @@ export class VfxSystem {
   }
 
   private spawnParticles(x: number, y: number, nowMs: number): void {
-    const spawnCount = computeParticleSpawnCount({
-      requested: this.maxParticlesPerBurst,
-      maxParticlesPerBurst: this.maxParticlesPerBurst,
-      maxActiveParticles: this.maxActiveParticles,
-      activeParticles: this.activeParticles.length,
-    });
-    for (let i = 0; i < spawnCount; i += 1) {
+    const granted = this.particleBudget.reserve(
+      this.maxParticlesPerBurst,
+      nowMs,
+    );
+    for (let i = 0; i < granted; i += 1) {
       const particle = this.particlePool.acquire();
       if (!particle) {
         return;
       }
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 40 + Math.random() * 70;
+      const t = granted <= 1 ? 0 : i / (granted - 1);
+      const angle = t * Math.PI * 2;
+      const speed = 50 + (i % 4) * 18;
       particle.setPosition(x, y);
       particle.setAlpha(PARTICLE_ALPHA);
       particle.setVisible(true);
