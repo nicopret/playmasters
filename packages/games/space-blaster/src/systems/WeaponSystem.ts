@@ -1,6 +1,7 @@
 import type * as Phaser from 'phaser';
 import { FireCooldown } from './fire-cooldown';
-import { FixedObjectPool } from './object-pool';
+import { ObjectPool } from '../perf/ObjectPool';
+import { PoolLimits } from '../perf/poolLimits';
 
 type Bounds = { minX: number; maxX: number; minY: number; maxY: number };
 const PROJECTILE_DEPTH = 20;
@@ -8,7 +9,9 @@ const PROJECTILE_DEPTH = 20;
 export type WeaponSystemConfig = {
   fireCooldownMs: number;
   projectileSpeed: number;
-  poolSize: number;
+  poolSize?: number;
+  poolInitialSize?: number;
+  poolMaxSize?: number;
   projectileWidth?: number;
   projectileHeight?: number;
   projectileColor?: number;
@@ -16,7 +19,7 @@ export type WeaponSystemConfig = {
 
 export class WeaponSystem {
   private readonly group: Phaser.Physics.Arcade.Group;
-  private readonly pool: FixedObjectPool<Phaser.GameObjects.Rectangle>;
+  private readonly pool: ObjectPool<Phaser.GameObjects.Rectangle>;
   private readonly cooldown: FireCooldown;
 
   constructor(
@@ -26,23 +29,39 @@ export class WeaponSystem {
   ) {
     this.cooldown = new FireCooldown(config.fireCooldownMs);
     this.group = this.scene.physics.add.group({ runChildUpdate: false });
-    this.pool = FixedObjectPool.create(config.poolSize, () => {
-      const projectile = this.scene.add.rectangle(
-        -1000,
-        -1000,
-        config.projectileWidth ?? 6,
-        config.projectileHeight ?? 16,
-        config.projectileColor ?? 0xf9d65c,
-      );
-      this.scene.physics.add.existing(projectile);
-      const body = projectile.body as Phaser.Physics.Arcade.Body;
-      body.setAllowGravity(false);
-      body.enable = false;
-      projectile.setVisible(false);
-      projectile.setActive(false);
-      projectile.setDepth(PROJECTILE_DEPTH);
-      this.group.add(projectile);
-      return projectile;
+    const defaultLimits = PoolLimits.playerBullets;
+    const poolInitialSize =
+      config.poolInitialSize ?? config.poolSize ?? defaultLimits.initial;
+    const poolMaxSize = config.poolMaxSize ?? defaultLimits.max;
+    this.pool = new ObjectPool({
+      initial: poolInitialSize,
+      max: poolMaxSize,
+      create: () => {
+        const projectile = this.scene.add.rectangle(
+          -1000,
+          -1000,
+          config.projectileWidth ?? 6,
+          config.projectileHeight ?? 16,
+          config.projectileColor ?? 0xf9d65c,
+        );
+        this.scene.physics.add.existing(projectile);
+        const body = projectile.body as Phaser.Physics.Arcade.Body;
+        body.setAllowGravity(false);
+        body.enable = false;
+        projectile.setVisible(false);
+        projectile.setActive(false);
+        projectile.setDepth(PROJECTILE_DEPTH);
+        this.group.add(projectile);
+        return projectile;
+      },
+      onRelease: (projectile) => {
+        const body = projectile.body as Phaser.Physics.Arcade.Body;
+        body.stop();
+        body.enable = false;
+        projectile.setActive(false);
+        projectile.setVisible(false);
+        projectile.setPosition(-1000, -1000);
+      },
     });
     this.projectileSpeed = config.projectileSpeed;
   }
@@ -89,18 +108,10 @@ export class WeaponSystem {
 
   releaseProjectile(gameObject: Phaser.GameObjects.GameObject): void {
     const projectile = gameObject as Phaser.GameObjects.Rectangle;
-    const body = projectile.body as Phaser.Physics.Arcade.Body;
-    body.stop();
-    body.enable = false;
-    projectile.setActive(false);
-    projectile.setVisible(false);
-    projectile.setPosition(-1000, -1000);
     this.pool.release(projectile);
   }
 
   clear(): void {
-    for (const projectile of this.pool.activeItems()) {
-      this.releaseProjectile(projectile);
-    }
+    this.pool.resetAll();
   }
 }

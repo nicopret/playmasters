@@ -1,10 +1,13 @@
 import type * as Phaser from 'phaser';
 import type { RunContext } from '../runtime';
 import { RUN_EVENT, type RunEventBus } from '../run';
-import { FixedObjectPool } from '../systems/object-pool';
+import { ObjectPool } from '../perf/ObjectPool';
+import { PoolLimits } from '../perf/poolLimits';
 
-const DEFAULT_EXPLOSION_POOL_SIZE = 24;
-const DEFAULT_PARTICLE_POOL_SIZE = 96;
+const DEFAULT_EXPLOSION_POOL_SIZE = PoolLimits.explosions.initial;
+const DEFAULT_EXPLOSION_POOL_MAX = PoolLimits.explosions.max;
+const DEFAULT_PARTICLE_POOL_SIZE = PoolLimits.particles.initial;
+const DEFAULT_PARTICLE_POOL_MAX = PoolLimits.particles.max;
 const DEFAULT_EXPLOSION_DURATION_MS = 260;
 const DEFAULT_PARTICLE_DURATION_MS = 180;
 const DEFAULT_MAX_ACTIVE_PARTICLES = 40;
@@ -19,7 +22,9 @@ type VfxSystemOptions = {
   ctx: RunContext;
   bus: RunEventBus;
   explosionPoolSize?: number;
+  explosionPoolMax?: number;
   particlePoolSize?: number;
+  particlePoolMax?: number;
   explosionDurationMs?: number;
   particleDurationMs?: number;
   maxActiveParticles?: number;
@@ -63,8 +68,8 @@ export const computeParticleSpawnCount = (args: {
 export class VfxSystem {
   private readonly scene: Phaser.Scene;
   private readonly bus: RunEventBus;
-  private readonly explosionPool: FixedObjectPool<Phaser.GameObjects.Arc>;
-  private readonly particlePool: FixedObjectPool<Phaser.GameObjects.Arc>;
+  private readonly explosionPool: ObjectPool<Phaser.GameObjects.Arc>;
+  private readonly particlePool: ObjectPool<Phaser.GameObjects.Arc>;
   private readonly explosionSprites: Phaser.GameObjects.Arc[] = [];
   private readonly particleSprites: Phaser.GameObjects.Arc[] = [];
   private readonly explosionDurationMs: number;
@@ -99,20 +104,38 @@ export class VfxSystem {
     );
     this.enableSubtleCameraShake = options.enableSubtleCameraShake ?? false;
 
-    this.explosionPool = FixedObjectPool.create(
-      clampNonNegativeInt(
+    this.explosionPool = new ObjectPool({
+      initial: clampNonNegativeInt(
         options.explosionPoolSize ?? DEFAULT_EXPLOSION_POOL_SIZE,
         DEFAULT_EXPLOSION_POOL_SIZE,
       ),
-      () => this.createExplosionSprite(),
-    );
-    this.particlePool = FixedObjectPool.create(
-      clampNonNegativeInt(
+      max: clampNonNegativeInt(
+        options.explosionPoolMax ?? DEFAULT_EXPLOSION_POOL_MAX,
+        DEFAULT_EXPLOSION_POOL_MAX,
+      ),
+      create: () => this.createExplosionSprite(),
+      onRelease: (sprite) => {
+        sprite.setVisible(false);
+        sprite.setActive(false);
+        sprite.setPosition(-1000, -1000);
+      },
+    });
+    this.particlePool = new ObjectPool({
+      initial: clampNonNegativeInt(
         options.particlePoolSize ?? DEFAULT_PARTICLE_POOL_SIZE,
         DEFAULT_PARTICLE_POOL_SIZE,
       ),
-      () => this.createParticleSprite(),
-    );
+      max: clampNonNegativeInt(
+        options.particlePoolMax ?? DEFAULT_PARTICLE_POOL_MAX,
+        DEFAULT_PARTICLE_POOL_MAX,
+      ),
+      create: () => this.createParticleSprite(),
+      onRelease: (sprite) => {
+        sprite.setVisible(false);
+        sprite.setActive(false);
+        sprite.setPosition(-1000, -1000);
+      },
+    });
 
     this.unsubscribers.push(
       this.bus.on(RUN_EVENT.ENEMY_KILLED, ({ nowMs, x, y }) => {
@@ -202,8 +225,8 @@ export class VfxSystem {
     }
     this.activeExplosions = [];
     this.activeParticles = [];
-    this.explosionPool.clear();
-    this.particlePool.clear();
+    this.explosionPool.resetAll();
+    this.particlePool.resetAll();
   }
 
   destroy(): void {
@@ -255,16 +278,10 @@ export class VfxSystem {
   }
 
   private releaseExplosion(sprite: Phaser.GameObjects.Arc): void {
-    sprite.setVisible(false);
-    sprite.setActive(false);
-    sprite.setPosition(-1000, -1000);
     this.explosionPool.release(sprite);
   }
 
   private releaseParticle(sprite: Phaser.GameObjects.Arc): void {
-    sprite.setVisible(false);
-    sprite.setActive(false);
-    sprite.setPosition(-1000, -1000);
     this.particlePool.release(sprite);
   }
 

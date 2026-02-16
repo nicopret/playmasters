@@ -45,6 +45,7 @@ import { HUDSystem } from './ui/HUDSystem';
 import { SettingsOverlay } from './ui/SettingsOverlay';
 import { AudioSystem } from './audio/AudioSystem';
 import { VfxSystem } from './vfx/VfxSystem';
+import { PoolLimits } from './perf/poolLimits';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -214,7 +215,8 @@ class SpaceBlasterScene extends Phaser.Scene {
       {
         fireCooldownMs: ammoEntry?.fireCooldownMs ?? 200,
         projectileSpeed: ammoEntry?.projectileSpeed ?? 560,
-        poolSize: 48,
+        poolInitialSize: PoolLimits.playerBullets.initial,
+        poolMaxSize: PoolLimits.playerBullets.max,
       },
     );
     const levelConfig = this.deps.levelConfigs[0];
@@ -237,7 +239,8 @@ class SpaceBlasterScene extends Phaser.Scene {
         fireCooldownMs:
           enemyEntry?.projectileCooldownMs ?? ammoEntry?.fireCooldownMs ?? 200,
         projectileSpeed: ammoEntry?.projectileSpeed ?? 560,
-        poolSize: 48,
+        poolInitialSize: PoolLimits.enemyBullets.initial,
+        poolMaxSize: PoolLimits.enemyBullets.max,
         projectileColor: ENEMY_COLOR,
       },
     );
@@ -340,6 +343,10 @@ class SpaceBlasterScene extends Phaser.Scene {
       scene: this,
       ctx: this.deps.ctx,
       bus: this.runBus,
+      explosionPoolSize: PoolLimits.explosions.initial,
+      explosionPoolMax: PoolLimits.explosions.max,
+      particlePoolSize: PoolLimits.particles.initial,
+      particlePoolMax: PoolLimits.particles.max,
     });
     this.audioSystem.start();
     this.runBus.emit(RUN_EVENT.PLAYER_LIVES_CHANGED, {
