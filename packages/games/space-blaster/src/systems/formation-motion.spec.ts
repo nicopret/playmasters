@@ -1,5 +1,6 @@
 import type { FormationLayoutEntryV1 } from '@playmasters/types';
 import {
+  computeExtentsFromOccupancy,
   computeStallAggressionTargetSpeed,
   computeRampTargetSpeed,
   computeExtentsFromOffsets,
@@ -126,6 +127,62 @@ describe('formation-motion', () => {
     expect(targets[2]).toBeGreaterThanOrEqual(targets[1]);
     expect(targets[3]).toBeGreaterThanOrEqual(targets[2]);
     expect(targets[3]).toBeLessThanOrEqual(200);
+  });
+
+  it('derives bounds from alive in-formation slots only (divers excluded)', () => {
+    const extents = computeExtentsFromOccupancy([
+      { localX: -20, width: 10, alive: true, inFormation: true },
+      { localX: 20, width: 10, alive: true, inFormation: true },
+      { localX: 60, width: 10, alive: true, inFormation: false }, // detached diver
+      { localX: 80, width: 10, alive: false, inFormation: true }, // dead
+    ]);
+
+    expect(extents).toEqual({
+      minLocalX: -20,
+      maxLocalX: 20,
+      halfEnemyWidth: 5,
+    });
+  });
+
+  it('returns null bounds when no alive in-formation enemies remain', () => {
+    const extents = computeExtentsFromOccupancy([
+      { localX: -20, width: 10, alive: false, inFormation: true },
+      { localX: 20, width: 10, alive: true, inFormation: false },
+    ]);
+    expect(extents).toBeNull();
+  });
+
+  it('computes deterministic ramp speeds for fixed alive counts', () => {
+    const baseSpeed = 50;
+    const initialEnemies = 40;
+    const ramp = {
+      maxMultiplier: 3,
+      exponent: 1,
+      minAliveForRamp: 1,
+    };
+
+    const atFull = computeRampTargetSpeed({
+      baseSpeed,
+      initialEnemies,
+      aliveEnemies: 40,
+      ramp,
+    });
+    const atHalf = computeRampTargetSpeed({
+      baseSpeed,
+      initialEnemies,
+      aliveEnemies: 20,
+      ramp,
+    });
+    const atLast = computeRampTargetSpeed({
+      baseSpeed,
+      initialEnemies,
+      aliveEnemies: 1,
+      ramp,
+    });
+
+    expect(atFull).toBe(50);
+    expect(atHalf).toBe(100);
+    expect(atLast).toBeCloseTo(149.815625, 8);
   });
 
   it('smoothes speed similarly across variable dt steps', () => {
