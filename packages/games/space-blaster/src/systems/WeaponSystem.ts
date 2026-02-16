@@ -1,10 +1,9 @@
 import type * as Phaser from 'phaser';
-import { FireCooldown } from './fire-cooldown';
-import { ObjectPool } from '../perf/ObjectPool';
 import { PoolLimits } from '../perf/poolLimits';
+import { ProjectilePool } from '../projectiles/ProjectilePool';
+import { FireCooldown } from './fire-cooldown';
 
 type Bounds = { minX: number; maxX: number; minY: number; maxY: number };
-const PROJECTILE_DEPTH = 20;
 
 export type WeaponSystemConfig = {
   fireCooldownMs: number;
@@ -19,7 +18,7 @@ export type WeaponSystemConfig = {
 
 export class WeaponSystem {
   private readonly group: Phaser.Physics.Arcade.Group;
-  private readonly pool: ObjectPool<Phaser.GameObjects.Rectangle>;
+  private readonly pool: ProjectilePool<Phaser.GameObjects.Rectangle>;
   private readonly cooldown: FireCooldown;
 
   constructor(
@@ -33,9 +32,11 @@ export class WeaponSystem {
     const poolInitialSize =
       config.poolInitialSize ?? config.poolSize ?? defaultLimits.initial;
     const poolMaxSize = config.poolMaxSize ?? defaultLimits.max;
-    this.pool = new ObjectPool({
+
+    this.pool = new ProjectilePool({
       initial: poolInitialSize,
       max: poolMaxSize,
+      owner: config.projectileColor === 0xe94b5a ? 'enemy' : 'player',
       create: () => {
         const projectile = this.scene.add.rectangle(
           -1000,
@@ -50,17 +51,8 @@ export class WeaponSystem {
         body.enable = false;
         projectile.setVisible(false);
         projectile.setActive(false);
-        projectile.setDepth(PROJECTILE_DEPTH);
         this.group.add(projectile);
         return projectile;
-      },
-      onRelease: (projectile) => {
-        const body = projectile.body as Phaser.Physics.Arcade.Body;
-        body.stop();
-        body.enable = false;
-        projectile.setActive(false);
-        projectile.setVisible(false);
-        projectile.setPosition(-1000, -1000);
       },
     });
     this.projectileSpeed = config.projectileSpeed;
@@ -89,29 +81,30 @@ export class WeaponSystem {
 
   tryFire(originX: number, originY: number, directionY = -1): boolean {
     if (!this.cooldown.canFire()) return false;
-    const projectile = this.pool.acquire();
+    const projectile = this.pool.spawnBullet({
+      x: originX,
+      y: originY,
+      velocityY: directionY * this.projectileSpeed,
+    });
     if (!projectile) return false;
     if (!this.cooldown.consume()) {
-      this.pool.release(projectile);
+      this.pool.releaseBullet(projectile);
       return false;
     }
 
-    const body = projectile.body as Phaser.Physics.Arcade.Body;
-    projectile.setActive(true);
-    projectile.setVisible(true);
-    projectile.setPosition(originX, originY);
-    body.enable = true;
-    body.reset(originX, originY);
-    body.setVelocityY(directionY * this.projectileSpeed);
     return true;
   }
 
   releaseProjectile(gameObject: Phaser.GameObjects.GameObject): void {
     const projectile = gameObject as Phaser.GameObjects.Rectangle;
-    this.pool.release(projectile);
+    this.pool.releaseBullet(projectile);
   }
 
   clear(): void {
     this.pool.resetAll();
+  }
+
+  getPoolStats(): { free: number; active: number; total: number; max: number } {
+    return this.pool.stats();
   }
 }

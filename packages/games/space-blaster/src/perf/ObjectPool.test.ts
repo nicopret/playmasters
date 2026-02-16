@@ -48,7 +48,7 @@ describe('ObjectPool', () => {
   });
 
   it('resetAll releases every active item', () => {
-    const pool = new ObjectPool({
+    const pool = new ObjectPool<object>({
       initial: 0,
       max: 3,
       create: () => ({}),
