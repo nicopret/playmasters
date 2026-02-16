@@ -6,6 +6,26 @@ export type ShooterEligibilitySlot<TEnemy> = {
   inFormation: boolean;
 };
 
+export const computeEligibleShootersByColumn = <TEnemy>(
+  slots: ShooterEligibilitySlot<TEnemy>[],
+): Map<number, TEnemy> => {
+  const bestByColumn = new Map<number, ShooterEligibilitySlot<TEnemy>>();
+  for (const slot of slots) {
+    if (!slot.alive || !slot.inFormation) continue;
+    const currentBest = bestByColumn.get(slot.column);
+    // "Lowest" means greatest row index (closer to player in the formation grid).
+    if (!currentBest || slot.row > currentBest.row) {
+      bestByColumn.set(slot.column, slot);
+    }
+  }
+
+  const eligibleByColumn = new Map<number, TEnemy>();
+  for (const [column, slot] of bestByColumn.entries()) {
+    eligibleByColumn.set(column, slot.enemy);
+  }
+  return eligibleByColumn;
+};
+
 type ShooterEligibilityOptions<TEnemy> = {
   getSlots: () => ShooterEligibilitySlot<TEnemy>[];
 };
@@ -56,18 +76,10 @@ export class ShooterEligibility<TEnemy> {
     this.eligibleByColumn.clear();
     this.eligibleSet.clear();
 
-    const bestByColumn = new Map<number, ShooterEligibilitySlot<TEnemy>>();
-    for (const slot of this.getSlots()) {
-      if (!slot.alive || !slot.inFormation) continue;
-      const currentBest = bestByColumn.get(slot.column);
-      if (!currentBest || slot.row > currentBest.row) {
-        bestByColumn.set(slot.column, slot);
-      }
-    }
-
-    for (const [column, slot] of bestByColumn.entries()) {
-      this.eligibleByColumn.set(column, slot.enemy);
-      this.eligibleSet.add(slot.enemy);
+    const eligibleByColumn = computeEligibleShootersByColumn(this.getSlots());
+    for (const [column, enemy] of eligibleByColumn.entries()) {
+      this.eligibleByColumn.set(column, enemy);
+      this.eligibleSet.add(enemy);
     }
   }
 }

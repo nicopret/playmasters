@@ -9,7 +9,7 @@ import {
 } from '../enemies/ShooterEligibility';
 import type { RunContext } from '../runtime';
 import {
-  computeExtentsFromOffsets,
+  computeExtentsFromOccupancy,
   computeRampTargetSpeed,
   computeSlotLocalOffsets,
   computeStallAggressionTargetSpeed,
@@ -196,13 +196,18 @@ export class FormationSystem {
 
     this.updateEnrageState(simDtMs, aliveEnemies);
     this.updateSpeed(simDtMs, aliveEnemies);
-    // Bounds/extents are based on occupied slots so the formation narrows as enemies are removed.
-    const occupied = this.getOccupiedSlots();
-    if (occupied.length === 0) return;
+    // Bounds/extents are based on alive in-formation slots only; detached divers do not widen bounds.
+    const extents = computeExtentsFromOccupancy(
+      this.slots.map((slot) => ({
+        localX: slot.localX,
+        width: slot.enemy.width,
+        alive: slot.enemy.active,
+        inFormation: slot.localState === EnemyLocalState.FORMATION,
+      })),
+    );
+    if (!extents) return;
 
     const bounds = this.getPlayBounds();
-    const halfEnemyWidth = this.getHalfEnemyWidth(occupied);
-    const extents = computeExtentsFromOffsets(occupied, halfEnemyWidth);
     this.state = stepFormation({
       state: this.state,
       dtMs: simDtMs,
@@ -332,17 +337,6 @@ export class FormationSystem {
     return this.slots.filter(
       (slot) => slot.enemy.active && active.has(slot.enemy),
     );
-  }
-
-  private getHalfEnemyWidth(occupied: FormationSlotAssignment[]): number {
-    let halfEnemyWidth = 0;
-    for (const slot of occupied) {
-      const width = slot.enemy.width;
-      if (width / 2 > halfEnemyWidth) {
-        halfEnemyWidth = width / 2;
-      }
-    }
-    return halfEnemyWidth;
   }
 
   private applyCurrentPose(): void {

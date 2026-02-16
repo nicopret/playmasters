@@ -1,5 +1,6 @@
 import type { FormationLayoutEntryV1 } from '@playmasters/types';
 import {
+  computeExtentsFromOccupancy,
   computeStallAggressionTargetSpeed,
   computeRampTargetSpeed,
   computeExtentsFromOffsets,
@@ -106,6 +107,26 @@ describe('formation-motion', () => {
     expect(rightExtent).toBeCloseTo(100, 8);
   });
 
+  it('does not reverse or descend when no edge is hit', () => {
+    const offsets = computeSlotLocalOffsets(layout, 6);
+    const extents = computeExtentsFromOffsets(offsets, 5);
+    const state: FormationState = { originX: 50, originY: 20, direction: 1 };
+    const result = stepFormation({
+      state,
+      dtMs: 16,
+      speedPxPerSecond: 40,
+      descendStep: 8,
+      minBoundX: 0,
+      maxBoundX: 200,
+      extents,
+    });
+
+    expect(result.reversed).toBe(false);
+    expect(result.state.direction).toBe(1);
+    expect(result.state.originY).toBe(20);
+    expect(result.state.originX).toBeCloseTo(50 + 40 * (16 / 1000), 8);
+  });
+
   it('computes monotonic ramp target speed as enemies die', () => {
     const aliveSeries = [20, 10, 5, 1];
     const targets = aliveSeries.map((aliveEnemies) =>
@@ -126,6 +147,62 @@ describe('formation-motion', () => {
     expect(targets[2]).toBeGreaterThanOrEqual(targets[1]);
     expect(targets[3]).toBeGreaterThanOrEqual(targets[2]);
     expect(targets[3]).toBeLessThanOrEqual(200);
+  });
+
+  it('derives bounds from alive in-formation slots only (divers excluded)', () => {
+    const extents = computeExtentsFromOccupancy([
+      { localX: -20, width: 10, alive: true, inFormation: true },
+      { localX: 20, width: 10, alive: true, inFormation: true },
+      { localX: 60, width: 10, alive: true, inFormation: false }, // detached diver
+      { localX: 80, width: 10, alive: false, inFormation: true }, // dead
+    ]);
+
+    expect(extents).toEqual({
+      minLocalX: -20,
+      maxLocalX: 20,
+      halfEnemyWidth: 5,
+    });
+  });
+
+  it('returns null bounds when no alive in-formation enemies remain', () => {
+    const extents = computeExtentsFromOccupancy([
+      { localX: -20, width: 10, alive: false, inFormation: true },
+      { localX: 20, width: 10, alive: true, inFormation: false },
+    ]);
+    expect(extents).toBeNull();
+  });
+
+  it('computes deterministic ramp speeds for fixed alive counts', () => {
+    const baseSpeed = 50;
+    const initialEnemies = 40;
+    const ramp = {
+      maxMultiplier: 3,
+      exponent: 1,
+      minAliveForRamp: 1,
+    };
+
+    const atFull = computeRampTargetSpeed({
+      baseSpeed,
+      initialEnemies,
+      aliveEnemies: 40,
+      ramp,
+    });
+    const atHalf = computeRampTargetSpeed({
+      baseSpeed,
+      initialEnemies,
+      aliveEnemies: 20,
+      ramp,
+    });
+    const atLast = computeRampTargetSpeed({
+      baseSpeed,
+      initialEnemies,
+      aliveEnemies: 1,
+      ramp,
+    });
+
+    expect(atFull).toBe(50);
+    expect(atHalf).toBe(100);
+    expect(atLast).toBeCloseTo(149.815625, 8);
   });
 
   it('smoothes speed similarly across variable dt steps', () => {

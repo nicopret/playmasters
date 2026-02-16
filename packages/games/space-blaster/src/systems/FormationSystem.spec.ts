@@ -522,6 +522,54 @@ describe('FormationSystem', () => {
     expect(system.isEligibleShooter(col0Bottom)).toBe(true);
   });
 
+  it('excludes detached divers from formation edge bounds during movement', () => {
+    const enemies: FormationEnemy[] = [];
+    const resolvedConfig = createResolvedConfig();
+    const system = new FormationSystem({
+      ctx: {
+        sdk: {} as never,
+        resolvedConfig,
+        configHash: resolvedConfig.configHash,
+        mountedAt: '2026-02-14T00:00:00.000Z',
+        hasPendingUpdate: false,
+      },
+      playBounds: () => ({ minX: 0, maxX: 100, minY: 0 }),
+      enemyManager: {
+        spawnEnemy: () => {
+          const enemy: FormationEnemy = {
+            active: true,
+            x: 0,
+            y: 0,
+            width: 10,
+            setPosition: (x: number, y: number) => {
+              enemy.x = x;
+              enemy.y = y;
+            },
+          };
+          enemies.push(enemy);
+          return enemy;
+        },
+        getActiveEnemies: () => enemies.filter((enemy) => enemy.active),
+        clearEnemies: () => {
+          enemies.splice(0, enemies.length);
+        },
+      },
+    });
+
+    system.spawnFormation({ enemyId: 'enemy-a', count: 3 });
+    const middle = enemies[1];
+    const rightmost = enemies[2];
+    expect(middle.y).toBeCloseTo(12, 8);
+
+    // Detach the right-most enemy so it is excluded from formation bounds.
+    system.setEnemyLocalState(rightmost, EnemyLocalState.DIVING);
+    system.update(1000);
+
+    // Without detached exclusion this step would reverse+descend (same setup as right-bound test).
+    expect(middle.x).toBeCloseTo(90, 8);
+    expect(middle.y).toBeCloseTo(12, 8);
+  });
+
   it('picks only from eligible shooter set', () => {
     const enemies: FormationEnemy[] = [];
     const resolvedConfig = createTwoRowResolvedConfig();

@@ -20,6 +20,13 @@ export type FormationExtents = {
   halfEnemyWidth: number;
 };
 
+export type FormationOccupancySlot = {
+  localX: number;
+  width: number;
+  alive: boolean;
+  inFormation: boolean;
+};
+
 export type FormationStepParams = {
   state: FormationState;
   dtMs: number;
@@ -162,6 +169,26 @@ export const computeExtentsFromOffsets = (
   for (const slot of offsets) {
     if (slot.localX < minLocalX) minLocalX = slot.localX;
     if (slot.localX > maxLocalX) maxLocalX = slot.localX;
+  }
+
+  return { minLocalX, maxLocalX, halfEnemyWidth };
+};
+
+export const computeExtentsFromOccupancy = (
+  slots: FormationOccupancySlot[],
+): FormationExtents | null => {
+  const occupied = slots.filter((slot) => slot.alive && slot.inFormation);
+  if (occupied.length === 0) {
+    return null;
+  }
+
+  let minLocalX = occupied[0].localX;
+  let maxLocalX = occupied[0].localX;
+  let halfEnemyWidth = Math.max(0, occupied[0].width / 2);
+  for (const slot of occupied) {
+    if (slot.localX < minLocalX) minLocalX = slot.localX;
+    if (slot.localX > maxLocalX) maxLocalX = slot.localX;
+    if (slot.width / 2 > halfEnemyWidth) halfEnemyWidth = slot.width / 2;
   }
 
   return { minLocalX, maxLocalX, halfEnemyWidth };
