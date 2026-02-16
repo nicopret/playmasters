@@ -36,6 +36,7 @@ Source of truth: `packages/games/space-blaster/src/perf/poolLimits.ts`
 
 - Bullet pools use **skip spawn** on exhaustion (no allocation past cap).
 - VFX pools drop extra effects when exhausted.
+- Explosion sprites auto-release on animation completion (with bounded fallback expiry).
 
 ## Reset Rules
 
@@ -45,6 +46,8 @@ On release, pooled projectiles reset:
 - active/visible flags
 - position offscreen
 - alpha/scale/rotation defaults
+
+VFX particle budgets are sim-clock driven and capped by pool limits to avoid memory growth across long sessions.
 
 ## Enemies in v1
 
