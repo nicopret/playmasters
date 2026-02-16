@@ -4,14 +4,14 @@ import type {
   SpaceBlasterRuntimeResolverResponseV1,
 } from '@playmasters/types';
 import {
-  getCurrentBundle,
+  getBundlePointer,
   getBundleVersion,
 } from '../../../../../lib/bundleStore';
+import { resolveRuntimeBundle } from '../../../../../lib/runtimeBundleResolver';
 
 export const runtime = 'nodejs';
 
-const bad = (message: string, status = 400) =>
-  NextResponse.json({ error: message }, { status });
+const gameId = 'space-blaster';
 
 function toResolvedBundle(
   rawBundle: unknown,
@@ -51,11 +51,32 @@ function toResolvedBundle(
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const env = url.searchParams.get('env') ?? 'dev';
-  const versionId = url.searchParams.get('versionId');
-  const bundle = versionId
-    ? await getBundleVersion(env, versionId)
-    : await getCurrentBundle(env);
-  if (!bundle) return bad('no_published_bundle', 404);
+  const resolved = await resolveRuntimeBundle({
+    gameId,
+    env,
+    getPointer: getBundlePointer,
+    getPublishedBundle: getBundleVersion,
+  });
+  if (!resolved.ok) {
+    console.warn('[space-blaster-runtime] resolve failed', {
+      code: resolved.error.code,
+      gameId,
+      env,
+      versionId: resolved.error.details.versionId,
+    });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: {
+          code: resolved.error.code,
+          message: resolved.error.message,
+          details: resolved.error.details,
+        },
+      },
+      { status: resolved.error.status },
+    );
+  }
+  const bundle = resolved.bundle;
   const resolvedBundle = toResolvedBundle(
     bundle.bundle,
     {
@@ -65,6 +86,12 @@ export async function GET(req: Request) {
     },
     env,
   );
+  console.info('[space-blaster-runtime] resolved bundle', {
+    gameId,
+    env,
+    versionId: bundle.versionId,
+    configHash: bundle.configHash,
+  });
 
   const response: SpaceBlasterRuntimeResolverResponseV1 = {
     versionId: bundle.versionId,

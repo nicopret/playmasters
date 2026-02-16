@@ -38,6 +38,11 @@
           "apps/admin/middleware.ts"
         ]
       }
+    },
+    "test": {
+      "options": {
+        "passWithNoTests": true
+      }
     }
   }
 }
