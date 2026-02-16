@@ -107,6 +107,26 @@ describe('formation-motion', () => {
     expect(rightExtent).toBeCloseTo(100, 8);
   });
 
+  it('does not reverse or descend when no edge is hit', () => {
+    const offsets = computeSlotLocalOffsets(layout, 6);
+    const extents = computeExtentsFromOffsets(offsets, 5);
+    const state: FormationState = { originX: 50, originY: 20, direction: 1 };
+    const result = stepFormation({
+      state,
+      dtMs: 16,
+      speedPxPerSecond: 40,
+      descendStep: 8,
+      minBoundX: 0,
+      maxBoundX: 200,
+      extents,
+    });
+
+    expect(result.reversed).toBe(false);
+    expect(result.state.direction).toBe(1);
+    expect(result.state.originY).toBe(20);
+    expect(result.state.originX).toBeCloseTo(50 + 40 * (16 / 1000), 8);
+  });
+
   it('computes monotonic ramp target speed as enemies die', () => {
     const aliveSeries = [20, 10, 5, 1];
     const targets = aliveSeries.map((aliveEnemies) =>
