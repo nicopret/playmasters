@@ -106,6 +106,7 @@ Existing tests:
 
 - `packages/games/space-blaster/src/scoring/ScoreSystem.spec.ts`
 - `packages/games/space-blaster/src/scoring/ScoreSystem.ticket34.test.ts`
+- `packages/games/space-blaster/src/scoring/ScoreSystem.tiers.test.ts`
 
 ### 2) Tier Bonus One-Time Award
 
@@ -122,6 +123,7 @@ Existing tests:
 
 - `packages/games/space-blaster/src/scoring/ScoreSystem.spec.ts`
 - `packages/games/space-blaster/src/scoring/ScoreSystem.ticket34.test.ts`
+- `packages/games/space-blaster/src/scoring/ScoreSystem.tiers.test.ts`
 
 ### 3) Combo Expiry/Reset
 
@@ -138,6 +140,7 @@ Primary code paths:
 Existing tests:
 
 - `packages/games/space-blaster/src/scoring/ScoreSystem.spec.ts`
+- `packages/games/space-blaster/src/scoring/ScoreSystem.tiers.test.ts`
 
 ### 4) Multiplier Clamp
 
@@ -154,6 +157,7 @@ Existing tests:
 
 - `packages/games/space-blaster/src/scoring/ScoreSystem.spec.ts`
 - `packages/games/space-blaster/src/scoring/ScoreSystem.ticket34.test.ts`
+- `packages/games/space-blaster/src/scoring/ScoreSystem.bonuses.test.ts`
 
 ### 5) Accuracy Thresholds
 
@@ -172,6 +176,7 @@ Existing tests:
 
 - `packages/games/space-blaster/src/scoring/ScoreSystem.spec.ts`
 - `packages/games/space-blaster/src/scoring/ScoreSystem.ticket35.test.ts`
+- `packages/games/space-blaster/src/scoring/ScoreSystem.bonuses.test.ts`
 
 ### Wave Bonus Coverage (Ticket Scope)
 
@@ -187,6 +192,7 @@ Existing tests:
 
 - `packages/games/space-blaster/src/scoring/ScoreSystem.spec.ts`
 - `packages/games/space-blaster/src/scoring/ScoreSystem.ticket35.test.ts`
+- `packages/games/space-blaster/src/scoring/ScoreSystem.bonuses.test.ts`
 
 ## Recommended Test Implementation Approach
 
@@ -211,6 +217,32 @@ Existing tests:
 - Accuracy paths: `packages/games/space-blaster/src/scoring/ScoreSystem.ts` (`computeAccuracy`, `selectHighestAccuracyThreshold`, `finalizeRun`)
 - Wave bonus/idempotency: `packages/games/space-blaster/src/scoring/ScoreSystem.ts` (`onWaveCleared`, `appliedWaveBonusKeys`)
 - Breakdown model: `packages/games/space-blaster/src/scoring/ScoreState.ts`
+
+## Coverage Mapping (#187 -> #188/#189)
+
+- Tier progression:
+  - `packages/games/space-blaster/src/scoring/ScoreSystem.tiers.test.ts`
+  - test: `1) chooses tiers correctly at boundary combo counts`
+- Tier bonus one-shot:
+  - `packages/games/space-blaster/src/scoring/ScoreSystem.tiers.test.ts`
+  - test: `2) awards tier bonus once per tier entry`
+- Combo reset clears tier state:
+  - `packages/games/space-blaster/src/scoring/ScoreSystem.tiers.test.ts`
+  - test: `3) combo reset clears tier state and allows tier bonuses on re-entry`
+- Multiplier clamp:
+  - `packages/games/space-blaster/src/scoring/ScoreSystem.bonuses.test.ts`
+  - tests:
+    - `1A) clamps level multiplier to max when computing kill points`
+    - `1B) uses unclamped multiplier when below max`
+- Wave bonus idempotency:
+  - `packages/games/space-blaster/src/scoring/ScoreSystem.bonuses.test.ts`
+  - test: `2) applies wave bonus exactly once per unique levelNumber+waveIndex`
+- Accuracy thresholds and finalize idempotency:
+  - `packages/games/space-blaster/src/scoring/ScoreSystem.bonuses.test.ts`
+  - tests:
+    - `3A) accuracy bonus uses 0 for edge case shotsFired=0`
+    - `3B) accuracy bonus selects first threshold when exactly met`
+    - `3C) accuracy bonus selects highest threshold met and finalizeRun is idempotent`
 
 ## Actionable Checklist
 
