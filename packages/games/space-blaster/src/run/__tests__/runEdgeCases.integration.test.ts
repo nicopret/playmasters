@@ -2,7 +2,7 @@ import { RunState } from '..';
 import { makeRunHarness } from './harness/RunHarness';
 
 describe('run lifecycle edge cases integration (ticket #184)', () => {
-  it('1) pause freezes simulation and resume restores advancement', () => {
+  it('Pause/resume freezes and resumes without desync', () => {
     const h = makeRunHarness({ submissionBehavior: 'resolve' });
     h.bootToReady();
     h.startRun();

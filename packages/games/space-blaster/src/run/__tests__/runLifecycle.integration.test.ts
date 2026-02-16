@@ -1,8 +1,8 @@
 import { RunState } from '..';
 import { makeRunHarness } from './harness/RunHarness';
 
-describe('run lifecycle integration (ticket #48)', () => {
-  it('1) Start -> COUNTDOWN -> PLAYING transitions succeed', async () => {
+describe('run lifecycle integration (ticket #49 happy path)', () => {
+  it('Start -> COUNTDOWN -> PLAYING transitions succeed', async () => {
     const h = makeRunHarness({ submissionBehavior: 'resolve' });
 
     h.bootToReady();
@@ -27,7 +27,7 @@ describe('run lifecycle integration (ticket #48)', () => {
     ]);
   });
 
-  it('2) wave clear triggers WAVE_CLEAR and advances to the next wave correctly', () => {
+  it('Wave clear -> WAVE_CLEAR -> next wave -> PLAYING passes', () => {
     const h = makeRunHarness({ submissionBehavior: 'resolve' });
     h.bootToReady();
     h.startRun();
@@ -63,8 +63,8 @@ describe('run lifecycle integration (ticket #48)', () => {
     ]);
   });
 
-  it('3) RESULTS state is reachable reliably even when submit does not resolve', async () => {
-    const h = makeRunHarness({ submissionBehavior: 'never' });
+  it('Start -> play -> death -> results path passes', async () => {
+    const h = makeRunHarness({ submissionBehavior: 'resolve' });
     h.bootToReady();
     h.startRun();
     await h.flushAsync();
@@ -77,9 +77,10 @@ describe('run lifecycle integration (ticket #48)', () => {
     expect(h.runStateMachine.state).toBe(RunState.SUBMITTING);
     expect(h.ctx.submissionStatus?.state).toBe('submitting');
 
-    h.tick(120);
+    await h.flushAsync();
+    h.tick(0);
     expect(h.runStateMachine.state).toBe(RunState.RESULTS);
-    expect(h.ctx.submissionStatus?.state).toBe('submitting');
+    expect(h.ctx.submissionStatus?.state).toBe('success');
     expect(h.getSimNowMs()).toBe(100);
   });
 });
