@@ -7,7 +7,8 @@ import {
   getCurrentBundle,
 } from '../../../../../lib/bundleStore';
 import { logAudit } from '../../../../../lib/audit';
-import { createHash } from 'crypto';
+import { computeConfigHashForBundle } from '../../../../../lib/runtimeBundleHash';
+import { runtimeResolvedBundleCache } from '../../../../../lib/runtimeResolvedBundleCache';
 
 export const runtime = 'nodejs';
 
@@ -17,24 +18,6 @@ const bad = (message: string, status = 400) =>
 function loadJson(relPath: string) {
   const abs = path.join(process.cwd(), relPath);
   return JSON.parse(fs.readFileSync(abs, 'utf8'));
-}
-
-function canonicalize(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map((v) => canonicalize(v));
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>).sort(
-      ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0),
-    );
-    const obj: Record<string, unknown> = {};
-    for (const [k, v] of entries) obj[k] = canonicalize(v);
-    return obj;
-  }
-  return value;
-}
-
-function computeConfigHashLocal(bundle: unknown): string {
-  const json = JSON.stringify(canonicalize(bundle));
-  return createHash('sha256').update(json).digest('hex');
 }
 
 function buildBundle() {
@@ -80,12 +63,14 @@ export async function POST(req: Request) {
   const env = url.searchParams.get('env') ?? 'dev';
 
   const bundle = buildBundle();
-  const configHash = computeConfigHashLocal(bundle);
+  const configHash = computeConfigHashForBundle(bundle);
+  const versionHash = configHash;
   const prev = await getCurrentBundle(env);
 
   const published = await publishBundle({
     env,
     configHash,
+    versionHash,
     bundle,
     previousVersionId: prev?.versionId,
   });
@@ -102,11 +87,14 @@ export async function POST(req: Request) {
     prevVersion: prev?.versionId ?? null,
     newVersion: published.versionId,
     status: 'success',
-    details: { configHash: published.configHash },
+    details: { configHash: published.configHash, versionHash },
   });
+
+  runtimeResolvedBundleCache.invalidateGame('space-blaster', env);
 
   return NextResponse.json({
     versionId: published.versionId,
     configHash: published.configHash,
+    versionHash,
   });
 }

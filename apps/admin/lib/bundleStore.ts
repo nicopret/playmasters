@@ -14,8 +14,15 @@ export type PublishedBundle = {
   env: string;
   versionId: string;
   configHash: string;
+  versionHash?: string;
   bundle: unknown;
   createdAt: string;
+};
+
+export type BundlePointer = {
+  env: string;
+  currentVersionId: string;
+  updatedAt?: string;
 };
 
 const pointerKey = (env: string) => ({
@@ -31,13 +38,8 @@ const versionKey = (env: string, versionId: string) => ({
 export async function getCurrentBundle(
   env: string,
 ): Promise<PublishedBundle | null> {
-  const pointer = await ddbDocClient.send(
-    new GetCommand({
-      TableName: BUNDLE_TABLE,
-      Key: pointerKey(env),
-    }),
-  );
-  const currentVersion = pointer.Item?.currentVersionId as string | undefined;
+  const pointer = await getBundlePointer(env);
+  const currentVersion = pointer?.currentVersionId;
   if (!currentVersion) return null;
   const version = await ddbDocClient.send(
     new GetCommand({
@@ -52,9 +54,29 @@ export async function getCurrentBundle(
   return rest as PublishedBundle;
 }
 
+export async function getBundlePointer(
+  env: string,
+): Promise<BundlePointer | null> {
+  const pointer = await ddbDocClient.send(
+    new GetCommand({
+      TableName: BUNDLE_TABLE,
+      Key: pointerKey(env),
+    }),
+  );
+  const currentVersionId = pointer.Item?.currentVersionId as string | undefined;
+  if (!currentVersionId) return null;
+
+  return {
+    env,
+    currentVersionId,
+    updatedAt: pointer.Item?.updatedAt as string | undefined,
+  };
+}
+
 export async function publishBundle(input: {
   env: string;
   configHash: string;
+  versionHash?: string;
   bundle: unknown;
   previousVersionId?: string | null;
 }): Promise<PublishedBundle> {
@@ -65,6 +87,7 @@ export async function publishBundle(input: {
     env,
     versionId,
     configHash,
+    ...(input.versionHash ? { versionHash: input.versionHash } : {}),
     bundle: input.bundle,
     createdAt,
     ...versionKey(env, versionId),

@@ -6,6 +6,7 @@ describe('ResolvedGameConfigV1', () => {
       gameId: 'space-blaster',
       env: 'dev',
       configHash: 'hash-1',
+      versionHash: 'hash-1',
       versionId: 'v1',
       publishedAt: '2026-02-13T00:00:00.000Z',
       gameConfig: {
@@ -97,6 +98,7 @@ describe('ResolvedGameConfigV1', () => {
     };
 
     expect(resolved.configHash).toBe('hash-1');
+    expect(resolved.versionHash).toBe('hash-1');
     expect(resolved.levelConfigs.length).toBe(1);
     expect(resolved.heroCatalog).toBeDefined();
     expect(resolved.enemyCatalog).toBeDefined();
