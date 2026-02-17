@@ -10,6 +10,11 @@ export type ValidationIssue = {
 
 export type ScoreConfigDraft = {
   baseEnemyScores: { enemyId: string; score: number }[];
+  levelScoreMultiplier?: {
+    base: number;
+    perLevel: number;
+    max: number;
+  };
 };
 
 export function validateScoreConfigDraft(
@@ -81,6 +86,50 @@ export function validateScoreConfigDraft(
       });
     }
   });
+
+  const multiplier = draft.levelScoreMultiplier;
+  if (multiplier) {
+    if (!Number.isFinite(multiplier.base) || multiplier.base < 0) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'levelScoreMultiplier.base',
+        message: 'Base multiplier must be >= 0.',
+      });
+    }
+    if (!Number.isFinite(multiplier.perLevel) || multiplier.perLevel < 0) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'levelScoreMultiplier.perLevel',
+        message: 'Per-level multiplier must be >= 0.',
+      });
+    }
+    if (!Number.isFinite(multiplier.max) || multiplier.max < 0) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'levelScoreMultiplier.max',
+        message: 'Max multiplier must be >= 0.',
+      });
+    }
+    if (
+      Number.isFinite(multiplier.base) &&
+      Number.isFinite(multiplier.max) &&
+      multiplier.max < multiplier.base
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'levelScoreMultiplier.max',
+        message: 'Max multiplier must be >= base multiplier.',
+      });
+    }
+  }
 
   return issues;
 }

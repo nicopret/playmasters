@@ -12,6 +12,7 @@ describe('validateScoreConfigDraft (base enemy scores)', () => {
     const issues = validateScoreConfigDraft(
       {
         baseEnemyScores: [{ enemyId: 'enemy-grunt', score: 100 }],
+        levelScoreMultiplier: { base: 1, perLevel: 0.1, max: 2 },
       },
       catalogs,
     );
@@ -32,6 +33,7 @@ describe('validateScoreConfigDraft (base enemy scores)', () => {
           { enemyId: 'enemy-grunt', score: -1 },
           { enemyId: 'enemy-elite', score: 20 },
         ],
+        levelScoreMultiplier: { base: 1, perLevel: 0.1, max: 2 },
       },
       catalogs,
     );
@@ -53,6 +55,7 @@ describe('validateScoreConfigDraft (base enemy scores)', () => {
           { enemyId: 'enemy-elite', score: 20 },
           { enemyId: 'enemy-ghost', score: 30 },
         ],
+        levelScoreMultiplier: { base: 1, perLevel: 0.1, max: 2 },
       },
       catalogs,
     );
@@ -64,6 +67,70 @@ describe('validateScoreConfigDraft (base enemy scores)', () => {
           i.message.includes(
             "enemyId 'enemy-ghost' not found in EnemyCatalog.",
           ),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('validateScoreConfigDraft (level multiplier)', () => {
+  const catalogs = {
+    enemies: [{ enemyId: 'enemy-grunt', displayName: 'Grunt' }],
+  };
+
+  const baseDraft = {
+    baseEnemyScores: [{ enemyId: 'enemy-grunt', score: 100 }],
+  };
+
+  it('rejects negative base multiplier', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        levelScoreMultiplier: { base: -1, perLevel: 0, max: 2 },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'levelScoreMultiplier.base' &&
+          i.message === 'Base multiplier must be >= 0.',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects negative perLevel multiplier', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        levelScoreMultiplier: { base: 1, perLevel: -0.25, max: 2 },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'levelScoreMultiplier.perLevel' &&
+          i.message === 'Per-level multiplier must be >= 0.',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects max multiplier below base multiplier', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        levelScoreMultiplier: { base: 2, perLevel: 0, max: 1.5 },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'levelScoreMultiplier.max' &&
+          i.message === 'Max multiplier must be >= base multiplier.',
       ),
     ).toBe(true);
   });

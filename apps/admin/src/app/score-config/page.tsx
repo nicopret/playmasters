@@ -46,10 +46,37 @@ type ScoreConfig = {
   updatedAt?: string;
 };
 
+const DEFAULT_LEVEL_SCORE_MULTIPLIER = {
+  base: 1,
+  perLevel: 0,
+  max: 1,
+};
+
 const DEFAULT_SCORE_CONFIG: ScoreConfig = {
   scoreConfigId: 'default',
   baseEnemyScores: [],
+  levelScoreMultiplier: DEFAULT_LEVEL_SCORE_MULTIPLIER,
 };
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
+
+const computeLevelMultiplierPreview = (params: {
+  levelNumber: number;
+  base: number;
+  perLevel: number;
+  max: number;
+}): number => {
+  const level = Math.max(1, Math.floor(params.levelNumber));
+  const raw = params.base + params.perLevel * (level - 1);
+  return clamp(raw, 0, params.max);
+};
+
+const normalizeScoreConfig = (config: ScoreConfig): ScoreConfig => ({
+  ...config,
+  levelScoreMultiplier:
+    config.levelScoreMultiplier ?? DEFAULT_LEVEL_SCORE_MULTIPLIER,
+});
 
 export default function ScoreConfigPage() {
   const [config, setConfig] = useState<ScoreConfig>(DEFAULT_SCORE_CONFIG);
@@ -76,7 +103,7 @@ export default function ScoreConfigPage() {
         const enemyJson = await enemyRes.json();
         if (cancelled) return;
 
-        setConfig(cfgJson.config ?? DEFAULT_SCORE_CONFIG);
+        setConfig(normalizeScoreConfig(cfgJson.config ?? DEFAULT_SCORE_CONFIG));
         setEnemies(Array.isArray(enemyJson.enemies) ? enemyJson.enemies : []);
       } catch (err: unknown) {
         if (!cancelled) {
@@ -119,10 +146,13 @@ export default function ScoreConfigPage() {
   const issues = useMemo(
     () =>
       validateScoreConfigDraft(
-        { baseEnemyScores: config.baseEnemyScores ?? [] },
+        {
+          baseEnemyScores: config.baseEnemyScores ?? [],
+          levelScoreMultiplier: config.levelScoreMultiplier,
+        },
         { enemies },
       ),
-    [config.baseEnemyScores, enemies],
+    [config.baseEnemyScores, config.levelScoreMultiplier, enemies],
   );
 
   const hasBlocking = issues.some((issue) => issue.severity === 'error');
@@ -133,6 +163,9 @@ export default function ScoreConfigPage() {
         issue.path === `baseEnemyScores[${enemyId}]` ||
         issue.path === `baseEnemyScores[${enemyId}].score`,
     );
+
+  const getIssueForPath = (path: string): ValidationIssue | undefined =>
+    issues.find((issue) => issue.path === path);
 
   const setEnemyScore = (enemyId: string, value: string) => {
     setConfig((current) => {
@@ -170,6 +203,40 @@ export default function ScoreConfigPage() {
       return { ...current, baseEnemyScores: rows };
     });
   };
+
+  const setLevelMultiplierField = (
+    field: 'base' | 'perLevel' | 'max',
+    value: string,
+  ) => {
+    setConfig((current) => ({
+      ...current,
+      levelScoreMultiplier: {
+        ...(current.levelScoreMultiplier ?? DEFAULT_LEVEL_SCORE_MULTIPLIER),
+        [field]: value.trim() === '' ? Number.NaN : Number(value),
+      },
+    }));
+  };
+
+  const multiplierPreviews = useMemo(() => {
+    const multiplier =
+      config.levelScoreMultiplier ?? DEFAULT_LEVEL_SCORE_MULTIPLIER;
+    if (
+      !Number.isFinite(multiplier.base) ||
+      !Number.isFinite(multiplier.perLevel) ||
+      !Number.isFinite(multiplier.max)
+    ) {
+      return null;
+    }
+    return [1, 5, 10].map((level) => ({
+      level,
+      value: computeLevelMultiplierPreview({
+        levelNumber: level,
+        base: multiplier.base,
+        perLevel: multiplier.perLevel,
+        max: multiplier.max,
+      }),
+    }));
+  }, [config.levelScoreMultiplier]);
 
   const sortBaseEnemyScores = (
     rows: BaseEnemyScore[],
@@ -264,6 +331,97 @@ export default function ScoreConfigPage() {
         {hasBlocking && (
           <div className={styles.helper}>
             Publish is blocked until blocking issues are resolved.
+          </div>
+        )}
+      </section>
+
+      <section className={styles.card}>
+        <h2>Level Multiplier</h2>
+        <div className={styles.helper}>
+          Runtime preview uses ScoreSystem formula: clamp(base + perLevel *
+          (level - 1), 0, max).
+        </div>
+        <div className={styles.formGrid}>
+          <label className={styles.field}>
+            <span>Base</span>
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              step={0.01}
+              value={
+                Number.isFinite(config.levelScoreMultiplier?.base)
+                  ? config.levelScoreMultiplier?.base
+                  : ''
+              }
+              onChange={(event) =>
+                setLevelMultiplierField('base', event.target.value)
+              }
+            />
+            {getIssueForPath('levelScoreMultiplier.base') && (
+              <div className={styles.errorInline}>
+                {getIssueForPath('levelScoreMultiplier.base')?.message}
+              </div>
+            )}
+          </label>
+
+          <label className={styles.field}>
+            <span>Per Level</span>
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              step={0.01}
+              value={
+                Number.isFinite(config.levelScoreMultiplier?.perLevel)
+                  ? config.levelScoreMultiplier?.perLevel
+                  : ''
+              }
+              onChange={(event) =>
+                setLevelMultiplierField('perLevel', event.target.value)
+              }
+            />
+            {getIssueForPath('levelScoreMultiplier.perLevel') && (
+              <div className={styles.errorInline}>
+                {getIssueForPath('levelScoreMultiplier.perLevel')?.message}
+              </div>
+            )}
+          </label>
+
+          <label className={styles.field}>
+            <span>Max</span>
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              step={0.01}
+              value={
+                Number.isFinite(config.levelScoreMultiplier?.max)
+                  ? config.levelScoreMultiplier?.max
+                  : ''
+              }
+              onChange={(event) =>
+                setLevelMultiplierField('max', event.target.value)
+              }
+            />
+            {getIssueForPath('levelScoreMultiplier.max') && (
+              <div className={styles.errorInline}>
+                {getIssueForPath('levelScoreMultiplier.max')?.message}
+              </div>
+            )}
+          </label>
+        </div>
+
+        {multiplierPreviews && (
+          <div className={styles.exampleBox}>
+            <strong>Examples (Preview)</strong>
+            <div className={styles.exampleList}>
+              {multiplierPreviews.map((row) => (
+                <span key={row.level}>
+                  L{row.level}: {row.value.toFixed(2)}x
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </section>

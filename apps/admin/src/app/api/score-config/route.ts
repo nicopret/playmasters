@@ -78,6 +78,10 @@ export async function POST(req: Request) {
   const scores = Array.isArray(body.baseEnemyScores)
     ? body.baseEnemyScores
     : [];
+  const readFinite = (value: unknown, fallback: number | undefined): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    return fallback ?? 0;
+  };
 
   try {
     const existing: ScoreConfigDraft = (await getScoreConfigDraft()) ?? {
@@ -96,18 +100,18 @@ export async function POST(req: Request) {
         score: typeof s.score === 'number' ? s.score : 0,
       })),
       levelScoreMultiplier: {
-        base:
-          typeof body.levelScoreMultiplier?.base === 'number'
-            ? body.levelScoreMultiplier.base
-            : existing.levelScoreMultiplier?.base,
-        perLevel:
-          typeof body.levelScoreMultiplier?.perLevel === 'number'
-            ? body.levelScoreMultiplier.perLevel
-            : existing.levelScoreMultiplier?.perLevel,
-        max:
-          typeof body.levelScoreMultiplier?.max === 'number'
-            ? body.levelScoreMultiplier.max
-            : existing.levelScoreMultiplier?.max,
+        base: readFinite(
+          body.levelScoreMultiplier?.base,
+          existing.levelScoreMultiplier?.base,
+        ),
+        perLevel: readFinite(
+          body.levelScoreMultiplier?.perLevel,
+          existing.levelScoreMultiplier?.perLevel,
+        ),
+        max: readFinite(
+          body.levelScoreMultiplier?.max,
+          existing.levelScoreMultiplier?.max,
+        ),
       },
       combo: {
         enabled:

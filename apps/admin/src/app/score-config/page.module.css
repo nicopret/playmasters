@@ -71,6 +71,37 @@
   color: #475569;
 }
 
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.exampleBox {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exampleList {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #334155;
+}
+
 .table {
   display: flex;
   flex-direction: column;
@@ -168,4 +199,15 @@
   border: 1px solid #bbf7d0;
   padding: 10px;
   border-radius: 8px;
+}
+
+@media (max-width: 900px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .exampleList {
+    flex-direction: column;
+    gap: 6px;
+  }
 }
