@@ -13,6 +13,7 @@ import {
 import {
   attemptRunSubmission,
   DisposableBag,
+  OverlayCoordinator,
   createRunContext,
   isRunStartTransition,
   registerRunIfAuthenticated,
@@ -53,6 +54,7 @@ import {
   type PoolBaselineSnapshot,
   type PoolMetricsSnapshot,
 } from './dev/poolLeakChecks';
+import { OverlayState, OverlayStateMachine } from './overlay';
 
 type MountOptions = {
   deps: SpaceBlasterBootstrapDeps;
@@ -126,6 +128,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   private maxLevelReached = 1;
   private maxWaveReached = 1;
   private finalSummary: FinalScoreSummary | null = null;
+  private overlayRestartPending = false;
 
   private statusText!: Phaser.GameObjects.Text;
   private resultsText!: Phaser.GameObjects.Text;
@@ -138,7 +141,8 @@ class SpaceBlasterScene extends Phaser.Scene {
   private blurHandler?: () => void;
   private focusHandler?: () => void;
   private overlayBlockingGameplay = false;
-  private userPauseBlocked = false;
+  private readonly overlayStateMachine = new OverlayStateMachine();
+  private overlayCoordinator!: OverlayCoordinator;
   private visibilityBlocked = false;
   private runBus = new RunEventBus();
   private runStateMachine = new RunStateMachine(
@@ -349,12 +353,18 @@ class SpaceBlasterScene extends Phaser.Scene {
       getSfxVolume: () => this.audioSystem.getSfxVolume(),
       onMusicVolumeChanged: (value) => this.audioSystem.setMusicVolume(value),
       onSfxVolumeChanged: (value) => this.audioSystem.setSfxVolume(value),
-      onResumeRequested: () => {
-        this.settingsOverlay.hideAll();
-        this.setUserPauseBlocked(false);
-      },
+      onResumeRequested: () => this.overlayCoordinator.requestResume(),
+      onSettingsRequested: () => this.overlayCoordinator.requestOpenSettings(),
+      onBackFromSettingsRequested: () =>
+        this.overlayCoordinator.requestCloseSettings(),
+      onRestartRequested: () => this.overlayCoordinator.requestRestart(),
     });
     this.settingsOverlay.create();
+    this.overlayCoordinator = new OverlayCoordinator({
+      overlay: this.overlayStateMachine,
+      onOverlayChanged: (state) => this.onOverlayStateChanged(state),
+      onRestartRequested: () => this.handleOverlayRestartRequested(),
+    });
     this.vfxSystem = new VfxSystem({
       scene: this,
       ctx: this.deps.ctx,
@@ -595,7 +605,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private handleSpace() {
-    if (this.userPauseBlocked) {
+    if (this.overlayBlockingGameplay) {
       return;
     }
     if (
@@ -614,25 +624,24 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private handleEscape() {
-    if (this.settingsOverlay.handleEscape()) {
-      this.setUserPauseBlocked(this.settingsOverlay.isPauseMenuVisible());
+    if (this.overlayStateMachine.getState() === OverlayState.SETTINGS) {
+      this.overlayCoordinator.requestCloseSettings();
+      return;
+    }
+
+    if (this.overlayStateMachine.getState() === OverlayState.PAUSED) {
+      this.overlayCoordinator.requestResume();
       return;
     }
 
     if (this.runStateMachine.state === RunState.PLAYING) {
-      this.settingsOverlay.showPauseMenu();
-      this.setUserPauseBlocked(true);
+      this.overlayCoordinator.requestPause();
     }
-  }
-
-  private setUserPauseBlocked(blocked: boolean): void {
-    this.userPauseBlocked = blocked;
-    this.syncOverlayBlockingGameplay();
   }
 
   private syncOverlayBlockingGameplay(): void {
     this.overlayBlockingGameplay =
-      this.userPauseBlocked || this.visibilityBlocked;
+      this.overlayStateMachine.getBlocksGameplay() || this.visibilityBlocked;
   }
 
   private resetEntities() {
@@ -735,8 +744,7 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.maxWaveReached = 1;
     this.finalSummary = null;
     this.submitting = false;
-    this.settingsOverlay.hideAll();
-    this.setUserPauseBlocked(false);
+    this.overlayRestartPending = false;
     this.hudSystem.clearTransientBanners();
     this.vfxSystem.resetAll();
     this.lifeSystem.reset();
@@ -937,11 +945,8 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private onEnterRunState(state: RunState, from: RunState) {
     this.dispatchRunStateEvent(state);
+    this.overlayCoordinator.syncFromRunState(state);
     this.levelSystem.onEnterRunState(state, from);
-    if (state !== RunState.PLAYING) {
-      this.settingsOverlay.hideAll();
-      this.setUserPauseBlocked(false);
-    }
     switch (state) {
       case RunState.READY:
         this.resetEntities();
@@ -1010,6 +1015,10 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.playAgainBtn.setVisible(true);
         this.syncSubmissionStatusText();
         this.onGameOver?.(this.score);
+        if (this.overlayRestartPending) {
+          this.overlayRestartPending = false;
+          this.handleOverlayRestartRequested();
+        }
         break;
       case RunState.ERROR:
         this.statusText.setText('Runtime error');
@@ -1020,7 +1029,19 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private restartGame() {
+    this.overlayCoordinator.requestRestart();
+  }
+
+  private handleOverlayRestartRequested(): void {
     if (this.submitting) return;
+    if (this.runStateMachine.state === RunState.PLAYING) {
+      this.overlayRestartPending = true;
+      this.runStateMachine.requestEndRun('overlay_restart_requested');
+      return;
+    }
+    if (this.runStateMachine.state !== RunState.RESULTS) {
+      return;
+    }
     this.resetEntities();
     this.playAgainBtn.setVisible(false);
     this.startRequested = false;
@@ -1036,6 +1057,24 @@ class SpaceBlasterScene extends Phaser.Scene {
         detail: { gameId: GAME_ID, state },
       }),
     );
+  }
+
+  private onOverlayStateChanged(state: OverlayState): void {
+    switch (state) {
+      case OverlayState.NONE:
+      case OverlayState.RESULTS:
+        this.settingsOverlay.hideAll();
+        break;
+      case OverlayState.PAUSED:
+        this.settingsOverlay.showPauseMenu();
+        break;
+      case OverlayState.SETTINGS:
+        this.settingsOverlay.showSettings();
+        break;
+      default:
+        break;
+    }
+    this.syncOverlayBlockingGameplay();
   }
 
   destroyResources() {

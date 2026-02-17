@@ -7,6 +7,9 @@ type SettingsOverlayOptions = {
   onMusicVolumeChanged: (value: number) => void;
   onSfxVolumeChanged: (value: number) => void;
   onResumeRequested: () => void;
+  onSettingsRequested: () => void;
+  onBackFromSettingsRequested: () => void;
+  onRestartRequested: () => void;
 };
 
 type SliderUi = {
@@ -36,6 +39,9 @@ export class SettingsOverlay {
   private readonly onMusicVolumeChanged: (value: number) => void;
   private readonly onSfxVolumeChanged: (value: number) => void;
   private readonly onResumeRequested: () => void;
+  private readonly onSettingsRequested: () => void;
+  private readonly onBackFromSettingsRequested: () => void;
+  private readonly onRestartRequested: () => void;
 
   private root?: Phaser.GameObjects.Container;
   private overlayBg?: Phaser.GameObjects.Rectangle;
@@ -56,6 +62,9 @@ export class SettingsOverlay {
     this.onMusicVolumeChanged = options.onMusicVolumeChanged;
     this.onSfxVolumeChanged = options.onSfxVolumeChanged;
     this.onResumeRequested = options.onResumeRequested;
+    this.onSettingsRequested = options.onSettingsRequested;
+    this.onBackFromSettingsRequested = options.onBackFromSettingsRequested;
+    this.onRestartRequested = options.onRestartRequested;
   }
 
   create(): void {
@@ -95,12 +104,15 @@ export class SettingsOverlay {
       .setOrigin(0.5);
 
     this.pauseMenuContainer = this.scene.add.container(width / 2, height / 2);
-    const resumeBtn = this.createButton(0, -16, 'Resume');
-    const settingsBtn = this.createButton(0, 44, 'Settings');
+    const resumeBtn = this.createButton(0, -34, 'Resume');
+    const settingsBtn = this.createButton(0, 26, 'Settings');
+    const restartBtn = this.createButton(0, 86, 'Restart');
     resumeBtn.on('pointerup', () => this.onResumeRequested());
-    settingsBtn.on('pointerup', () => this.showSettings());
+    settingsBtn.on('pointerup', () => this.onSettingsRequested());
+    restartBtn.on('pointerup', () => this.onRestartRequested());
     this.pauseMenuContainer.add([resumeBtn]);
     this.pauseMenuContainer.add([settingsBtn]);
+    this.pauseMenuContainer.add([restartBtn]);
 
     this.settingsContainer = this.scene.add.container(width / 2, height / 2);
     this.settingsContainer.setVisible(false);
@@ -123,7 +135,7 @@ export class SettingsOverlay {
     });
 
     const closeBtn = this.createButton(0, 104, 'Back');
-    closeBtn.on('pointerup', () => this.showPauseMenu());
+    closeBtn.on('pointerup', () => this.onBackFromSettingsRequested());
 
     this.settingsContainer.add([
       this.musicSlider.label,
