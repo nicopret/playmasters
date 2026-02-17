@@ -93,3 +93,12 @@ References used for verification:
 - [x] Automated checks:
   - `packages/types/src/space-blaster/runtime/fixtures/resolved-config.example.spec.ts` validates fixture against `validateResolvedGameConfigV1`.
   - `packages/games/space-blaster/src/runtime/run-context.spec.ts` validates runtime mount-time guards and freeze semantics.
+
+## Hash semantics
+
+- `configHash` is the canonical SHA-256 hash of the published bundle content.
+- `versionHash` is treated as equivalent to `configHash` in v1.
+- Resolver behavior:
+  - if publish artifacts already include hash values, resolver passes them through unchanged.
+  - if hashes are missing, resolver computes deterministic fallback hashes from canonicalized bundle content.
+- Runtime always receives both `configHash` and `versionHash` on successful bundle resolution.

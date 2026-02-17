@@ -14,6 +14,7 @@ export type PublishedBundle = {
   env: string;
   versionId: string;
   configHash: string;
+  versionHash?: string;
   bundle: unknown;
   createdAt: string;
 };
@@ -75,6 +76,7 @@ export async function getBundlePointer(
 export async function publishBundle(input: {
   env: string;
   configHash: string;
+  versionHash?: string;
   bundle: unknown;
   previousVersionId?: string | null;
 }): Promise<PublishedBundle> {
@@ -85,6 +87,7 @@ export async function publishBundle(input: {
     env,
     versionId,
     configHash,
+    ...(input.versionHash ? { versionHash: input.versionHash } : {}),
     bundle: input.bundle,
     createdAt,
     ...versionKey(env, versionId),

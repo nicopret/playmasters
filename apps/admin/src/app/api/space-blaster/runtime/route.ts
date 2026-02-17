@@ -9,6 +9,7 @@ import {
 } from '../../../../../lib/bundleStore';
 import { resolveRuntimeBundle } from '../../../../../lib/runtimeBundleResolver';
 import { resolveSpaceBlasterBundle } from '../../../../../lib/resolveSpaceBlasterBundle';
+import { resolveBundleHashes } from '../../../../../lib/runtimeBundleHash';
 
 export const runtime = 'nodejs';
 
@@ -16,7 +17,12 @@ const gameId = 'space-blaster';
 
 function toResolvedBundle(
   rawBundle: unknown,
-  metadata: { configHash: string; versionId: string; publishedAt?: string },
+  metadata: {
+    configHash: string;
+    versionHash: string;
+    versionId: string;
+    publishedAt?: string;
+  },
   env: string,
 ): ResolvedSpaceBlasterBundleV1 {
   const bundle = (rawBundle ?? {}) as Record<string, unknown>;
@@ -31,6 +37,7 @@ function toResolvedBundle(
     gameId: 'space-blaster',
     env,
     configHash: metadata.configHash,
+    versionHash: metadata.versionHash,
     versionId: metadata.versionId,
     publishedAt: metadata.publishedAt,
     levelConfigs: levelConfigs as ResolvedSpaceBlasterBundleV1['levelConfigs'],
@@ -78,10 +85,16 @@ export async function GET(req: Request) {
     );
   }
   const bundle = resolved.bundle;
+  const hashes = resolveBundleHashes({
+    bundle: bundle.bundle,
+    publishedConfigHash: bundle.configHash,
+    publishedVersionHash: bundle.versionHash,
+  });
   const unresolvedBundle = toResolvedBundle(
     bundle.bundle,
     {
-      configHash: bundle.configHash,
+      configHash: hashes.configHash,
+      versionHash: hashes.versionHash,
       versionId: bundle.versionId,
       publishedAt: bundle.createdAt,
     },
@@ -114,12 +127,13 @@ export async function GET(req: Request) {
     gameId,
     env,
     versionId: bundle.versionId,
-    configHash: bundle.configHash,
+    configHash: hashes.configHash,
+    versionHash: hashes.versionHash,
   });
 
   const response: SpaceBlasterRuntimeResolverResponseV1 = {
     versionId: bundle.versionId,
-    configHash: bundle.configHash,
+    configHash: hashes.configHash,
     bundle: resolvedBundle,
   };
   return NextResponse.json(response);
