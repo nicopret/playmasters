@@ -9,6 +9,7 @@ type SettingsOverlayOptions = {
   onResumeRequested: () => void;
   onSettingsRequested: () => void;
   onBackFromSettingsRequested: () => void;
+  onRestartRequested: () => void;
 };
 
 type SliderUi = {
@@ -40,6 +41,7 @@ export class SettingsOverlay {
   private readonly onResumeRequested: () => void;
   private readonly onSettingsRequested: () => void;
   private readonly onBackFromSettingsRequested: () => void;
+  private readonly onRestartRequested: () => void;
 
   private root?: Phaser.GameObjects.Container;
   private overlayBg?: Phaser.GameObjects.Rectangle;
@@ -62,6 +64,7 @@ export class SettingsOverlay {
     this.onResumeRequested = options.onResumeRequested;
     this.onSettingsRequested = options.onSettingsRequested;
     this.onBackFromSettingsRequested = options.onBackFromSettingsRequested;
+    this.onRestartRequested = options.onRestartRequested;
   }
 
   create(): void {
@@ -101,12 +104,15 @@ export class SettingsOverlay {
       .setOrigin(0.5);
 
     this.pauseMenuContainer = this.scene.add.container(width / 2, height / 2);
-    const resumeBtn = this.createButton(0, -16, 'Resume');
-    const settingsBtn = this.createButton(0, 44, 'Settings');
+    const resumeBtn = this.createButton(0, -34, 'Resume');
+    const settingsBtn = this.createButton(0, 26, 'Settings');
+    const restartBtn = this.createButton(0, 86, 'Restart');
     resumeBtn.on('pointerup', () => this.onResumeRequested());
     settingsBtn.on('pointerup', () => this.onSettingsRequested());
+    restartBtn.on('pointerup', () => this.onRestartRequested());
     this.pauseMenuContainer.add([resumeBtn]);
     this.pauseMenuContainer.add([settingsBtn]);
+    this.pauseMenuContainer.add([restartBtn]);
 
     this.settingsContainer = this.scene.add.container(width / 2, height / 2);
     this.settingsContainer.setVisible(false);

@@ -17,7 +17,7 @@ export type OverlayEvent =
 const ALLOWED_TRANSITIONS: Record<OverlayState, ReadonlySet<OverlayState>> = {
   [OverlayState.NONE]: new Set([OverlayState.PAUSED, OverlayState.RESULTS]),
   [OverlayState.PAUSED]: new Set([OverlayState.NONE, OverlayState.SETTINGS]),
-  [OverlayState.SETTINGS]: new Set([OverlayState.PAUSED]),
+  [OverlayState.SETTINGS]: new Set([OverlayState.PAUSED, OverlayState.NONE]),
   [OverlayState.RESULTS]: new Set([OverlayState.NONE]),
 };
 
@@ -64,7 +64,11 @@ export class OverlayStateMachine {
         }
         return { restartRequested: false };
       case 'RESTART_REQUESTED':
-        if (this.stateValue !== OverlayState.RESULTS) {
+        if (
+          this.stateValue !== OverlayState.RESULTS &&
+          this.stateValue !== OverlayState.PAUSED &&
+          this.stateValue !== OverlayState.SETTINGS
+        ) {
           throw new Error(
             `Illegal overlay action: RESTART_REQUESTED from ${this.stateValue}`,
           );

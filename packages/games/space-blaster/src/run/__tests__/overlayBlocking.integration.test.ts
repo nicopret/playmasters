@@ -49,7 +49,7 @@ describe('overlay blocking integration (ticket #155)', () => {
     expect(h.runStateMachine.state).toBe(RunState.PLAYING);
   });
 
-  it('3) restart from results overlay resets run context and pool activity cleanly', async () => {
+  it('3) restart from pause overlay resets run context and pool activity cleanly', async () => {
     const h = makeRunHarness({ submissionBehavior: 'resolve' });
     const baselineMetrics = h.getPoolBaseline();
 
@@ -62,19 +62,22 @@ describe('overlay blocking integration (ticket #155)', () => {
     expect(activeBeforeResults.projectile.active).toBeGreaterThan(0);
     expect(activeBeforeResults.explosion.active).toBeGreaterThan(0);
 
-    h.endRunGameOver();
+    const previousContext = h.ctx;
+    const previousConfigHash = previousContext.configHash;
+    h.pause();
+    h.restartFromOverlay();
+
     h.tick(0);
+    expect(h.runStateMachine.state).toBe(RunState.RUN_ENDING);
     h.tick(50);
     await h.flushAsync();
     h.tick(0);
-    expect(h.runStateMachine.state).toBe(RunState.RESULTS);
-
-    const previousConfigHash = h.ctx.configHash;
-    h.restartFromOverlay();
-    h.tick(0);
     expect(h.runStateMachine.state).toBe(RunState.COUNTDOWN);
+
+    h.tick(0);
     expect(h.ctx.submissionStatus).toEqual({ state: 'idle' });
     expect(h.ctx.submissionAttempted).toBe(false);
+    expect(h.ctx).not.toBe(previousContext);
 
     h.tick(100);
     expect(h.runStateMachine.state).toBe(RunState.PLAYING);
