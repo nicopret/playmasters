@@ -19,6 +19,9 @@ type Props = {
 };
 
 type MountedGame = { destroy: () => void };
+type RuntimeBundleResponse = { bundle?: unknown };
+type ConfigHashCarrier = { configHash?: string; versionHash?: string };
+type SpaceBlasterRunStateDetail = { gameId?: string; state?: string };
 
 const gameLoaders: Record<string, () => Promise<EmbeddedGame>> = {
   'space-blaster': async () =>
@@ -36,6 +39,30 @@ const createGuestSdk = (): GameSdk => ({
     throw new Error('auth_required');
   },
 });
+
+const SPACE_BLASTER_RUN_STATE_EVENT = 'playmasters:space-blaster-run-state';
+const CONFIG_UPDATE_POLL_MS = 30000;
+const ACTIVE_RUN_STATES = new Set([
+  'COUNTDOWN',
+  'PLAYING',
+  'PAUSED',
+  'PLAYER_RESPAWN',
+  'WAVE_CLEAR',
+  'LEVEL_COMPLETE',
+  'RUN_ENDING',
+  'SUBMITTING',
+]);
+
+const isSpaceBlasterGame = (gameId: string): boolean =>
+  gameId === 'space-blaster' || gameId === 'game-space-blaster';
+
+const extractConfigHash = (bundle: unknown): string | undefined => {
+  if (!bundle || typeof bundle !== 'object') return undefined;
+  const carrier = bundle as ConfigHashCarrier;
+  const hash = carrier.configHash ?? carrier.versionHash;
+  if (typeof hash !== 'string' || hash.trim().length === 0) return undefined;
+  return hash;
+};
 
 export const GameHost = ({
   gameId,
@@ -56,9 +83,16 @@ export const GameHost = ({
 
   const loader = useMemo(() => gameLoaders[gameId], [gameId]);
   const displayName = user?.displayName ?? user?.id ?? 'Guest';
+  const mountedConfigHashRef = useRef<string | undefined>(undefined);
+  const pendingBundleRef = useRef<unknown>(undefined);
+  const pendingBundleHashRef = useRef<string | undefined>(undefined);
+  const runStateRef = useRef<string>('BOOT');
+  const updateToastShownHashRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+    let runStateListener: EventListener | undefined;
 
     const mount = async () => {
       const el = mountRef.current;
@@ -89,9 +123,40 @@ export const GameHost = ({
             })
           : createGuestSdk();
 
-        gameRef.current?.destroy();
-        let resolvedConfig: unknown;
-        if (gameId === 'space-blaster' || gameId === 'game-space-blaster') {
+        const mountWithConfig = (resolvedConfig?: unknown) => {
+          if (cancelled) return;
+          gameRef.current?.destroy();
+          mountedConfigHashRef.current = extractConfigHash(resolvedConfig);
+          gameRef.current = game.mount({
+            el,
+            sdk,
+            resolvedConfig,
+            onReady: () => {
+              if (!cancelled) setStatus('ready');
+            },
+            onGameOver: (finalScore) => {
+              if (cancelled) return;
+              runStateRef.current = 'RESULTS';
+              setLastScore(finalScore);
+              if (pendingBundleRef.current) {
+                setMessage('Applying latest update for next run...');
+                mountWithConfig(pendingBundleRef.current);
+                pendingBundleRef.current = undefined;
+                pendingBundleHashRef.current = undefined;
+                return;
+              }
+              if (!user) {
+                setMessage('Sign in to submit your score to the leaderboard.');
+              } else {
+                setMessage(
+                  'Run finished - check the leaderboard for your spot.',
+                );
+              }
+            },
+          });
+        };
+
+        const fetchRuntimeBundle = async (): Promise<unknown> => {
           if (!apiBaseUrl) {
             throw new Error(
               'Missing NEXT_PUBLIC_API_BASE_URL for Space Blaster runtime config.',
@@ -106,29 +171,73 @@ export const GameHost = ({
               `Failed to load runtime config (${runtimeResp.status}).`,
             );
           }
-          const runtimePayload = (await runtimeResp.json()) as {
-            bundle?: unknown;
-          };
-          resolvedConfig = runtimePayload.bundle;
+          const runtimePayload =
+            (await runtimeResp.json()) as RuntimeBundleResponse;
+          return runtimePayload.bundle;
+        };
+
+        const applyPendingWhenSafe = () => {
+          const pending = pendingBundleRef.current;
+          if (!pending) return;
+          if (ACTIVE_RUN_STATES.has(runStateRef.current)) return;
+          setMessage('Applying latest update for next run...');
+          mountWithConfig(pending);
+          pendingBundleRef.current = undefined;
+          pendingBundleHashRef.current = undefined;
+        };
+
+        const checkForConfigUpdate = async () => {
+          if (!isSpaceBlasterGame(gameId)) return;
+          try {
+            const latestBundle = await fetchRuntimeBundle();
+            if (cancelled) return;
+            const latestHash = extractConfigHash(latestBundle);
+            const currentHash = mountedConfigHashRef.current;
+            if (!latestHash || !currentHash || latestHash === currentHash) {
+              return;
+            }
+            if (pendingBundleHashRef.current === latestHash) {
+              return;
+            }
+            pendingBundleRef.current = latestBundle;
+            pendingBundleHashRef.current = latestHash;
+            if (updateToastShownHashRef.current !== latestHash) {
+              updateToastShownHashRef.current = latestHash;
+              setMessage('New update available. It will apply next run.');
+            }
+            applyPendingWhenSafe();
+          } catch {
+            // Ignore refresh errors and keep the current mounted config.
+          }
+        };
+
+        if (isSpaceBlasterGame(gameId)) {
+          const initialConfig = await fetchRuntimeBundle();
+          if (cancelled) return;
+          mountWithConfig(initialConfig);
+          intervalId = setInterval(() => {
+            void checkForConfigUpdate();
+          }, CONFIG_UPDATE_POLL_MS);
+        } else {
+          mountWithConfig(undefined);
         }
 
-        gameRef.current = game.mount({
-          el,
-          sdk,
-          resolvedConfig,
-          onReady: () => {
-            if (!cancelled) setStatus('ready');
-          },
-          onGameOver: (finalScore) => {
-            if (cancelled) return;
-            setLastScore(finalScore);
-            if (!user) {
-              setMessage('Sign in to submit your score to the leaderboard.');
-            } else {
-              setMessage('Run finished - check the leaderboard for your spot.');
-            }
-          },
-        });
+        runStateListener = ((event: Event): void => {
+          const custom = event as CustomEvent<SpaceBlasterRunStateDetail>;
+          if (custom.detail?.gameId !== gameId) return;
+          runStateRef.current = custom.detail.state ?? runStateRef.current;
+          applyPendingWhenSafe();
+        }) as EventListener;
+        window.addEventListener(
+          SPACE_BLASTER_RUN_STATE_EVENT,
+          runStateListener,
+        );
+        if (cancelled && runStateListener) {
+          window.removeEventListener(
+            SPACE_BLASTER_RUN_STATE_EVENT,
+            runStateListener,
+          );
+        }
       } catch (err) {
         if (cancelled) return;
         setStatus('error');
@@ -140,6 +249,18 @@ export const GameHost = ({
 
     return () => {
       cancelled = true;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      if (runStateListener) {
+        window.removeEventListener(
+          SPACE_BLASTER_RUN_STATE_EVENT,
+          runStateListener,
+        );
+      }
+      pendingBundleRef.current = undefined;
+      pendingBundleHashRef.current = undefined;
+      mountedConfigHashRef.current = undefined;
       gameRef.current?.destroy();
       gameRef.current = null;
     };

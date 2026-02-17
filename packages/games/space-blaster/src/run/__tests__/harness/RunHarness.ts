@@ -1,4 +1,4 @@
-import type { EmbeddedGameSdk } from '@playmasters/types';
+import type { EmbeddedGameSdk, ResolvedGameConfigV1 } from '@playmasters/types';
 import { LevelSystem } from '../../../levels/LevelSystem';
 import { ObjectPool } from '../../../perf/ObjectPool';
 import {
@@ -39,6 +39,7 @@ export type SubmissionBehavior = 'resolve' | 'reject' | 'never';
 type HarnessOptions = {
   submissionBehavior?: SubmissionBehavior;
   authenticated?: boolean;
+  initialResolvedConfig?: ResolvedGameConfigV1;
 };
 
 type ListenerTracker = {
@@ -119,7 +120,8 @@ const createInstrumentedBus = (): {
 };
 
 export const makeRunHarness = (options?: HarnessOptions) => {
-  const resolvedConfig = createMinimalResolvedConfig();
+  const resolvedConfig =
+    options?.initialResolvedConfig ?? createMinimalResolvedConfig();
   const sdk = createFakeSdk({
     submissionBehavior: options?.submissionBehavior ?? 'resolve',
     authenticated: options?.authenticated ?? true,

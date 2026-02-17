@@ -60,6 +60,20 @@ If references are missing, resolver fails safely with structured errors:
 ## Mutability Rules
 
 - Runtime treats resolved config as read-only.
-- Active run config is frozen per run (`RunContext` capture).
+- `RunContext` captures `configHash` and `versionHash` at run start (`runConfigHash`, `runVersionHash`).
+- Active run config is frozen per run (`RunContext.resolvedConfig` snapshot).
 - Publish/rollback affects new runs only.
 - Active runs continue using captured hashes and config.
+- Incoming config updates are staged as `pendingResolvedConfig` and apply only to the next run.
+
+## Update While Open
+
+- Host-side `GameHost` polls the runtime resolver for Space Blaster (`/api/space-blaster/runtime?env=dev`).
+- If a new `configHash` is detected, it stages that bundle for the next run and shows a non-blocking message: "New update available. It will apply next run."
+- Active runs are not swapped mid-run.
+- When the run reaches a non-active state (for example `RESULTS`), the host remounts with the staged bundle so restart/new run uses the latest published config.
+
+## Verification
+
+- Manual plan: `docs/space-blaster/testing/freeze-semantics-test-plan.md`
+- Automated test: `packages/games/space-blaster/src/run/__tests__/freezeSemantics.integration.test.ts`
