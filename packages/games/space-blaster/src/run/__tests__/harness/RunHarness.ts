@@ -148,6 +148,7 @@ export const makeRunHarness = (options?: HarnessOptions) => {
   let maxWaveReached = 1;
   let finalSummary: FinalScoreSummary | null = null;
   let runInstance = 0;
+  let overlayRestartPending = false;
 
   const projectilePool = new ObjectPool<{ id: number }>({
     initial: 4,
@@ -178,6 +179,11 @@ export const makeRunHarness = (options?: HarnessOptions) => {
       overlayBlockingGameplay = blocksGameplay;
     },
     onRestartRequested: () => {
+      if (runStateMachine.state === RunState.PLAYING) {
+        overlayRestartPending = true;
+        runStateMachine.requestEndRun('overlay_restart_requested');
+        return;
+      }
       if (runStateMachine.state === RunState.RESULTS) {
         runStateMachine.requestStart();
       }
@@ -196,6 +202,51 @@ export const makeRunHarness = (options?: HarnessOptions) => {
     hasPendingUpdate: false,
   });
 
+  const buildLevelSystem = (): LevelSystem =>
+    new LevelSystem({
+      ctx,
+      bus,
+      runStateMachine,
+      formationSystem: {
+        setLevelIndex: () => undefined,
+        spawnFormation: (wave) => {
+          spawnedEnemyIds.push(wave.enemyId);
+        },
+      },
+      getActiveEnemyCount: () => activeEnemyCount,
+      getWaveClearContext: () => ({ nowMs: simNowMs, livesRemaining: 3 }),
+      onWaveStarted: ({ levelIndex, waveIndex }) => {
+        startedWaves.push({ levelIndex, waveIndex });
+        maxLevelReached = Math.max(maxLevelReached, levelIndex + 1);
+        maxWaveReached = Math.max(maxWaveReached, waveIndex + 1);
+      },
+    });
+
+  const buildScoreSystem = (): ScoreSystem =>
+    new ScoreSystem({
+      ctx,
+      bus,
+      getLevelNumber: () => levelSystem.getLevelNumber(),
+    });
+
+  const resetRunScopedContext = (): void => {
+    scoreSystem?.dispose();
+    ctx = createCtx();
+    levelSystem = buildLevelSystem();
+    scoreSystem = buildScoreSystem();
+    resetRunRegistration(ctx);
+    scoreSystem.resetForNewRun();
+    simNowMs = 0;
+    simAdvanceCount = 0;
+    wavesCleared = 0;
+    maxLevelReached = 1;
+    maxWaveReached = 1;
+    finalSummary = null;
+    projectilePool.resetAll();
+    explosionPool.resetAll();
+    particleInUse = 0;
+  };
+
   const wireRunSystems = (): void => {
     ctx = createCtx();
     runStateMachine = new RunStateMachine(
@@ -204,27 +255,21 @@ export const makeRunHarness = (options?: HarnessOptions) => {
       {
         onEnterState: (state, from) => {
           overlayCoordinator.syncFromRunState(state);
-          levelSystem.onEnterRunState(state, from);
-
           if (
             state === RunState.COUNTDOWN &&
             (from === RunState.READY || from === RunState.RESULTS)
           ) {
-            resetRunRegistration(ctx);
-            scoreSystem.resetForNewRun();
-            simNowMs = 0;
-            simAdvanceCount = 0;
-            wavesCleared = 0;
-            maxLevelReached = 1;
-            maxWaveReached = 1;
-            finalSummary = null;
-            projectilePool.resetAll();
-            explosionPool.resetAll();
-            particleInUse = 0;
+            resetRunScopedContext();
           }
+          levelSystem.onEnterRunState(state, from);
 
           if (isRunStartTransition(from, state)) {
             void registerRunIfAuthenticated(ctx);
+          }
+
+          if (state === RunState.RESULTS && overlayRestartPending) {
+            overlayRestartPending = false;
+            runStateMachine.requestStart();
           }
 
           if (state === RunState.RUN_ENDING) {
@@ -271,30 +316,8 @@ export const makeRunHarness = (options?: HarnessOptions) => {
       },
     );
 
-    levelSystem = new LevelSystem({
-      ctx,
-      bus,
-      runStateMachine,
-      formationSystem: {
-        setLevelIndex: () => undefined,
-        spawnFormation: (wave) => {
-          spawnedEnemyIds.push(wave.enemyId);
-        },
-      },
-      getActiveEnemyCount: () => activeEnemyCount,
-      getWaveClearContext: () => ({ nowMs: simNowMs, livesRemaining: 3 }),
-      onWaveStarted: ({ levelIndex, waveIndex }) => {
-        startedWaves.push({ levelIndex, waveIndex });
-        maxLevelReached = Math.max(maxLevelReached, levelIndex + 1);
-        maxWaveReached = Math.max(maxWaveReached, waveIndex + 1);
-      },
-    });
-
-    scoreSystem = new ScoreSystem({
-      ctx,
-      bus,
-      getLevelNumber: () => levelSystem.getLevelNumber(),
-    });
+    levelSystem = buildLevelSystem();
+    scoreSystem = buildScoreSystem();
   };
 
   wireRunSystems();
@@ -334,6 +357,7 @@ export const makeRunHarness = (options?: HarnessOptions) => {
     maxLevelReached = 1;
     maxWaveReached = 1;
     finalSummary = null;
+    overlayRestartPending = false;
     transitions.length = 0;
     waveClearedEvents.length = 0;
     startedWaves.length = 0;
