@@ -5,6 +5,7 @@ import {
   getBundleVersion,
 } from '../../../../../lib/bundleStore';
 import { logAudit } from '../../../../../lib/audit';
+import { runtimeResolvedBundleCache } from '../../../../../lib/runtimeResolvedBundleCache';
 
 export const runtime = 'nodejs';
 
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
       timestamp: new Date().toISOString(),
       details: { action: 'rollback' },
     });
+    runtimeResolvedBundleCache.invalidateGame('space-blaster', env);
     return NextResponse.json({
       ok: true,
       prevVersionId: result.prevVersionId,

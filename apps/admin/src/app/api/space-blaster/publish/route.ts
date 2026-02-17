@@ -8,6 +8,7 @@ import {
 } from '../../../../../lib/bundleStore';
 import { logAudit } from '../../../../../lib/audit';
 import { computeConfigHashForBundle } from '../../../../../lib/runtimeBundleHash';
+import { runtimeResolvedBundleCache } from '../../../../../lib/runtimeResolvedBundleCache';
 
 export const runtime = 'nodejs';
 
@@ -88,6 +89,8 @@ export async function POST(req: Request) {
     status: 'success',
     details: { configHash: published.configHash, versionHash },
   });
+
+  runtimeResolvedBundleCache.invalidateGame('space-blaster', env);
 
   return NextResponse.json({
     versionId: published.versionId,
