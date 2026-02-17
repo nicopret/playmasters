@@ -60,6 +60,8 @@ If references are missing, resolver fails safely with structured errors:
 ## Mutability Rules
 
 - Runtime treats resolved config as read-only.
-- Active run config is frozen per run (`RunContext` capture).
+- `RunContext` captures `configHash` and `versionHash` at run start (`runConfigHash`, `runVersionHash`).
+- Active run config is frozen per run (`RunContext.resolvedConfig` snapshot).
 - Publish/rollback affects new runs only.
 - Active runs continue using captured hashes and config.
+- Incoming config updates are staged as `pendingResolvedConfig` and apply only to the next run.

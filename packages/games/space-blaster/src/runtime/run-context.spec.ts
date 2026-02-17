@@ -31,6 +31,18 @@ const resolvedConfigExample = {
 };
 
 describe('createRunContext', () => {
+  it('stores configHash for the mounted run context', () => {
+    const context = createRunContext({
+      sdk: createSdkMock(),
+      resolvedConfig: resolvedConfigExample,
+    });
+
+    expect(context.configHash).toBe(resolvedConfigExample.configHash);
+    expect(context.resolvedConfig.configHash).toBe(
+      resolvedConfigExample.configHash,
+    );
+  });
+
   it('boots with only sdk + resolvedConfig and does not fetch config', () => {
     const sdk = createSdkMock();
     const originalFetch = globalThis.fetch;
@@ -159,6 +171,21 @@ describe('createRunContext', () => {
     expect(ctx.hasPendingUpdate).toBe(true);
     expect(ctx.pendingConfigHash).toBe('2'.repeat(64));
     expect(resolveConfigForNextRun(ctx).configHash).toBe('2'.repeat(64));
+  });
+
+  it('prevents nested resolvedConfig mutation in non-production environments', () => {
+    const ctx = createRunContext({
+      sdk: createSdkMock(),
+      resolvedConfig: resolvedConfigExample,
+    });
+
+    expect(() => {
+      (
+        ctx.resolvedConfig.gameConfig as {
+          defaultLives: number;
+        }
+      ).defaultLives = 99;
+    }).toThrow();
   });
 
   it('ignores same-hash incoming config updates', () => {
