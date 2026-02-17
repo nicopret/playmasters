@@ -4,6 +4,7 @@ import {
   resolveDefaultSessionSettings,
   type SessionSettings,
 } from '../settings/SessionSettings';
+import { deepFreeze } from '../util/deep-freeze';
 
 export type RuntimeConfigError = {
   code: 'CONFIG_INVALID';
@@ -303,13 +304,20 @@ export const createRunContext = (opts: {
     throw new Error(formatRuntimeConfigErrors(validation.errors));
   }
 
+  const isProduction =
+    (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env
+      ?.NODE_ENV === 'production';
+  const runConfig = isProduction
+    ? validation.config
+    : deepFreeze(validation.config);
+
   return {
     sdk,
-    resolvedConfig: validation.config,
-    configHash: validation.config.configHash,
-    versionHash: validation.config.versionHash,
-    versionId: validation.config.versionId,
-    publishedAt: validation.config.publishedAt,
+    resolvedConfig: runConfig,
+    configHash: runConfig.configHash,
+    versionHash: runConfig.versionHash,
+    versionId: runConfig.versionId,
+    publishedAt: runConfig.publishedAt,
     mountedAt: new Date().toISOString(),
     runId: undefined,
     runConfigHash: undefined,
@@ -317,7 +325,7 @@ export const createRunContext = (opts: {
     runRegistrationStarted: false,
     submissionAttempted: false,
     submissionStatus: { state: 'idle' },
-    sessionSettings: resolveDefaultSessionSettings(validation.config),
+    sessionSettings: resolveDefaultSessionSettings(runConfig),
     hasPendingUpdate: false,
   };
 };
