@@ -10,6 +10,7 @@ import {
   attemptRunSubmission,
   isRunStartTransition,
   registerRunIfAuthenticated,
+  resetRunRegistration,
   type RunContext,
 } from '../../../runtime';
 import { buildSubmitScorePayloadV1 } from '../../../submit';
@@ -20,6 +21,8 @@ import {
   RunState,
   RunStateMachine,
 } from '../..';
+import { OverlayStateMachine } from '../../../overlay';
+import { OverlayCoordinator } from '../../../runtime/OverlayCoordinator';
 import { createMinimalResolvedConfig } from '../fixtures/resolvedConfig.minimal';
 
 const MACHINE_CONFIG = {
@@ -168,6 +171,18 @@ export const makeRunHarness = (options?: HarnessOptions) => {
   let runStateMachine: RunStateMachine;
   let levelSystem: LevelSystem;
   let scoreSystem: ScoreSystem;
+  const overlayStateMachine = new OverlayStateMachine();
+  const overlayCoordinator = new OverlayCoordinator({
+    overlay: overlayStateMachine,
+    onOverlayChanged: (_state, blocksGameplay) => {
+      overlayBlockingGameplay = blocksGameplay;
+    },
+    onRestartRequested: () => {
+      if (runStateMachine.state === RunState.RESULTS) {
+        runStateMachine.requestStart();
+      }
+    },
+  });
 
   const createCtx = (): RunContext => ({
     sdk,
@@ -188,7 +203,25 @@ export const makeRunHarness = (options?: HarnessOptions) => {
       { ...MACHINE_CONFIG },
       {
         onEnterState: (state, from) => {
+          overlayCoordinator.syncFromRunState(state);
           levelSystem.onEnterRunState(state, from);
+
+          if (
+            state === RunState.COUNTDOWN &&
+            (from === RunState.READY || from === RunState.RESULTS)
+          ) {
+            resetRunRegistration(ctx);
+            scoreSystem.resetForNewRun();
+            simNowMs = 0;
+            simAdvanceCount = 0;
+            wavesCleared = 0;
+            maxLevelReached = 1;
+            maxWaveReached = 1;
+            finalSummary = null;
+            projectilePool.resetAll();
+            explosionPool.resetAll();
+            particleInUse = 0;
+          }
 
           if (isRunStartTransition(from, state)) {
             void registerRunIfAuthenticated(ctx);
@@ -295,7 +328,7 @@ export const makeRunHarness = (options?: HarnessOptions) => {
   const resetPerRunState = (): void => {
     simNowMs = 0;
     simAdvanceCount = 0;
-    overlayBlockingGameplay = false;
+    overlayCoordinator.syncFromRunState(RunState.READY);
     activeEnemyCount = 1;
     wavesCleared = 0;
     maxLevelReached = 1;
@@ -342,10 +375,16 @@ export const makeRunHarness = (options?: HarnessOptions) => {
     getSimNowMs: () => simNowMs,
     getSimAdvanceCount: () => simAdvanceCount,
     pause: () => {
-      overlayBlockingGameplay = true;
+      overlayCoordinator.requestPause();
     },
     resume: () => {
-      overlayBlockingGameplay = false;
+      overlayCoordinator.requestResume();
+    },
+    openSettings: () => {
+      overlayCoordinator.requestOpenSettings();
+    },
+    closeSettings: () => {
+      overlayCoordinator.requestCloseSettings();
     },
     bootToReady: () => {
       runStateMachine.requestBootComplete();
@@ -392,6 +431,10 @@ export const makeRunHarness = (options?: HarnessOptions) => {
       explosionPool.resetAll();
       particleInUse = 0;
       wireRunSystems();
+      overlayCoordinator.syncFromRunState(RunState.READY);
+    },
+    restartFromOverlay: () => {
+      overlayCoordinator.requestRestart();
     },
     dispose: () => {
       stateChangedUnsub();

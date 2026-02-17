@@ -7,6 +7,8 @@ type SettingsOverlayOptions = {
   onMusicVolumeChanged: (value: number) => void;
   onSfxVolumeChanged: (value: number) => void;
   onResumeRequested: () => void;
+  onSettingsRequested: () => void;
+  onBackFromSettingsRequested: () => void;
 };
 
 type SliderUi = {
@@ -36,6 +38,8 @@ export class SettingsOverlay {
   private readonly onMusicVolumeChanged: (value: number) => void;
   private readonly onSfxVolumeChanged: (value: number) => void;
   private readonly onResumeRequested: () => void;
+  private readonly onSettingsRequested: () => void;
+  private readonly onBackFromSettingsRequested: () => void;
 
   private root?: Phaser.GameObjects.Container;
   private overlayBg?: Phaser.GameObjects.Rectangle;
@@ -56,6 +60,8 @@ export class SettingsOverlay {
     this.onMusicVolumeChanged = options.onMusicVolumeChanged;
     this.onSfxVolumeChanged = options.onSfxVolumeChanged;
     this.onResumeRequested = options.onResumeRequested;
+    this.onSettingsRequested = options.onSettingsRequested;
+    this.onBackFromSettingsRequested = options.onBackFromSettingsRequested;
   }
 
   create(): void {
@@ -98,7 +104,7 @@ export class SettingsOverlay {
     const resumeBtn = this.createButton(0, -16, 'Resume');
     const settingsBtn = this.createButton(0, 44, 'Settings');
     resumeBtn.on('pointerup', () => this.onResumeRequested());
-    settingsBtn.on('pointerup', () => this.showSettings());
+    settingsBtn.on('pointerup', () => this.onSettingsRequested());
     this.pauseMenuContainer.add([resumeBtn]);
     this.pauseMenuContainer.add([settingsBtn]);
 
@@ -123,7 +129,7 @@ export class SettingsOverlay {
     });
 
     const closeBtn = this.createButton(0, 104, 'Back');
-    closeBtn.on('pointerup', () => this.showPauseMenu());
+    closeBtn.on('pointerup', () => this.onBackFromSettingsRequested());
 
     this.settingsContainer.add([
       this.musicSlider.label,
