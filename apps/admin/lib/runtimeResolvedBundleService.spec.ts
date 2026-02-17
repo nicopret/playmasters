@@ -80,6 +80,94 @@ function makePublishedBundle(
 }
 
 describe('resolveRuntimeBundleResponse caching', () => {
+  it('returns safe missing pointer error when pointer is absent', async () => {
+    const result = await resolveRuntimeBundleResponse({
+      gameId: 'space-blaster',
+      env: 'dev',
+      getPointer: jest.fn().mockResolvedValue(null),
+      getPublishedBundle: jest.fn(),
+      cache: createRuntimeResolvedBundleCache({
+        maxEntries: 10,
+        ttlMs: 100_000,
+        now: () => 1_000,
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('MISSING_POINTER');
+    expect(result.error.status).toBe(404);
+    expect(result.error.details).toEqual({
+      gameId: 'space-blaster',
+      env: 'dev',
+    });
+  });
+
+  it('returns safe missing bundle error when pointer target is absent', async () => {
+    const result = await resolveRuntimeBundleResponse({
+      gameId: 'space-blaster',
+      env: 'dev',
+      getPointer: jest.fn().mockResolvedValue({
+        env: 'dev',
+        currentVersionId: 'v-missing',
+      }),
+      getPublishedBundle: jest.fn().mockResolvedValue(null),
+      cache: createRuntimeResolvedBundleCache({
+        maxEntries: 10,
+        ttlMs: 100_000,
+        now: () => 1_000,
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('MISSING_PUBLISHED_BUNDLE');
+    expect(result.error.status).toBe(404);
+    expect(result.error.details).toEqual({
+      gameId: 'space-blaster',
+      env: 'dev',
+      versionId: 'v-missing',
+    });
+  });
+
+  it('returns a self-contained resolved contract with versionHash and embedded references', async () => {
+    const cache = createRuntimeResolvedBundleCache({
+      maxEntries: 10,
+      ttlMs: 100_000,
+      now: () => 1_000,
+    });
+    const result = await resolveRuntimeBundleResponse({
+      gameId: 'space-blaster',
+      env: 'dev',
+      getPointer: jest.fn().mockResolvedValue({
+        env: 'dev',
+        currentVersionId: 'vA',
+      }),
+      getPublishedBundle: jest
+        .fn()
+        .mockResolvedValue(makePublishedBundle('vA', 10)),
+      cache,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.response.bundle.versionHash).toBe('vA-ver');
+    expect(result.response.bundle.configHash).toBe('vA-cfg');
+    expect(result.response.bundle.gameConfig).toBeDefined();
+    expect(result.response.bundle.heroCatalog).toBeDefined();
+    expect(result.response.bundle.enemyCatalog).toBeDefined();
+    expect(result.response.bundle.ammoCatalog).toBeDefined();
+    expect(result.response.bundle.scoreConfig).toBeDefined();
+    expect(result.response.bundle.formationLayouts).toBeDefined();
+
+    const resolvedLevel = result.response.bundle.levelConfigs[0] as {
+      formationLayout?: { layoutId: string };
+      waves?: Array<{ enemy?: { enemyId: string } }>;
+    };
+    expect(resolvedLevel.formationLayout?.layoutId).toBe('layout-a');
+    expect(resolvedLevel.waves?.[0]?.enemy?.enemyId).toBe('enemy-grunt');
+  });
+
   it('caches resolved bundle for same pointer version', async () => {
     const cache = createRuntimeResolvedBundleCache({
       maxEntries: 10,

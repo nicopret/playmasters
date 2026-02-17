@@ -9,10 +9,15 @@ export interface ResolvedLevelWaveV1 {
   enemyId: string;
   count?: number;
   spawnDelayMs?: number;
+  /**
+   * Embedded enemy object resolved server-side for runtime self-containment.
+   */
+  enemy?: EnemyCatalogEntryV1;
 }
 
 export interface ResolvedLevelConfigV1 {
   layoutId: string;
+  heroId?: string;
   boss?: boolean;
   dive?: number;
   attackTickMs?: number;
@@ -53,6 +58,19 @@ export interface ResolvedLevelConfigV1 {
   shooting?: number;
   speed?: number;
   waves?: ResolvedLevelWaveV1[];
+  /**
+   * Embedded formation layout resolved server-side.
+   */
+  formationLayout?: FormationLayoutEntryV1;
+  /**
+   * Embedded enemy entries resolved from enemyTypes ids.
+   */
+  enemyTypesResolved?: EnemyCatalogEntryV1[];
+  /**
+   * Embedded hero and ammo entries resolved from heroId/defaultAmmoId.
+   */
+  hero?: HeroCatalogEntryV1;
+  heroAmmo?: AmmoCatalogEntryV1;
 }
 
 export interface HeroCatalogEntryV1 {
