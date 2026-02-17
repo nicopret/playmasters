@@ -147,14 +147,17 @@ export async function POST(req: Request) {
             : existing.combo?.windowDecayPerLevelMs,
       },
       waveClearBonus: {
-        base:
-          typeof body.waveClearBonus?.base === 'number'
-            ? body.waveClearBonus.base
-            : existing.waveClearBonus?.base,
-        perLifeBonus:
-          typeof body.waveClearBonus?.perLifeBonus === 'number'
-            ? body.waveClearBonus.perLifeBonus
-            : existing.waveClearBonus?.perLifeBonus,
+        base: Math.max(
+          0,
+          readFinite(body.waveClearBonus?.base, existing.waveClearBonus?.base),
+        ),
+        perLifeBonus: Math.max(
+          0,
+          readFinite(
+            body.waveClearBonus?.perLifeBonus,
+            existing.waveClearBonus?.perLifeBonus,
+          ),
+        ),
       },
       accuracyBonus: {
         scaleByLevelMultiplier:

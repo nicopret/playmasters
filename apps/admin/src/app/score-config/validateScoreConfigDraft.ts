@@ -23,6 +23,10 @@ export type ScoreConfigDraft = {
       name?: string;
     }[];
   };
+  waveClearBonus?: {
+    base: number;
+    perLifeBonus: number;
+  };
 };
 
 export function validateScoreConfigDraft(
@@ -202,6 +206,31 @@ export function validateScoreConfigDraft(
         domain: 'ScoreConfig',
         path: `combo.tiers[${i}].minCount`,
         message: 'minCount must be strictly increasing.',
+      });
+    }
+  }
+
+  const waveClearBonus = draft.waveClearBonus;
+  if (waveClearBonus) {
+    if (!Number.isFinite(waveClearBonus.base) || waveClearBonus.base < 0) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'waveClearBonus.base',
+        message: 'Must be >= 0.',
+      });
+    }
+    if (
+      !Number.isFinite(waveClearBonus.perLifeBonus) ||
+      waveClearBonus.perLifeBonus < 0
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'waveClearBonus.perLifeBonus',
+        message: 'Must be >= 0.',
       });
     }
   }

@@ -144,6 +144,7 @@ describe('validateScoreConfigDraft (combo tiers)', () => {
   const baseDraft = {
     baseEnemyScores: [{ enemyId: 'enemy-grunt', score: 100 }],
     levelScoreMultiplier: { base: 1, perLevel: 0.1, max: 2 },
+    waveClearBonus: { base: 10, perLifeBonus: 2 },
   };
 
   it('fails when minCount values are unsorted', () => {
@@ -247,5 +248,80 @@ describe('validateScoreConfigDraft (combo tiers)', () => {
     );
 
     expect(issues.some((i) => i.path.startsWith('combo.tiers['))).toBe(false);
+  });
+});
+
+describe('validateScoreConfigDraft (wave bonus)', () => {
+  const catalogs = {
+    enemies: [{ enemyId: 'enemy-grunt', displayName: 'Grunt' }],
+  };
+
+  const baseDraft = {
+    baseEnemyScores: [{ enemyId: 'enemy-grunt', score: 100 }],
+    levelScoreMultiplier: { base: 1, perLevel: 0.1, max: 2 },
+    combo: { tiers: [] },
+  };
+
+  it('fails when waveClearBonus.base is negative', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        waveClearBonus: { base: -1, perLifeBonus: 0 },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'waveClearBonus.base' && i.message === 'Must be >= 0.',
+      ),
+    ).toBe(true);
+  });
+
+  it('fails when waveClearBonus.perLifeBonus is negative', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        waveClearBonus: { base: 10, perLifeBonus: -2 },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'waveClearBonus.perLifeBonus' &&
+          i.message === 'Must be >= 0.',
+      ),
+    ).toBe(true);
+  });
+
+  it('passes when perLifeBonus is disabled via value 0', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        waveClearBonus: { base: 10, perLifeBonus: 0 },
+      },
+      catalogs,
+    );
+
+    expect(issues.some((i) => i.path.startsWith('waveClearBonus.'))).toBe(
+      false,
+    );
+  });
+
+  it('passes with valid positive wave bonus values', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        waveClearBonus: { base: 15, perLifeBonus: 3 },
+      },
+      catalogs,
+    );
+
+    expect(issues.some((i) => i.path.startsWith('waveClearBonus.'))).toBe(
+      false,
+    );
   });
 });

@@ -36,7 +36,7 @@ type ScoreConfig = {
   };
   waveClearBonus?: {
     base: number;
-    perLifeBonus?: number;
+    perLifeBonus: number;
   };
   accuracyBonus?: {
     scaleByLevelMultiplier?: boolean;
@@ -53,6 +53,10 @@ const DEFAULT_LEVEL_SCORE_MULTIPLIER = {
   perLevel: 0,
   max: 1,
 };
+const DEFAULT_WAVE_CLEAR_BONUS = {
+  base: 0,
+  perLifeBonus: 0,
+};
 const DEFAULT_COMBO_CONFIG = {
   enabled: false,
   tiers: [] as ComboTier[],
@@ -62,6 +66,7 @@ const DEFAULT_SCORE_CONFIG: ScoreConfig = {
   scoreConfigId: 'default',
   baseEnemyScores: [],
   levelScoreMultiplier: DEFAULT_LEVEL_SCORE_MULTIPLIER,
+  waveClearBonus: DEFAULT_WAVE_CLEAR_BONUS,
   combo: DEFAULT_COMBO_CONFIG,
 };
 
@@ -87,6 +92,7 @@ export default function ScoreConfigPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [wavePerLifeEnabled, setWavePerLifeEnabled] = useState(false);
 
   const createComboRowId = (): string => {
     comboRowIdRef.current += 1;
@@ -97,6 +103,7 @@ export default function ScoreConfigPage() {
     ...next,
     levelScoreMultiplier:
       next.levelScoreMultiplier ?? DEFAULT_LEVEL_SCORE_MULTIPLIER,
+    waveClearBonus: next.waveClearBonus ?? DEFAULT_WAVE_CLEAR_BONUS,
     combo: {
       ...(next.combo ?? DEFAULT_COMBO_CONFIG),
       tiers: (next.combo?.tiers ?? []).map((tier, idx) => ({
@@ -124,7 +131,13 @@ export default function ScoreConfigPage() {
         const enemyJson = await enemyRes.json();
         if (cancelled) return;
 
-        setConfig(withEditorDefaults(cfgJson.config ?? DEFAULT_SCORE_CONFIG));
+        const nextConfig = withEditorDefaults(
+          cfgJson.config ?? DEFAULT_SCORE_CONFIG,
+        );
+        setConfig(nextConfig);
+        setWavePerLifeEnabled(
+          (nextConfig.waveClearBonus?.perLifeBonus ?? 0) > 0,
+        );
         setEnemies(Array.isArray(enemyJson.enemies) ? enemyJson.enemies : []);
       } catch (err: unknown) {
         if (!cancelled) {
@@ -170,6 +183,7 @@ export default function ScoreConfigPage() {
         {
           baseEnemyScores: config.baseEnemyScores ?? [],
           levelScoreMultiplier: config.levelScoreMultiplier,
+          waveClearBonus: config.waveClearBonus,
           combo: config.combo,
         },
         { enemies },
@@ -178,6 +192,7 @@ export default function ScoreConfigPage() {
       config.baseEnemyScores,
       config.combo,
       config.levelScoreMultiplier,
+      config.waveClearBonus,
       enemies,
     ],
   );
@@ -253,6 +268,29 @@ export default function ScoreConfigPage() {
         [field]: value.trim() === '' ? Number.NaN : Number(value),
       },
     }));
+  };
+
+  const setWaveBonusField = (field: 'base' | 'perLifeBonus', value: string) => {
+    setConfig((current) => ({
+      ...current,
+      waveClearBonus: {
+        ...(current.waveClearBonus ?? DEFAULT_WAVE_CLEAR_BONUS),
+        [field]: value.trim() === '' ? Number.NaN : Number(value),
+      },
+    }));
+  };
+
+  const toggleWavePerLife = (enabled: boolean) => {
+    setWavePerLifeEnabled(enabled);
+    if (!enabled) {
+      setConfig((current) => ({
+        ...current,
+        waveClearBonus: {
+          ...(current.waveClearBonus ?? DEFAULT_WAVE_CLEAR_BONUS),
+          perLifeBonus: 0,
+        },
+      }));
+    }
   };
 
   const updateComboTierField = (
@@ -399,7 +437,11 @@ export default function ScoreConfigPage() {
       }
 
       const payload = await res.json();
-      setConfig(withEditorDefaults(payload.config ?? DEFAULT_SCORE_CONFIG));
+      const nextConfig = withEditorDefaults(
+        payload.config ?? DEFAULT_SCORE_CONFIG,
+      );
+      setConfig(nextConfig);
+      setWavePerLifeEnabled((nextConfig.waveClearBonus?.perLifeBonus ?? 0) > 0);
       setSavedAt(new Date().toLocaleTimeString());
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -681,6 +723,81 @@ export default function ScoreConfigPage() {
           {comboTiers.length === 0 && (
             <div className={styles.helper}>No tiers configured.</div>
           )}
+        </div>
+      </section>
+
+      <section className={styles.card}>
+        <h2>Wave Bonus</h2>
+        <div className={styles.helper}>
+          Disabled per-life bonus is stored as{' '}
+          <code>waveClearBonus.perLifeBonus = 0</code>. Runtime applies:
+          round(base * levelMultiplier) + round(perLifeBonus * livesRemaining *
+          levelMultiplier).
+        </div>
+        <div className={styles.formGrid}>
+          <label className={styles.field}>
+            <span>Base</span>
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              step={1}
+              value={
+                Number.isFinite(config.waveClearBonus?.base)
+                  ? config.waveClearBonus?.base
+                  : ''
+              }
+              onChange={(event) =>
+                setWaveBonusField('base', event.target.value)
+              }
+            />
+            {getIssueForPath('waveClearBonus.base') && (
+              <div className={styles.errorInline}>
+                {getIssueForPath('waveClearBonus.base')?.message}
+              </div>
+            )}
+          </label>
+
+          <label className={styles.field}>
+            <span>Per-life bonus enabled</span>
+            <input
+              type="checkbox"
+              checked={wavePerLifeEnabled}
+              onChange={(event) => toggleWavePerLife(event.target.checked)}
+            />
+          </label>
+
+          <label className={styles.field}>
+            <span>Per-life bonus</span>
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              step={1}
+              disabled={!wavePerLifeEnabled}
+              value={
+                Number.isFinite(config.waveClearBonus?.perLifeBonus)
+                  ? config.waveClearBonus?.perLifeBonus
+                  : ''
+              }
+              onChange={(event) =>
+                setWaveBonusField('perLifeBonus', event.target.value)
+              }
+            />
+            {wavePerLifeEnabled &&
+              getIssueForPath('waveClearBonus.perLifeBonus') && (
+                <div className={styles.errorInline}>
+                  {getIssueForPath('waveClearBonus.perLifeBonus')?.message}
+                </div>
+              )}
+          </label>
+        </div>
+        <div className={styles.helper}>
+          Example (livesRemaining=3, levelMultiplier=1):{' '}
+          {(
+            Number(config.waveClearBonus?.base ?? 0) +
+            Number(config.waveClearBonus?.perLifeBonus ?? 0) * 3
+          ).toFixed(0)}
         </div>
       </section>
 
