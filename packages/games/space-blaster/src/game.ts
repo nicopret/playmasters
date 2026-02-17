@@ -128,7 +128,6 @@ class SpaceBlasterScene extends Phaser.Scene {
   private maxLevelReached = 1;
   private maxWaveReached = 1;
   private finalSummary: FinalScoreSummary | null = null;
-  private overlayRestartPending = false;
 
   private statusText!: Phaser.GameObjects.Text;
   private resultsText!: Phaser.GameObjects.Text;
@@ -357,7 +356,6 @@ class SpaceBlasterScene extends Phaser.Scene {
       onSettingsRequested: () => this.overlayCoordinator.requestOpenSettings(),
       onBackFromSettingsRequested: () =>
         this.overlayCoordinator.requestCloseSettings(),
-      onRestartRequested: () => this.overlayCoordinator.requestRestart(),
     });
     this.settingsOverlay.create();
     this.overlayCoordinator = new OverlayCoordinator({
@@ -744,7 +742,6 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.maxWaveReached = 1;
     this.finalSummary = null;
     this.submitting = false;
-    this.overlayRestartPending = false;
     this.hudSystem.clearTransientBanners();
     this.vfxSystem.resetAll();
     this.lifeSystem.reset();
@@ -944,8 +941,8 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private onEnterRunState(state: RunState, from: RunState) {
-    this.overlayCoordinator.syncFromRunState(state);
     this.dispatchRunStateEvent(state);
+    this.overlayCoordinator.syncFromRunState(state);
     this.levelSystem.onEnterRunState(state, from);
     switch (state) {
       case RunState.READY:
@@ -1015,10 +1012,6 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.playAgainBtn.setVisible(true);
         this.syncSubmissionStatusText();
         this.onGameOver?.(this.score);
-        if (this.overlayRestartPending) {
-          this.overlayRestartPending = false;
-          this.handleOverlayRestartRequested();
-        }
         break;
       case RunState.ERROR:
         this.statusText.setText('Runtime error');
@@ -1034,18 +1027,21 @@ class SpaceBlasterScene extends Phaser.Scene {
 
   private handleOverlayRestartRequested(): void {
     if (this.submitting) return;
-    if (this.runStateMachine.state === RunState.PLAYING) {
-      this.overlayRestartPending = true;
-      this.runStateMachine.requestEndRun('overlay_restart_requested');
-      return;
-    }
-    if (this.runStateMachine.state !== RunState.RESULTS) {
-      return;
-    }
     this.resetEntities();
     this.playAgainBtn.setVisible(false);
     this.startRequested = false;
     this.runStateMachine.requestStart();
+  }
+
+  private dispatchRunStateEvent(state: RunState): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent(RUN_STATE_EVENT, {
+        detail: { gameId: GAME_ID, state },
+      }),
+    );
   }
 
   private onOverlayStateChanged(state: OverlayState): void {
@@ -1064,15 +1060,6 @@ class SpaceBlasterScene extends Phaser.Scene {
         break;
     }
     this.syncOverlayBlockingGameplay();
-  private dispatchRunStateEvent(state: RunState): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.dispatchEvent(
-      new CustomEvent(RUN_STATE_EVENT, {
-        detail: { gameId: GAME_ID, state },
-      }),
-    );
   }
 
   destroyResources() {

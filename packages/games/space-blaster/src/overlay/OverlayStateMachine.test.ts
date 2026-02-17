@@ -15,13 +15,6 @@ describe('OverlayStateMachine', () => {
     expect(machine.getState()).toBe(OverlayState.SETTINGS);
     expect(machine.getBlocksGameplay()).toBe(true);
 
-    expect(machine.dispatch('RESTART_REQUESTED')).toEqual({
-      restartRequested: true,
-    });
-    expect(machine.getState()).toBe(OverlayState.NONE);
-
-    machine.dispatch('OPEN_PAUSE');
-    machine.dispatch('OPEN_SETTINGS');
     machine.dispatch('CLOSE_SETTINGS');
     expect(machine.getState()).toBe(OverlayState.PAUSED);
 
