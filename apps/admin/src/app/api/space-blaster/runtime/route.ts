@@ -8,6 +8,7 @@ import {
   getBundleVersion,
 } from '../../../../../lib/bundleStore';
 import { resolveRuntimeBundle } from '../../../../../lib/runtimeBundleResolver';
+import { resolveSpaceBlasterBundle } from '../../../../../lib/resolveSpaceBlasterBundle';
 
 export const runtime = 'nodejs';
 
@@ -77,7 +78,7 @@ export async function GET(req: Request) {
     );
   }
   const bundle = resolved.bundle;
-  const resolvedBundle = toResolvedBundle(
+  const unresolvedBundle = toResolvedBundle(
     bundle.bundle,
     {
       configHash: bundle.configHash,
@@ -86,6 +87,29 @@ export async function GET(req: Request) {
     },
     env,
   );
+  const bundleResolution = resolveSpaceBlasterBundle(unresolvedBundle);
+  if (!bundleResolution.ok) {
+    console.warn('[space-blaster-runtime] bundle expansion failed', {
+      code: bundleResolution.error.code,
+      gameId,
+      env,
+      id: bundleResolution.error.details.id,
+      fieldPath: bundleResolution.error.details.fieldPath,
+      domain: bundleResolution.error.details.domain,
+    });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: {
+          code: bundleResolution.error.code,
+          message: bundleResolution.error.message,
+          details: bundleResolution.error.details,
+        },
+      },
+      { status: 422 },
+    );
+  }
+  const resolvedBundle = bundleResolution.resolved;
   console.info('[space-blaster-runtime] resolved bundle', {
     gameId,
     env,
