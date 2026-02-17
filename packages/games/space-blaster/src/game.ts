@@ -74,6 +74,7 @@ const WAVE_CLEAR_MS = 750;
 const LEVEL_COMPLETE_MS = 900;
 const RUN_ENDING_DELAY_MS = 900;
 const SUBMITTING_TIMEOUT_MS = 7000;
+const RUN_STATE_EVENT = 'playmasters:space-blaster-run-state';
 const IS_DEV_RUNTIME = (() => {
   const globalWithProcess = globalThis as {
     process?: { env?: { NODE_ENV?: string } };
@@ -935,6 +936,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   }
 
   private onEnterRunState(state: RunState, from: RunState) {
+    this.dispatchRunStateEvent(state);
     this.levelSystem.onEnterRunState(state, from);
     if (state !== RunState.PLAYING) {
       this.settingsOverlay.hideAll();
@@ -1023,6 +1025,17 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.playAgainBtn.setVisible(false);
     this.startRequested = false;
     this.runStateMachine.requestStart();
+  }
+
+  private dispatchRunStateEvent(state: RunState): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent(RUN_STATE_EVENT, {
+        detail: { gameId: GAME_ID, state },
+      }),
+    );
   }
 
   destroyResources() {

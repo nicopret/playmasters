@@ -65,3 +65,10 @@ If references are missing, resolver fails safely with structured errors:
 - Publish/rollback affects new runs only.
 - Active runs continue using captured hashes and config.
 - Incoming config updates are staged as `pendingResolvedConfig` and apply only to the next run.
+
+## Update While Open
+
+- Host-side `GameHost` polls the runtime resolver for Space Blaster (`/api/space-blaster/runtime?env=dev`).
+- If a new `configHash` is detected, it stages that bundle for the next run and shows a non-blocking message: "New update available. It will apply next run."
+- Active runs are not swapped mid-run.
+- When the run reaches a non-active state (for example `RESULTS`), the host remounts with the staged bundle so restart/new run uses the latest published config.
