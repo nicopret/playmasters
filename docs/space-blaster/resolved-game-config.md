@@ -72,3 +72,8 @@ If references are missing, resolver fails safely with structured errors:
 - If a new `configHash` is detected, it stages that bundle for the next run and shows a non-blocking message: "New update available. It will apply next run."
 - Active runs are not swapped mid-run.
 - When the run reaches a non-active state (for example `RESULTS`), the host remounts with the staged bundle so restart/new run uses the latest published config.
+
+## Verification
+
+- Manual plan: `docs/space-blaster/testing/freeze-semantics-test-plan.md`
+- Automated test: `packages/games/space-blaster/src/run/__tests__/freezeSemantics.integration.test.ts`
