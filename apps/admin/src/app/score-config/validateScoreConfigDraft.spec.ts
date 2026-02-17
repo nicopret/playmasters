@@ -135,3 +135,117 @@ describe('validateScoreConfigDraft (level multiplier)', () => {
     ).toBe(true);
   });
 });
+
+describe('validateScoreConfigDraft (combo tiers)', () => {
+  const catalogs = {
+    enemies: [{ enemyId: 'enemy-grunt', displayName: 'Grunt' }],
+  };
+
+  const baseDraft = {
+    baseEnemyScores: [{ enemyId: 'enemy-grunt', score: 100 }],
+    levelScoreMultiplier: { base: 1, perLevel: 0.1, max: 2 },
+  };
+
+  it('fails when minCount values are unsorted', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        combo: {
+          tiers: [
+            { minCount: 5, multiplier: 1.2, tierBonus: 10, name: 't1' },
+            { minCount: 3, multiplier: 1.5, tierBonus: 20, name: 't2' },
+          ],
+        },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'combo.tiers[1].minCount' &&
+          i.message === 'minCount must be strictly increasing.',
+      ),
+    ).toBe(true);
+  });
+
+  it('fails when minCount contains duplicates', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        combo: {
+          tiers: [
+            { minCount: 3, multiplier: 1.2, tierBonus: 10, name: 't1' },
+            { minCount: 3, multiplier: 1.5, tierBonus: 20, name: 't2' },
+          ],
+        },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'combo.tiers[1].minCount' &&
+          i.message === 'Duplicate minCount: 3.',
+      ),
+    ).toBe(true);
+  });
+
+  it('fails when multiplier is below 1', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        combo: {
+          tiers: [{ minCount: 3, multiplier: 0.9, tierBonus: 10, name: 't1' }],
+        },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'combo.tiers[0].multiplier' &&
+          i.message === 'Multiplier must be >= 1.',
+      ),
+    ).toBe(true);
+  });
+
+  it('fails when tierBonus is negative', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        combo: {
+          tiers: [{ minCount: 3, multiplier: 1.1, tierBonus: -1, name: 't1' }],
+        },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'combo.tiers[0].tierBonus' &&
+          i.message === 'Tier bonus must be >= 0.',
+      ),
+    ).toBe(true);
+  });
+
+  it('passes with ascending unique minCount values and valid ranges', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        combo: {
+          tiers: [
+            { minCount: 1, multiplier: 1.0, tierBonus: 0, name: 'base' },
+            { minCount: 3, multiplier: 1.25, tierBonus: 25, name: 'tier-1' },
+          ],
+        },
+      },
+      catalogs,
+    );
+
+    expect(issues.some((i) => i.path.startsWith('combo.tiers['))).toBe(false);
+  });
+});

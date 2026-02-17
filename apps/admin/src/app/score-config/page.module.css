@@ -127,6 +127,31 @@
   border-top: 1px solid #e2e8f0;
 }
 
+.comboHeader {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 120px 140px 140px minmax(220px, 1fr);
+  gap: 12px;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.comboRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 120px 140px 140px minmax(220px, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 8px 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.comboActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .rowMeta {
   margin-top: 2px;
   color: #64748b;
@@ -209,5 +234,10 @@
   .exampleList {
     flex-direction: column;
     gap: 6px;
+  }
+
+  .comboHeader,
+  .comboRow {
+    grid-template-columns: 1fr;
   }
 }

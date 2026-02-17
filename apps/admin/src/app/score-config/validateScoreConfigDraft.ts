@@ -15,6 +15,14 @@ export type ScoreConfigDraft = {
     perLevel: number;
     max: number;
   };
+  combo?: {
+    tiers: {
+      minCount: number;
+      multiplier: number;
+      tierBonus?: number;
+      name?: string;
+    }[];
+  };
 };
 
 export function validateScoreConfigDraft(
@@ -127,6 +135,73 @@ export function validateScoreConfigDraft(
         domain: 'ScoreConfig',
         path: 'levelScoreMultiplier.max',
         message: 'Max multiplier must be >= base multiplier.',
+      });
+    }
+  }
+
+  const tiers = Array.isArray(draft.combo?.tiers) ? draft.combo?.tiers : [];
+  const seenMinCount = new Set<number>();
+  tiers.forEach((tier, idx) => {
+    if (!Number.isFinite(tier.minCount) || tier.minCount < 1) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `combo.tiers[${idx}].minCount`,
+        message: 'minCount must be >= 1.',
+      });
+    }
+    if (Number.isFinite(tier.minCount) && seenMinCount.has(tier.minCount)) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `combo.tiers[${idx}].minCount`,
+        message: `Duplicate minCount: ${tier.minCount}.`,
+      });
+    }
+    if (Number.isFinite(tier.minCount)) {
+      seenMinCount.add(tier.minCount);
+    }
+
+    if (!Number.isFinite(tier.multiplier) || tier.multiplier < 1) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `combo.tiers[${idx}].multiplier`,
+        message: 'Multiplier must be >= 1.',
+      });
+    }
+
+    if (
+      typeof tier.tierBonus !== 'undefined' &&
+      (!Number.isFinite(tier.tierBonus) || tier.tierBonus < 0)
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `combo.tiers[${idx}].tierBonus`,
+        message: 'Tier bonus must be >= 0.',
+      });
+    }
+  });
+
+  for (let i = 1; i < tiers.length; i += 1) {
+    const prev = tiers[i - 1];
+    const curr = tiers[i];
+    if (
+      Number.isFinite(prev.minCount) &&
+      Number.isFinite(curr.minCount) &&
+      curr.minCount <= prev.minCount
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `combo.tiers[${i}].minCount`,
+        message: 'minCount must be strictly increasing.',
       });
     }
   }

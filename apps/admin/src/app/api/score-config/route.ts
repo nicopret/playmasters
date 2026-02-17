@@ -119,11 +119,14 @@ export async function POST(req: Request) {
             ? body.combo.enabled
             : existing.combo?.enabled,
         tiers: Array.isArray(body.combo?.tiers)
-          ? body.combo?.tiers.map((t) => ({
-              minCount: typeof t.minCount === 'number' ? t.minCount : 1,
-              multiplier: typeof t.multiplier === 'number' ? t.multiplier : 1,
-              tierBonus: typeof t.tierBonus === 'number' ? t.tierBonus : 0,
-              name: t.name,
+          ? body.combo?.tiers.map((t, idx) => ({
+              minCount: Math.max(1, Math.floor(readFinite(t.minCount, 1))),
+              multiplier: readFinite(t.multiplier, 1),
+              tierBonus: readFinite(t.tierBonus, 0),
+              name:
+                typeof t.name === 'string' && t.name.trim().length > 0
+                  ? t.name
+                  : `tier-${idx + 1}`,
             }))
           : existing.combo?.tiers,
         minWindowMs:

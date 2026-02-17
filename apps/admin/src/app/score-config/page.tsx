@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './page.module.css';
 import {
   type ValidationIssue,
@@ -10,6 +10,13 @@ import {
 type Enemy = { enemyId: string; displayName?: string };
 
 type BaseEnemyScore = { enemyId: string; score: number };
+type ComboTier = {
+  minCount: number;
+  multiplier: number;
+  tierBonus?: number;
+  name?: string;
+  uiId?: string;
+};
 
 type ScoreConfig = {
   scoreConfigId: string;
@@ -21,12 +28,7 @@ type ScoreConfig = {
   };
   combo?: {
     enabled: boolean;
-    tiers: {
-      minCount: number;
-      multiplier: number;
-      tierBonus?: number;
-      name?: string;
-    }[];
+    tiers: ComboTier[];
     minWindowMs?: number;
     windowMs?: number;
     resetOnPlayerHit?: boolean;
@@ -51,11 +53,16 @@ const DEFAULT_LEVEL_SCORE_MULTIPLIER = {
   perLevel: 0,
   max: 1,
 };
+const DEFAULT_COMBO_CONFIG = {
+  enabled: false,
+  tiers: [] as ComboTier[],
+};
 
 const DEFAULT_SCORE_CONFIG: ScoreConfig = {
   scoreConfigId: 'default',
   baseEnemyScores: [],
   levelScoreMultiplier: DEFAULT_LEVEL_SCORE_MULTIPLIER,
+  combo: DEFAULT_COMBO_CONFIG,
 };
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -72,19 +79,33 @@ const computeLevelMultiplierPreview = (params: {
   return clamp(raw, 0, params.max);
 };
 
-const normalizeScoreConfig = (config: ScoreConfig): ScoreConfig => ({
-  ...config,
-  levelScoreMultiplier:
-    config.levelScoreMultiplier ?? DEFAULT_LEVEL_SCORE_MULTIPLIER,
-});
-
 export default function ScoreConfigPage() {
+  const comboRowIdRef = useRef(0);
   const [config, setConfig] = useState<ScoreConfig>(DEFAULT_SCORE_CONFIG);
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  const createComboRowId = (): string => {
+    comboRowIdRef.current += 1;
+    return `combo-tier-${comboRowIdRef.current}`;
+  };
+
+  const withEditorDefaults = (next: ScoreConfig): ScoreConfig => ({
+    ...next,
+    levelScoreMultiplier:
+      next.levelScoreMultiplier ?? DEFAULT_LEVEL_SCORE_MULTIPLIER,
+    combo: {
+      ...(next.combo ?? DEFAULT_COMBO_CONFIG),
+      tiers: (next.combo?.tiers ?? []).map((tier, idx) => ({
+        ...tier,
+        name: tier.name ?? `tier-${idx + 1}`,
+        uiId: tier.uiId ?? createComboRowId(),
+      })),
+    },
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -103,7 +124,7 @@ export default function ScoreConfigPage() {
         const enemyJson = await enemyRes.json();
         if (cancelled) return;
 
-        setConfig(normalizeScoreConfig(cfgJson.config ?? DEFAULT_SCORE_CONFIG));
+        setConfig(withEditorDefaults(cfgJson.config ?? DEFAULT_SCORE_CONFIG));
         setEnemies(Array.isArray(enemyJson.enemies) ? enemyJson.enemies : []);
       } catch (err: unknown) {
         if (!cancelled) {
@@ -149,10 +170,16 @@ export default function ScoreConfigPage() {
         {
           baseEnemyScores: config.baseEnemyScores ?? [],
           levelScoreMultiplier: config.levelScoreMultiplier,
+          combo: config.combo,
         },
         { enemies },
       ),
-    [config.baseEnemyScores, config.levelScoreMultiplier, enemies],
+    [
+      config.baseEnemyScores,
+      config.combo,
+      config.levelScoreMultiplier,
+      enemies,
+    ],
   );
 
   const hasBlocking = issues.some((issue) => issue.severity === 'error');
@@ -166,6 +193,17 @@ export default function ScoreConfigPage() {
 
   const getIssueForPath = (path: string): ValidationIssue | undefined =>
     issues.find((issue) => issue.path === path);
+
+  const comboTiers = config.combo?.tiers ?? [];
+  const comboTierIssues = issues.filter((issue) =>
+    issue.path.startsWith('combo.tiers['),
+  );
+
+  const getIssueForTierPath = (
+    tierIndex: number,
+    field: 'minCount' | 'multiplier' | 'tierBonus',
+  ): ValidationIssue | undefined =>
+    getIssueForPath(`combo.tiers[${tierIndex}].${field}`);
 
   const setEnemyScore = (enemyId: string, value: string) => {
     setConfig((current) => {
@@ -215,6 +253,81 @@ export default function ScoreConfigPage() {
         [field]: value.trim() === '' ? Number.NaN : Number(value),
       },
     }));
+  };
+
+  const updateComboTierField = (
+    tierUiId: string,
+    field: 'minCount' | 'multiplier' | 'tierBonus',
+    value: string,
+  ) => {
+    setConfig((current) => ({
+      ...current,
+      combo: {
+        ...(current.combo ?? DEFAULT_COMBO_CONFIG),
+        tiers: (current.combo?.tiers ?? []).map((tier) => {
+          if (tier.uiId !== tierUiId) return tier;
+          return {
+            ...tier,
+            [field]: value.trim() === '' ? Number.NaN : Number(value),
+          };
+        }),
+      },
+    }));
+  };
+
+  const addComboTier = () => {
+    setConfig((current) => {
+      const tiers = [...(current.combo?.tiers ?? [])];
+      const lastMinCount =
+        tiers.length > 0 && Number.isFinite(tiers[tiers.length - 1].minCount)
+          ? tiers[tiers.length - 1].minCount
+          : 0;
+      tiers.push({
+        uiId: createComboRowId(),
+        name: `tier-${tiers.length + 1}`,
+        minCount: Math.max(1, Math.floor(lastMinCount) + 1),
+        multiplier: 1,
+        tierBonus: 0,
+      });
+      return {
+        ...current,
+        combo: {
+          ...(current.combo ?? DEFAULT_COMBO_CONFIG),
+          tiers,
+        },
+      };
+    });
+  };
+
+  const removeComboTier = (tierUiId: string) => {
+    setConfig((current) => ({
+      ...current,
+      combo: {
+        ...(current.combo ?? DEFAULT_COMBO_CONFIG),
+        tiers: (current.combo?.tiers ?? []).filter(
+          (tier) => tier.uiId !== tierUiId,
+        ),
+      },
+    }));
+  };
+
+  const moveComboTier = (tierUiId: string, direction: 'up' | 'down') => {
+    setConfig((current) => {
+      const tiers = [...(current.combo?.tiers ?? [])];
+      const from = tiers.findIndex((tier) => tier.uiId === tierUiId);
+      if (from < 0) return current;
+      const to = direction === 'up' ? from - 1 : from + 1;
+      if (to < 0 || to >= tiers.length) return current;
+      const [moved] = tiers.splice(from, 1);
+      tiers.splice(to, 0, moved);
+      return {
+        ...current,
+        combo: {
+          ...(current.combo ?? DEFAULT_COMBO_CONFIG),
+          tiers,
+        },
+      };
+    });
   };
 
   const multiplierPreviews = useMemo(() => {
@@ -269,6 +382,15 @@ export default function ScoreConfigPage() {
             config.baseEnemyScores ?? [],
             enemies,
           ),
+          combo: config.combo
+            ? {
+                ...config.combo,
+                tiers: (config.combo.tiers ?? []).map(({ uiId, ...tier }) => {
+                  void uiId;
+                  return tier;
+                }),
+              }
+            : undefined,
         }),
       });
       if (!res.ok) {
@@ -277,7 +399,7 @@ export default function ScoreConfigPage() {
       }
 
       const payload = await res.json();
-      setConfig(payload.config ?? DEFAULT_SCORE_CONFIG);
+      setConfig(withEditorDefaults(payload.config ?? DEFAULT_SCORE_CONFIG));
       setSavedAt(new Date().toLocaleTimeString());
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -424,6 +546,142 @@ export default function ScoreConfigPage() {
             </div>
           </div>
         )}
+      </section>
+
+      <section className={styles.card}>
+        <div className={styles.sectionHeader}>
+          <h2>Combo Tiers</h2>
+          <button
+            className={styles.secondaryBtn}
+            type="button"
+            onClick={addComboTier}
+            disabled={loading || saving}
+          >
+            Add tier
+          </button>
+        </div>
+        <div className={styles.helper}>
+          Tiers must be strictly increasing by minCount, unique, multiplier must
+          be &gt;= 1, and tier bonus must be &gt;= 0.
+        </div>
+        {comboTierIssues.length > 0 && (
+          <div className={styles.error}>
+            Combo tier errors: {comboTierIssues.length}
+          </div>
+        )}
+        <div className={styles.table}>
+          <div className={styles.comboHeader}>
+            <span>Name</span>
+            <span>minCount</span>
+            <span>Multiplier</span>
+            <span>Tier Bonus</span>
+            <span>Actions</span>
+          </div>
+          {comboTiers.map((tier, idx) => (
+            <div
+              key={tier.uiId ?? tier.name ?? `combo-${idx}`}
+              className={styles.comboRow}
+            >
+              <span>
+                <strong>{tier.name ?? `tier-${idx + 1}`}</strong>
+              </span>
+              <div>
+                <input
+                  className={styles.input}
+                  type="number"
+                  step={1}
+                  min={1}
+                  value={Number.isFinite(tier.minCount) ? tier.minCount : ''}
+                  onChange={(event) =>
+                    updateComboTierField(
+                      tier.uiId ?? '',
+                      'minCount',
+                      event.target.value,
+                    )
+                  }
+                />
+                {getIssueForTierPath(idx, 'minCount') && (
+                  <div className={styles.errorInline}>
+                    {getIssueForTierPath(idx, 'minCount')?.message}
+                  </div>
+                )}
+              </div>
+              <div>
+                <input
+                  className={styles.input}
+                  type="number"
+                  step={0.01}
+                  min={1}
+                  value={
+                    Number.isFinite(tier.multiplier) ? tier.multiplier : ''
+                  }
+                  onChange={(event) =>
+                    updateComboTierField(
+                      tier.uiId ?? '',
+                      'multiplier',
+                      event.target.value,
+                    )
+                  }
+                />
+                {getIssueForTierPath(idx, 'multiplier') && (
+                  <div className={styles.errorInline}>
+                    {getIssueForTierPath(idx, 'multiplier')?.message}
+                  </div>
+                )}
+              </div>
+              <div>
+                <input
+                  className={styles.input}
+                  type="number"
+                  step={1}
+                  min={0}
+                  value={Number.isFinite(tier.tierBonus) ? tier.tierBonus : ''}
+                  onChange={(event) =>
+                    updateComboTierField(
+                      tier.uiId ?? '',
+                      'tierBonus',
+                      event.target.value,
+                    )
+                  }
+                />
+                {getIssueForTierPath(idx, 'tierBonus') && (
+                  <div className={styles.errorInline}>
+                    {getIssueForTierPath(idx, 'tierBonus')?.message}
+                  </div>
+                )}
+              </div>
+              <div className={styles.comboActions}>
+                <button
+                  className={styles.secondaryBtn}
+                  type="button"
+                  onClick={() => moveComboTier(tier.uiId ?? '', 'up')}
+                  disabled={idx === 0 || saving}
+                >
+                  Up
+                </button>
+                <button
+                  className={styles.secondaryBtn}
+                  type="button"
+                  onClick={() => moveComboTier(tier.uiId ?? '', 'down')}
+                  disabled={idx === comboTiers.length - 1 || saving}
+                >
+                  Down
+                </button>
+                <button
+                  className={styles.secondaryBtn}
+                  type="button"
+                  onClick={() => removeComboTier(tier.uiId ?? '')}
+                  disabled={saving}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+          {comboTiers.length === 0 && (
+            <div className={styles.helper}>No tiers configured.</div>
+          )}
+        </div>
       </section>
 
       <section className={styles.card}>
