@@ -4,6 +4,7 @@ import {
   getScoreConfigDraft,
   saveScoreConfigDraft,
   BaseEnemyScore,
+  type ScoreConfigDraft,
 } from '../../../lib/scoreConfig';
 
 export const runtime = 'nodejs';
@@ -79,6 +80,16 @@ export async function POST(req: Request) {
     : [];
 
   try {
+    const existing: ScoreConfigDraft = (await getScoreConfigDraft()) ?? {
+      scoreConfigId: 'default',
+      baseEnemyScores: [],
+      levelScoreMultiplier: { base: 1, perLevel: 0, max: 1 },
+      combo: { enabled: false, tiers: [] },
+      waveClearBonus: { base: 0, perLifeBonus: 0 },
+      accuracyBonus: { scaleByLevelMultiplier: false, thresholds: [] },
+      updatedAt: '',
+    };
+
     const saved = await saveScoreConfigDraft({
       baseEnemyScores: scores.map((s) => ({
         enemyId: s.enemyId?.trim?.() ?? '',
@@ -88,18 +99,21 @@ export async function POST(req: Request) {
         base:
           typeof body.levelScoreMultiplier?.base === 'number'
             ? body.levelScoreMultiplier.base
-            : undefined,
+            : existing.levelScoreMultiplier?.base,
         perLevel:
           typeof body.levelScoreMultiplier?.perLevel === 'number'
             ? body.levelScoreMultiplier.perLevel
-            : undefined,
+            : existing.levelScoreMultiplier?.perLevel,
         max:
           typeof body.levelScoreMultiplier?.max === 'number'
             ? body.levelScoreMultiplier.max
-            : undefined,
+            : existing.levelScoreMultiplier?.max,
       },
       combo: {
-        enabled: !!body.combo?.enabled,
+        enabled:
+          typeof body.combo?.enabled === 'boolean'
+            ? body.combo.enabled
+            : existing.combo?.enabled,
         tiers: Array.isArray(body.combo?.tiers)
           ? body.combo?.tiers.map((t) => ({
               minCount: typeof t.minCount === 'number' ? t.minCount : 1,
@@ -107,46 +121,46 @@ export async function POST(req: Request) {
               tierBonus: typeof t.tierBonus === 'number' ? t.tierBonus : 0,
               name: t.name,
             }))
-          : [],
+          : existing.combo?.tiers,
         minWindowMs:
           typeof body.combo?.minWindowMs === 'number'
             ? body.combo?.minWindowMs
-            : undefined,
+            : existing.combo?.minWindowMs,
         windowMs:
           typeof body.combo?.windowMs === 'number'
             ? body.combo?.windowMs
-            : undefined,
+            : existing.combo?.windowMs,
         resetOnPlayerHit:
           typeof body.combo?.resetOnPlayerHit === 'boolean'
             ? body.combo?.resetOnPlayerHit
-            : undefined,
+            : existing.combo?.resetOnPlayerHit,
         windowDecayPerLevelMs:
           typeof body.combo?.windowDecayPerLevelMs === 'number'
             ? body.combo?.windowDecayPerLevelMs
-            : undefined,
+            : existing.combo?.windowDecayPerLevelMs,
       },
       waveClearBonus: {
         base:
           typeof body.waveClearBonus?.base === 'number'
             ? body.waveClearBonus.base
-            : undefined,
+            : existing.waveClearBonus?.base,
         perLifeBonus:
           typeof body.waveClearBonus?.perLifeBonus === 'number'
             ? body.waveClearBonus.perLifeBonus
-            : undefined,
+            : existing.waveClearBonus?.perLifeBonus,
       },
       accuracyBonus: {
         scaleByLevelMultiplier:
           typeof body.accuracyBonus?.scaleByLevelMultiplier === 'boolean'
             ? body.accuracyBonus.scaleByLevelMultiplier
-            : undefined,
+            : existing.accuracyBonus?.scaleByLevelMultiplier,
         thresholds: Array.isArray(body.accuracyBonus?.thresholds)
           ? body.accuracyBonus.thresholds.map((t) => ({
               minAccuracy:
                 typeof t.minAccuracy === 'number' ? t.minAccuracy : 0,
               bonus: typeof t.bonus === 'number' ? t.bonus : 0,
             }))
-          : [],
+          : existing.accuracyBonus?.thresholds,
       },
     });
     return NextResponse.json({ config: saved });

@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import styles from '../page.module.css';
-import { validateScoreConfigDraft } from './validateScoreConfigDraft';
+import styles from './page.module.css';
+import {
+  type ValidationIssue,
+  validateScoreConfigDraft,
+} from './validateScoreConfigDraft';
+
 type Enemy = { enemyId: string; displayName?: string };
 
 type BaseEnemyScore = { enemyId: string; score: number };
+
 type ScoreConfig = {
   scoreConfigId: string;
   baseEnemyScores: BaseEnemyScore[];
@@ -22,6 +27,10 @@ type ScoreConfig = {
       tierBonus?: number;
       name?: string;
     }[];
+    minWindowMs?: number;
+    windowMs?: number;
+    resetOnPlayerHit?: boolean;
+    windowDecayPerLevelMs?: number;
   };
   waveClearBonus?: {
     base: number;
@@ -37,21 +46,13 @@ type ScoreConfig = {
   updatedAt?: string;
 };
 
-type ValidationIssue = {
-  path?: string;
-  message: string;
-  severity: 'error' | 'warning';
+const DEFAULT_SCORE_CONFIG: ScoreConfig = {
+  scoreConfigId: 'default',
+  baseEnemyScores: [],
 };
 
 export default function ScoreConfigPage() {
-  const [config, setConfig] = useState<ScoreConfig>({
-    scoreConfigId: 'default',
-    baseEnemyScores: [],
-    levelScoreMultiplier: { base: 1, perLevel: 0, max: 1 },
-    combo: { enabled: true, tiers: [] },
-    waveClearBonus: { base: 0, perLifeBonus: 0 },
-    accuracyBonus: { scaleByLevelMultiplier: false, thresholds: [] },
-  });
+  const [config, setConfig] = useState<ScoreConfig>(DEFAULT_SCORE_CONFIG);
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -60,6 +61,7 @@ export default function ScoreConfigPage() {
 
   useEffect(() => {
     let cancelled = false;
+
     async function load() {
       try {
         setLoading(true);
@@ -69,251 +71,125 @@ export default function ScoreConfigPage() {
         ]);
         if (!cfgRes.ok) throw new Error('Failed to load score config');
         if (!enemyRes.ok) throw new Error('Failed to load enemies');
+
         const cfgJson = await cfgRes.json();
         const enemyJson = await enemyRes.json();
-        if (!cancelled) {
-          const loaded = cfgJson.config ?? {
-            scoreConfigId: 'default',
-            baseEnemyScores: [],
-          };
-          setConfig({
-            scoreConfigId: loaded.scoreConfigId ?? 'default',
-            baseEnemyScores: loaded.baseEnemyScores ?? [],
-            levelScoreMultiplier: loaded.levelScoreMultiplier ?? {
-              base: 1,
-              perLevel: 0,
-              max: 1,
-            },
-            combo: loaded.combo ?? { enabled: true, tiers: [] },
-            waveClearBonus: loaded.waveClearBonus ?? {
-              base: 0,
-              perLifeBonus: 0,
-            },
-            accuracyBonus: loaded.accuracyBonus ?? {
-              scaleByLevelMultiplier: false,
-              thresholds: [],
-            },
-            updatedAt: loaded.updatedAt,
-          });
-          setEnemies(enemyJson.enemies ?? []);
-        }
+        if (cancelled) return;
+
+        setConfig(cfgJson.config ?? DEFAULT_SCORE_CONFIG);
+        setEnemies(Array.isArray(enemyJson.enemies) ? enemyJson.enemies : []);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Load failed';
-        if (!cancelled) setError(msg);
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Load failed');
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
-    load();
+
+    void load();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const scoreMap = useMemo(() => {
+  const scoreByEnemyId = useMemo(() => {
     const map = new Map<string, number>();
     (config.baseEnemyScores ?? []).forEach((row) => {
-      if (row.enemyId) map.set(row.enemyId, row.score ?? 0);
+      map.set(row.enemyId, row.score);
     });
     return map;
   }, [config.baseEnemyScores]);
 
-  const issues: ValidationIssue[] = useMemo(
-    () =>
-      validateScoreConfigDraft(
-        {
-          baseEnemyScores: config.baseEnemyScores,
-          levelScoreMultiplier: config.levelScoreMultiplier,
-          combo: { tiers: config.combo?.tiers ?? [] },
-          waveClearBonus: config.waveClearBonus,
-          accuracyBonus: config.accuracyBonus,
-        },
-        { enemies },
-      ),
-    [config, enemies],
+  const publishedEnemyIds = useMemo(
+    () => new Set(enemies.map((enemy) => enemy.enemyId)),
+    [enemies],
   );
 
-  const hasBlocking = issues.some((i) => i.severity === 'error');
+  const unknownBaseScoreRows = useMemo(
+    () =>
+      (config.baseEnemyScores ?? []).filter(
+        (row) => !publishedEnemyIds.has(row.enemyId),
+      ),
+    [config.baseEnemyScores, publishedEnemyIds],
+  );
 
-  const updateScore = (enemyId: string, value: number) => {
-    setConfig((c) => {
-      const rows = [...(c.baseEnemyScores ?? [])];
-      const idx = rows.findIndex((r) => r.enemyId === enemyId);
-      if (idx >= 0) {
-        rows[idx] = { enemyId, score: value };
+  const issues = useMemo(
+    () =>
+      validateScoreConfigDraft(
+        { baseEnemyScores: config.baseEnemyScores ?? [] },
+        { enemies },
+      ),
+    [config.baseEnemyScores, enemies],
+  );
+
+  const hasBlocking = issues.some((issue) => issue.severity === 'error');
+
+  const getIssueForEnemy = (enemyId: string): ValidationIssue | undefined =>
+    issues.find(
+      (issue) =>
+        issue.path === `baseEnemyScores[${enemyId}]` ||
+        issue.path === `baseEnemyScores[${enemyId}].score`,
+    );
+
+  const setEnemyScore = (enemyId: string, value: string) => {
+    setConfig((current) => {
+      const rows = [...(current.baseEnemyScores ?? [])];
+      const rowIdx = rows.findIndex((row) => row.enemyId === enemyId);
+
+      if (value.trim() === '') {
+        if (rowIdx >= 0) {
+          rows.splice(rowIdx, 1);
+        }
+        return { ...current, baseEnemyScores: rows };
+      }
+
+      const nextScore = Number(value);
+      if (rowIdx >= 0) {
+        rows[rowIdx] = { enemyId, score: nextScore };
       } else {
-        rows.push({ enemyId, score: value });
+        rows.push({ enemyId, score: nextScore });
       }
-      return { ...c, baseEnemyScores: rows };
+      return { ...current, baseEnemyScores: rows };
     });
   };
 
-  const updateMultiplier = (
-    key: 'base' | 'perLevel' | 'max',
-    value: number,
-  ) => {
-    setConfig((c) => ({
-      ...c,
-      levelScoreMultiplier: {
-        base: c.levelScoreMultiplier?.base ?? 1,
-        perLevel: c.levelScoreMultiplier?.perLevel ?? 0,
-        max: c.levelScoreMultiplier?.max ?? 1,
-        [key]: value,
-      },
-    }));
-  };
+  const addMissingEnemyRows = () => {
+    setConfig((current) => {
+      const rows = [...(current.baseEnemyScores ?? [])];
+      const existing = new Set(rows.map((row) => row.enemyId));
 
-  const addTier = () => {
-    setConfig((c) => {
-      const tiers = [...(c.combo?.tiers ?? [])];
-      const last = tiers[tiers.length - 1];
-      const nextMin = last ? last.minCount + 1 : 1;
-      tiers.push({
-        minCount: nextMin,
-        multiplier: 1,
-        tierBonus: 0,
-        name: `Tier ${tiers.length + 1}`,
+      enemies.forEach((enemy) => {
+        if (!existing.has(enemy.enemyId)) {
+          rows.push({ enemyId: enemy.enemyId, score: 0 });
+        }
       });
-      return {
-        ...c,
-        combo: { enabled: c.combo?.enabled ?? true, tiers },
-      };
+
+      return { ...current, baseEnemyScores: rows };
     });
   };
 
-  const updateTier = (
-    idx: number,
-    key: 'minCount' | 'multiplier' | 'tierBonus' | 'name',
-    value: number | string,
-  ) => {
-    setConfig((c) => {
-      const tiers = [...(c.combo?.tiers ?? [])];
-      const t = { ...tiers[idx] };
-      if (key === 'name') {
-        t.name = String(value);
-      } else if (key === 'tierBonus') {
-        t.tierBonus = Number(value);
-      } else if (key === 'minCount') {
-        t.minCount = Number(value);
-      } else if (key === 'multiplier') {
-        t.multiplier = Number(value);
-      }
-      tiers[idx] = t;
-      return { ...c, combo: { enabled: c.combo?.enabled ?? true, tiers } };
+  const sortBaseEnemyScores = (
+    rows: BaseEnemyScore[],
+    catalogOrder: Enemy[],
+  ): BaseEnemyScore[] => {
+    const indexById = new Map(
+      catalogOrder.map((enemy, idx) => [enemy.enemyId, idx]),
+    );
+    return [...rows].sort((a, b) => {
+      const aIdx = indexById.get(a.enemyId);
+      const bIdx = indexById.get(b.enemyId);
+      if (typeof aIdx === 'number' && typeof bIdx === 'number')
+        return aIdx - bIdx;
+      if (typeof aIdx === 'number') return -1;
+      if (typeof bIdx === 'number') return 1;
+      return a.enemyId.localeCompare(b.enemyId);
     });
   };
 
-  const removeTier = (idx: number) => {
-    setConfig((c) => {
-      const tiers = [...(c.combo?.tiers ?? [])];
-      tiers.splice(idx, 1);
-      return { ...c, combo: { enabled: c.combo?.enabled ?? true, tiers } };
-    });
-  };
-
-  const moveTier = (idx: number, delta: number) => {
-    setConfig((c) => {
-      const tiers = [...(c.combo?.tiers ?? [])];
-      const target = idx + delta;
-      if (target < 0 || target >= tiers.length) return c;
-      [tiers[idx], tiers[target]] = [tiers[target], tiers[idx]];
-      return { ...c, combo: { enabled: c.combo?.enabled ?? true, tiers } };
-    });
-  };
-
-  const exampleMultiplier = (level: number) => {
-    const mult = config.levelScoreMultiplier ?? {
-      base: 1,
-      perLevel: 0,
-      max: 1,
-    };
-    const raw = mult.base + (level - 1) * mult.perLevel;
-    return Math.min(raw, mult.max);
-  };
-
-  const updateWaveBonus = (key: 'base' | 'perLifeBonus', value: number) => {
-    setConfig((c) => ({
-      ...c,
-      waveClearBonus: {
-        base: c.waveClearBonus?.base ?? 0,
-        perLifeBonus: c.waveClearBonus?.perLifeBonus ?? 0,
-        [key]: value,
-      },
-    }));
-  };
-
-  const addAccuracy = () => {
-    setConfig((c) => ({
-      ...c,
-      accuracyBonus: {
-        scaleByLevelMultiplier:
-          c.accuracyBonus?.scaleByLevelMultiplier ?? false,
-        thresholds: [
-          ...(c.accuracyBonus?.thresholds ?? []),
-          { minAccuracy: 0.5, bonus: 0 },
-        ],
-      },
-    }));
-  };
-
-  const updateAccuracy = (
-    idx: number,
-    key: 'minAccuracy' | 'bonus',
-    value: number,
-  ) => {
-    setConfig((c) => {
-      const thresholds = [...(c.accuracyBonus?.thresholds ?? [])];
-      const t = { ...thresholds[idx] };
-      if (key === 'minAccuracy') t.minAccuracy = value;
-      if (key === 'bonus') t.bonus = value;
-      thresholds[idx] = t;
-      return {
-        ...c,
-        accuracyBonus: {
-          scaleByLevelMultiplier:
-            c.accuracyBonus?.scaleByLevelMultiplier ?? false,
-          thresholds,
-        },
-      };
-    });
-  };
-
-  const removeAccuracy = (idx: number) => {
-    setConfig((c) => {
-      const thresholds = [...(c.accuracyBonus?.thresholds ?? [])];
-      thresholds.splice(idx, 1);
-      return {
-        ...c,
-        accuracyBonus: {
-          scaleByLevelMultiplier:
-            c.accuracyBonus?.scaleByLevelMultiplier ?? false,
-          thresholds,
-        },
-      };
-    });
-  };
-
-  const moveAccuracy = (idx: number, delta: number) => {
-    setConfig((c) => {
-      const thresholds = [...(c.accuracyBonus?.thresholds ?? [])];
-      const target = idx + delta;
-      if (target < 0 || target >= thresholds.length) return c;
-      [thresholds[idx], thresholds[target]] = [
-        thresholds[target],
-        thresholds[idx],
-      ];
-      return {
-        ...c,
-        accuracyBonus: {
-          scaleByLevelMultiplier:
-            c.accuracyBonus?.scaleByLevelMultiplier ?? false,
-          thresholds,
-        },
-      };
-    });
-  };
-
-  async function onSave() {
+  async function onSaveDraft() {
     setError(null);
     setSaving(true);
     try {
@@ -321,394 +197,147 @@ export default function ScoreConfigPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          baseEnemyScores: config.baseEnemyScores,
-          levelScoreMultiplier: config.levelScoreMultiplier,
-          combo: config.combo,
-          waveClearBonus: config.waveClearBonus,
-          accuracyBonus: config.accuracyBonus,
+          ...config,
+          baseEnemyScores: sortBaseEnemyScores(
+            config.baseEnemyScores ?? [],
+            enemies,
+          ),
         }),
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j.error || 'Save failed');
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload.error || 'Save failed');
       }
-      const j = await res.json();
-      setConfig(j.config);
+
+      const payload = await res.json();
+      setConfig(payload.config ?? DEFAULT_SCORE_CONFIG);
       setSavedAt(new Date().toLocaleTimeString());
     } catch (err: unknown) {
-      setError((err as Error).message ?? 'Save failed');
+      setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <main className={styles.main}>
-      <div className={styles.pageHeader}>
+    <div className={styles.page}>
+      <header className={styles.header}>
         <div>
-          <h1>ScoreConfig</h1>
-          <p className={styles.meta}>Base enemy scores</p>
+          <h1>Score Config</h1>
+          <div className={styles.meta}>Base enemy score editor</div>
         </div>
         <button
           className={styles.saveBtn}
-          onClick={onSave}
-          disabled={saving || loading || hasBlocking}
+          type="button"
+          onClick={() => {
+            void onSaveDraft();
+          }}
+          disabled={saving || loading}
         >
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? 'Saving...' : 'Save Draft'}
         </button>
-      </div>
+      </header>
 
       {error && <div className={styles.error}>Error: {error}</div>}
       {savedAt && <div className={styles.success}>Saved at {savedAt}</div>}
 
       <section className={styles.card}>
-        <h2>Publish readiness</h2>
+        <h2>Publish Readiness</h2>
         {issues.length === 0 ? (
           <div className={styles.success}>Ready to publish</div>
         ) : (
-          <div>
+          <>
             <div className={styles.error}>
-              ScoreConfig has {issues.length} error(s).
+              Not ready:{' '}
+              {issues.filter((issue) => issue.severity === 'error').length}{' '}
+              blocking issue(s)
             </div>
             <ul className={styles.issueList}>
-              {issues.map((i, idx) => (
-                <li key={idx}>
-                  <strong>{i.path ?? ''}</strong> {i.message}
+              {issues.map((issue, idx) => (
+                <li key={`${issue.path}-${idx}`}>
+                  <strong>{issue.path}</strong>: {issue.message}
                 </li>
               ))}
             </ul>
+          </>
+        )}
+        {hasBlocking && (
+          <div className={styles.helper}>
+            Publish is blocked until blocking issues are resolved.
           </div>
         )}
       </section>
 
       <section className={styles.card}>
-        <h2>Level Multipliers</h2>
-        <div className={styles.fieldRow}>
-          <label>Base</label>
-          <input
-            className={styles.input}
-            type="number"
-            min={1}
-            step={0.1}
-            value={config.levelScoreMultiplier?.base ?? 1}
-            onChange={(e) => updateMultiplier('base', Number(e.target.value))}
-          />
-          {issues.find((i) => i.path === 'levelScoreMultiplier.base') && (
-            <div className={styles.error}>
-              {
-                issues.find((i) => i.path === 'levelScoreMultiplier.base')
-                  ?.message
-              }
-            </div>
-          )}
-        </div>
-        <div className={styles.fieldRow}>
-          <label>Per Level</label>
-          <input
-            className={styles.input}
-            type="number"
-            min={0}
-            step={0.05}
-            value={config.levelScoreMultiplier?.perLevel ?? 0}
-            onChange={(e) =>
-              updateMultiplier('perLevel', Number(e.target.value))
-            }
-          />
-          {issues.find((i) => i.path === 'levelScoreMultiplier.perLevel') && (
-            <div className={styles.error}>
-              {
-                issues.find((i) => i.path === 'levelScoreMultiplier.perLevel')
-                  ?.message
-              }
-            </div>
-          )}
-        </div>
-        <div className={styles.fieldRow}>
-          <label>Max</label>
-          <input
-            className={styles.input}
-            type="number"
-            min={1}
-            step={0.1}
-            value={config.levelScoreMultiplier?.max ?? 1}
-            onChange={(e) => updateMultiplier('max', Number(e.target.value))}
-          />
-          {issues.find((i) => i.path === 'levelScoreMultiplier.max') && (
-            <div className={styles.error}>
-              {
-                issues.find((i) => i.path === 'levelScoreMultiplier.max')
-                  ?.message
-              }
-            </div>
-          )}
-        </div>
-        <div className={styles.preview}>
-          <p>Examples (capped):</p>
-          <ul>
-            <li>Level 1: {exampleMultiplier(1).toFixed(2)}</li>
-            <li>Level 5: {exampleMultiplier(5).toFixed(2)}</li>
-            <li>Level 10: {exampleMultiplier(10).toFixed(2)}</li>
-          </ul>
-        </div>
-      </section>
-
-      <section className={styles.card}>
-        <h2>Combo Tiers</h2>
-        <div className={styles.tableHeader}>
-          <span>Tier</span>
-          <span>minCount</span>
-          <span>Multiplier</span>
-          <span>Tier Bonus</span>
-          <span />
-        </div>
-        {(config.combo?.tiers ?? []).map((t, idx) => {
-          const minIssue = issues.find(
-            (i) => i.path === `combo.tiers.${idx}.minCount`,
-          );
-          const mulIssue = issues.find(
-            (i) => i.path === `combo.tiers.${idx}.multiplier`,
-          );
-          const bonusIssue = issues.find(
-            (i) => i.path === `combo.tiers.${idx}.tierBonus`,
-          );
-          return (
-            <div key={idx} className={styles.tableRow}>
-              <span>{t.name ?? `Tier ${idx + 1}`}</span>
-              <div>
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={t.minCount}
-                  onChange={(e) =>
-                    updateTier(idx, 'minCount', Number(e.target.value))
-                  }
-                />
-                {minIssue && (
-                  <div className={styles.error}>{minIssue.message}</div>
-                )}
-              </div>
-              <div>
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={1}
-                  step={0.1}
-                  value={t.multiplier}
-                  onChange={(e) =>
-                    updateTier(idx, 'multiplier', Number(e.target.value))
-                  }
-                />
-                {mulIssue && (
-                  <div className={styles.error}>{mulIssue.message}</div>
-                )}
-              </div>
-              <div>
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  step={0.1}
-                  value={t.tierBonus ?? 0}
-                  onChange={(e) =>
-                    updateTier(idx, 'tierBonus', Number(e.target.value))
-                  }
-                />
-                {bonusIssue && (
-                  <div className={styles.error}>{bonusIssue.message}</div>
-                )}
-              </div>
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  onClick={() => moveTier(idx, -1)}
-                  disabled={idx === 0}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveTier(idx, 1)}
-                  disabled={idx === (config.combo?.tiers?.length ?? 0) - 1}
-                >
-                  ↓
-                </button>
-                <button type="button" onClick={() => removeTier(idx)}>
-                  Remove
-                </button>
-              </div>
-            </div>
-          );
-        })}
-        <div style={{ marginTop: '12px' }}>
-          <button type="button" onClick={addTier}>
-            Add tier
+        <div className={styles.sectionHeader}>
+          <h2>Base Enemy Scores</h2>
+          <button
+            className={styles.secondaryBtn}
+            type="button"
+            onClick={addMissingEnemyRows}
+            disabled={loading || saving || enemies.length === 0}
+          >
+            Add missing enemy rows
           </button>
         </div>
-      </section>
+        <div className={styles.helper}>
+          Enemy list is sourced from published EnemyCatalog. Missing scores are
+          blocking.
+        </div>
 
-      <section className={styles.card}>
-        <h2>Wave Bonus</h2>
-        <div className={styles.fieldRow}>
-          <label>Base wave bonus</label>
-          <input
-            className={styles.input}
-            type="number"
-            min={0}
-            step={1}
-            value={config.waveClearBonus?.base ?? 0}
-            onChange={(e) => updateWaveBonus('base', Number(e.target.value))}
-          />
-          {issues.find((i) => i.path === 'waveClearBonus.base') && (
-            <div className={styles.error}>
-              {issues.find((i) => i.path === 'waveClearBonus.base')?.message}
-            </div>
-          )}
-        </div>
-        <div className={styles.fieldRow}>
-          <label>Per-life bonus (optional)</label>
-          <input
-            className={styles.input}
-            type="number"
-            min={0}
-            step={1}
-            value={config.waveClearBonus?.perLifeBonus ?? 0}
-            onChange={(e) =>
-              updateWaveBonus('perLifeBonus', Number(e.target.value))
-            }
-          />
-          {issues.find((i) => i.path === 'waveClearBonus.perLifeBonus') && (
-            <div className={styles.error}>
-              {
-                issues.find((i) => i.path === 'waveClearBonus.perLifeBonus')
-                  ?.message
-              }
-            </div>
-          )}
-          <p className={styles.helper}>
-            Leave at 0 if you don’t want per-life bonuses.
-          </p>
-        </div>
-      </section>
-
-      <section className={styles.card}>
-        <h2>Accuracy Bonuses</h2>
-        <p className={styles.helper}>
-          Rule: highest threshold met applies. Example: thresholds 0.50 (+100),
-          0.75 (+250), 0.90 (+500); accuracy 0.82 → +250. Thresholds are stored
-          as 0..1.
-        </p>
-        <div className={styles.tableHeader}>
-          <span>Threshold (0..1)</span>
-          <span>Bonus</span>
-          <span />
-        </div>
-        {(config.accuracyBonus?.thresholds ?? []).map((t, idx) => {
-          const thrIssue = issues.find(
-            (i) => i.path === `accuracyBonus.thresholds.${idx}.minAccuracy`,
-          );
-          const bonusIssue = issues.find(
-            (i) => i.path === `accuracyBonus.thresholds.${idx}.bonus`,
-          );
-          return (
-            <div key={idx} className={styles.tableRow}>
-              <div>
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={t.minAccuracy}
-                  onChange={(e) =>
-                    updateAccuracy(idx, 'minAccuracy', Number(e.target.value))
-                  }
-                />
-                {thrIssue && (
-                  <div className={styles.error}>{thrIssue.message}</div>
-                )}
-              </div>
-              <div>
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={t.bonus}
-                  onChange={(e) =>
-                    updateAccuracy(idx, 'bonus', Number(e.target.value))
-                  }
-                />
-                {bonusIssue && (
-                  <div className={styles.error}>{bonusIssue.message}</div>
-                )}
-              </div>
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  onClick={() => moveAccuracy(idx, -1)}
-                  disabled={idx === 0}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveAccuracy(idx, 1)}
-                  disabled={
-                    idx === (config.accuracyBonus?.thresholds?.length ?? 0) - 1
-                  }
-                >
-                  ↓
-                </button>
-                <button type="button" onClick={() => removeAccuracy(idx)}>
-                  Remove
-                </button>
-              </div>
-            </div>
-          );
-        })}
-        <div style={{ marginTop: '12px' }}>
-          <button type="button" onClick={addAccuracy}>
-            Add threshold
-          </button>
-        </div>
-      </section>
-
-      <section className={styles.card}>
-        <h2>Base Enemy Scores</h2>
         {loading ? (
-          <div>Loading…</div>
+          <div>Loading...</div>
         ) : (
           <div className={styles.table}>
             <div className={styles.tableHeader}>
               <span>Enemy</span>
               <span>Score</span>
+              <span>Status</span>
             </div>
-            {enemies.map((e) => {
-              const score = scoreMap.get(e.enemyId) ?? 0;
-              const issue = issues.find(
-                (i) => i.path === `baseEnemyScores.${e.enemyId}`,
-              );
+            {enemies.map((enemy) => {
+              const score = scoreByEnemyId.get(enemy.enemyId);
+              const issue = getIssueForEnemy(enemy.enemyId);
+              const status = issue ? 'Missing/Error' : 'OK';
+
               return (
-                <div key={e.enemyId} className={styles.tableRow}>
-                  <span>{e.displayName ?? e.enemyId}</span>
-                  <input
-                    className={styles.input}
-                    type="number"
-                    min={0}
-                    value={score}
-                    onChange={(ev) =>
-                      updateScore(e.enemyId, Number(ev.target.value))
-                    }
-                  />
-                  {issue && <div className={styles.error}>{issue.message}</div>}
+                <div key={enemy.enemyId} className={styles.tableRow}>
+                  <span>
+                    <strong>{enemy.displayName ?? enemy.enemyId}</strong>
+                    <div className={styles.rowMeta}>{enemy.enemyId}</div>
+                  </span>
+                  <div>
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={typeof score === 'number' ? score : ''}
+                      onChange={(event) =>
+                        setEnemyScore(enemy.enemyId, event.target.value)
+                      }
+                    />
+                    {issue && (
+                      <div className={styles.errorInline}>{issue.message}</div>
+                    )}
+                  </div>
+                  <span
+                    className={issue ? styles.badgeError : styles.badgeSuccess}
+                  >
+                    {status}
+                  </span>
                 </div>
               );
             })}
           </div>
         )}
+
+        {unknownBaseScoreRows.length > 0 && (
+          <div className={styles.warning}>
+            {unknownBaseScoreRows.length} base score row(s) reference enemyIds
+            not in published EnemyCatalog and will block publish until fixed.
+          </div>
+        )}
       </section>
-    </main>
+    </div>
   );
 }
