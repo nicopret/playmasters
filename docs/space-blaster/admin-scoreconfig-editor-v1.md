@@ -214,6 +214,7 @@ Shared page elements:
   - `bonus >= 0`
 - Rule note:
   - Highest threshold met is applied.
+  - Threshold bonuses do not stack; only one threshold bonus is awarded.
   - 0 shots => accuracy 0.
 
 ## Inline Validation and Error Messaging

@@ -10,6 +10,11 @@ import {
 type Enemy = { enemyId: string; displayName?: string };
 
 type BaseEnemyScore = { enemyId: string; score: number };
+type AccuracyThreshold = {
+  minAccuracy: number;
+  bonus: number;
+  uiId?: string;
+};
 type ComboTier = {
   minCount: number;
   multiplier: number;
@@ -40,10 +45,7 @@ type ScoreConfig = {
   };
   accuracyBonus?: {
     scaleByLevelMultiplier?: boolean;
-    thresholds: {
-      minAccuracy: number;
-      bonus: number;
-    }[];
+    thresholds: AccuracyThreshold[];
   };
   updatedAt?: string;
 };
@@ -61,6 +63,10 @@ const DEFAULT_COMBO_CONFIG = {
   enabled: false,
   tiers: [] as ComboTier[],
 };
+const DEFAULT_ACCURACY_BONUS = {
+  scaleByLevelMultiplier: false,
+  thresholds: [] as AccuracyThreshold[],
+};
 
 const DEFAULT_SCORE_CONFIG: ScoreConfig = {
   scoreConfigId: 'default',
@@ -68,6 +74,7 @@ const DEFAULT_SCORE_CONFIG: ScoreConfig = {
   levelScoreMultiplier: DEFAULT_LEVEL_SCORE_MULTIPLIER,
   waveClearBonus: DEFAULT_WAVE_CLEAR_BONUS,
   combo: DEFAULT_COMBO_CONFIG,
+  accuracyBonus: DEFAULT_ACCURACY_BONUS,
 };
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -86,6 +93,7 @@ const computeLevelMultiplierPreview = (params: {
 
 export default function ScoreConfigPage() {
   const comboRowIdRef = useRef(0);
+  const accuracyRowIdRef = useRef(0);
   const [config, setConfig] = useState<ScoreConfig>(DEFAULT_SCORE_CONFIG);
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,11 +107,23 @@ export default function ScoreConfigPage() {
     return `combo-tier-${comboRowIdRef.current}`;
   };
 
+  const createAccuracyRowId = (): string => {
+    accuracyRowIdRef.current += 1;
+    return `accuracy-threshold-${accuracyRowIdRef.current}`;
+  };
+
   const withEditorDefaults = (next: ScoreConfig): ScoreConfig => ({
     ...next,
     levelScoreMultiplier:
       next.levelScoreMultiplier ?? DEFAULT_LEVEL_SCORE_MULTIPLIER,
     waveClearBonus: next.waveClearBonus ?? DEFAULT_WAVE_CLEAR_BONUS,
+    accuracyBonus: {
+      ...(next.accuracyBonus ?? DEFAULT_ACCURACY_BONUS),
+      thresholds: (next.accuracyBonus?.thresholds ?? []).map((threshold) => ({
+        ...threshold,
+        uiId: threshold.uiId ?? createAccuracyRowId(),
+      })),
+    },
     combo: {
       ...(next.combo ?? DEFAULT_COMBO_CONFIG),
       tiers: (next.combo?.tiers ?? []).map((tier, idx) => ({
@@ -185,6 +205,7 @@ export default function ScoreConfigPage() {
           levelScoreMultiplier: config.levelScoreMultiplier,
           waveClearBonus: config.waveClearBonus,
           combo: config.combo,
+          accuracyBonus: config.accuracyBonus,
         },
         { enemies },
       ),
@@ -193,6 +214,7 @@ export default function ScoreConfigPage() {
       config.combo,
       config.levelScoreMultiplier,
       config.waveClearBonus,
+      config.accuracyBonus,
       enemies,
     ],
   );
@@ -213,12 +235,22 @@ export default function ScoreConfigPage() {
   const comboTierIssues = issues.filter((issue) =>
     issue.path.startsWith('combo.tiers['),
   );
+  const accuracyThresholds = config.accuracyBonus?.thresholds ?? [];
+  const accuracyThresholdIssues = issues.filter((issue) =>
+    issue.path.startsWith('accuracyBonus.thresholds['),
+  );
 
   const getIssueForTierPath = (
     tierIndex: number,
     field: 'minCount' | 'multiplier' | 'tierBonus',
   ): ValidationIssue | undefined =>
     getIssueForPath(`combo.tiers[${tierIndex}].${field}`);
+
+  const getIssueForAccuracyPath = (
+    thresholdIndex: number,
+    field: 'minAccuracy' | 'bonus',
+  ): ValidationIssue | undefined =>
+    getIssueForPath(`accuracyBonus.thresholds[${thresholdIndex}].${field}`);
 
   const setEnemyScore = (enemyId: string, value: string) => {
     setConfig((current) => {
@@ -368,6 +400,87 @@ export default function ScoreConfigPage() {
     });
   };
 
+  const updateAccuracyThresholdField = (
+    thresholdUiId: string,
+    field: 'minAccuracy' | 'bonus',
+    value: string,
+  ) => {
+    setConfig((current) => ({
+      ...current,
+      accuracyBonus: {
+        ...(current.accuracyBonus ?? DEFAULT_ACCURACY_BONUS),
+        thresholds: (current.accuracyBonus?.thresholds ?? []).map(
+          (threshold) => {
+            if (threshold.uiId !== thresholdUiId) return threshold;
+            return {
+              ...threshold,
+              [field]: value.trim() === '' ? Number.NaN : Number(value),
+            };
+          },
+        ),
+      },
+    }));
+  };
+
+  const addAccuracyThreshold = () => {
+    setConfig((current) => {
+      const thresholds = [...(current.accuracyBonus?.thresholds ?? [])];
+      const lastMinAccuracy =
+        thresholds.length > 0 &&
+        Number.isFinite(thresholds[thresholds.length - 1].minAccuracy)
+          ? thresholds[thresholds.length - 1].minAccuracy
+          : 0;
+      thresholds.push({
+        uiId: createAccuracyRowId(),
+        minAccuracy: Number(Math.min(lastMinAccuracy + 0.1, 1).toFixed(2)),
+        bonus: 0,
+      });
+      return {
+        ...current,
+        accuracyBonus: {
+          ...(current.accuracyBonus ?? DEFAULT_ACCURACY_BONUS),
+          thresholds,
+        },
+      };
+    });
+  };
+
+  const removeAccuracyThreshold = (thresholdUiId: string) => {
+    setConfig((current) => ({
+      ...current,
+      accuracyBonus: {
+        ...(current.accuracyBonus ?? DEFAULT_ACCURACY_BONUS),
+        thresholds: (current.accuracyBonus?.thresholds ?? []).filter(
+          (threshold) => threshold.uiId !== thresholdUiId,
+        ),
+      },
+    }));
+  };
+
+  const moveAccuracyThreshold = (
+    thresholdUiId: string,
+    direction: 'up' | 'down',
+  ) => {
+    setConfig((current) => {
+      const thresholds = [...(current.accuracyBonus?.thresholds ?? [])];
+      const from = thresholds.findIndex(
+        (threshold) => threshold.uiId === thresholdUiId,
+      );
+      if (from < 0) return current;
+      const to = direction === 'up' ? from - 1 : from + 1;
+      if (to < 0 || to >= thresholds.length) return current;
+      const [moved] = thresholds.splice(from, 1);
+      thresholds.splice(to, 0, moved);
+      return {
+        ...current,
+        accuracyBonus: {
+          ...(current.accuracyBonus ?? DEFAULT_ACCURACY_BONUS),
+          thresholds,
+        },
+      };
+    });
+  };
+
   const multiplierPreviews = useMemo(() => {
     const multiplier =
       config.levelScoreMultiplier ?? DEFAULT_LEVEL_SCORE_MULTIPLIER;
@@ -427,6 +540,17 @@ export default function ScoreConfigPage() {
                   void uiId;
                   return tier;
                 }),
+              }
+            : undefined,
+          accuracyBonus: config.accuracyBonus
+            ? {
+                ...config.accuracyBonus,
+                thresholds: (config.accuracyBonus.thresholds ?? []).map(
+                  ({ uiId, ...threshold }) => {
+                    void uiId;
+                    return threshold;
+                  },
+                ),
               }
             : undefined,
         }),
@@ -798,6 +922,131 @@ export default function ScoreConfigPage() {
             Number(config.waveClearBonus?.base ?? 0) +
             Number(config.waveClearBonus?.perLifeBonus ?? 0) * 3
           ).toFixed(0)}
+        </div>
+      </section>
+
+      <section className={styles.card}>
+        <div className={styles.sectionHeader}>
+          <h2>Accuracy Bonus</h2>
+          <button
+            className={styles.secondaryBtn}
+            type="button"
+            onClick={addAccuracyThreshold}
+            disabled={loading || saving}
+          >
+            Add threshold
+          </button>
+        </div>
+        <div className={styles.helper}>
+          Thresholds use decimal accuracy values from 0 to 1. At run end, the
+          highest threshold met is applied (no stacking).
+        </div>
+        <div className={styles.helper}>
+          Thresholds must be in ascending order; unsorted rows block publish.
+        </div>
+        {accuracyThresholdIssues.length > 0 && (
+          <div className={styles.error}>
+            Accuracy threshold errors: {accuracyThresholdIssues.length}
+          </div>
+        )}
+        <div className={styles.table}>
+          <div className={styles.accuracyHeader}>
+            <span>Threshold (0..1)</span>
+            <span>Bonus</span>
+            <span>Actions</span>
+          </div>
+          {accuracyThresholds.map((threshold, idx) => (
+            <div
+              key={threshold.uiId ?? `accuracy-${idx}`}
+              className={styles.accuracyRow}
+            >
+              <div>
+                <input
+                  className={styles.input}
+                  type="number"
+                  step={0.01}
+                  min={0}
+                  max={1}
+                  value={
+                    Number.isFinite(threshold.minAccuracy)
+                      ? threshold.minAccuracy
+                      : ''
+                  }
+                  onChange={(event) =>
+                    updateAccuracyThresholdField(
+                      threshold.uiId ?? '',
+                      'minAccuracy',
+                      event.target.value,
+                    )
+                  }
+                />
+                {getIssueForAccuracyPath(idx, 'minAccuracy') && (
+                  <div className={styles.errorInline}>
+                    {getIssueForAccuracyPath(idx, 'minAccuracy')?.message}
+                  </div>
+                )}
+              </div>
+              <div>
+                <input
+                  className={styles.input}
+                  type="number"
+                  step={1}
+                  min={0}
+                  value={
+                    Number.isFinite(threshold.bonus) ? threshold.bonus : ''
+                  }
+                  onChange={(event) =>
+                    updateAccuracyThresholdField(
+                      threshold.uiId ?? '',
+                      'bonus',
+                      event.target.value,
+                    )
+                  }
+                />
+                {getIssueForAccuracyPath(idx, 'bonus') && (
+                  <div className={styles.errorInline}>
+                    {getIssueForAccuracyPath(idx, 'bonus')?.message}
+                  </div>
+                )}
+              </div>
+              <div className={styles.comboActions}>
+                <button
+                  className={styles.secondaryBtn}
+                  type="button"
+                  onClick={() =>
+                    moveAccuracyThreshold(threshold.uiId ?? '', 'up')
+                  }
+                  disabled={idx === 0 || saving}
+                >
+                  Up
+                </button>
+                <button
+                  className={styles.secondaryBtn}
+                  type="button"
+                  onClick={() =>
+                    moveAccuracyThreshold(threshold.uiId ?? '', 'down')
+                  }
+                  disabled={idx === accuracyThresholds.length - 1 || saving}
+                >
+                  Down
+                </button>
+                <button
+                  className={styles.secondaryBtn}
+                  type="button"
+                  onClick={() => removeAccuracyThreshold(threshold.uiId ?? '')}
+                  disabled={saving}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+          {accuracyThresholds.length === 0 && (
+            <div className={styles.helper}>
+              No thresholds configured. This is valid and applies no accuracy
+              bonus.
+            </div>
+          )}
         </div>
       </section>
 

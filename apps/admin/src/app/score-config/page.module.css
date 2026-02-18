@@ -152,6 +152,25 @@
   gap: 8px;
 }
 
+.accuracyHeader {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 140px minmax(220px, 1fr);
+  gap: 12px;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.accuracyRow {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 140px minmax(220px, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 8px 0;
+  border-top: 1px solid #e2e8f0;
+}
+
 .rowMeta {
   margin-top: 2px;
   color: #64748b;
@@ -237,7 +256,9 @@
   }
 
   .comboHeader,
-  .comboRow {
+  .comboRow,
+  .accuracyHeader,
+  .accuracyRow {
     grid-template-columns: 1fr;
   }
 }

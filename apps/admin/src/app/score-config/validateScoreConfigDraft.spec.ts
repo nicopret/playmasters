@@ -325,3 +325,126 @@ describe('validateScoreConfigDraft (wave bonus)', () => {
     );
   });
 });
+
+describe('validateScoreConfigDraft (accuracy thresholds)', () => {
+  const catalogs = {
+    enemies: [{ enemyId: 'enemy-grunt', displayName: 'Grunt' }],
+  };
+
+  const baseDraft = {
+    baseEnemyScores: [{ enemyId: 'enemy-grunt', score: 100 }],
+    levelScoreMultiplier: { base: 1, perLevel: 0.1, max: 2 },
+    combo: { tiers: [] },
+    waveClearBonus: { base: 0, perLifeBonus: 0 },
+  };
+
+  it('fails when threshold is below 0', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        accuracyBonus: { thresholds: [{ minAccuracy: -0.1, bonus: 50 }] },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'accuracyBonus.thresholds[0].minAccuracy' &&
+          i.message === 'Threshold must be between 0 and 1.',
+      ),
+    ).toBe(true);
+  });
+
+  it('fails when threshold is above 1', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        accuracyBonus: { thresholds: [{ minAccuracy: 1.2, bonus: 50 }] },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'accuracyBonus.thresholds[0].minAccuracy' &&
+          i.message === 'Threshold must be between 0 and 1.',
+      ),
+    ).toBe(true);
+  });
+
+  it('fails when thresholds are unsorted', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        accuracyBonus: {
+          thresholds: [
+            { minAccuracy: 0.9, bonus: 200 },
+            { minAccuracy: 0.8, bonus: 100 },
+          ],
+        },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'accuracyBonus.thresholds[1].minAccuracy' &&
+          i.message === 'Thresholds must be in ascending order.',
+      ),
+    ).toBe(true);
+  });
+
+  it('fails when bonus is negative', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        accuracyBonus: { thresholds: [{ minAccuracy: 0.8, bonus: -5 }] },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some(
+        (i) =>
+          i.path === 'accuracyBonus.thresholds[0].bonus' &&
+          i.message === 'Bonus must be >= 0.',
+      ),
+    ).toBe(true);
+  });
+
+  it('passes when thresholds are sorted and valid', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        accuracyBonus: {
+          thresholds: [
+            { minAccuracy: 0.5, bonus: 100 },
+            { minAccuracy: 0.8, bonus: 300 },
+          ],
+        },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some((i) => i.path.startsWith('accuracyBonus.thresholds[')),
+    ).toBe(false);
+  });
+
+  it('passes when accuracy thresholds list is empty', () => {
+    const issues = validateScoreConfigDraft(
+      {
+        ...baseDraft,
+        accuracyBonus: { thresholds: [] },
+      },
+      catalogs,
+    );
+
+    expect(
+      issues.some((i) => i.path.startsWith('accuracyBonus.thresholds[')),
+    ).toBe(false);
+  });
+});

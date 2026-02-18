@@ -27,6 +27,12 @@ export type ScoreConfigDraft = {
     base: number;
     perLifeBonus: number;
   };
+  accuracyBonus?: {
+    thresholds: {
+      minAccuracy: number;
+      bonus: number;
+    }[];
+  };
 };
 
 export function validateScoreConfigDraft(
@@ -231,6 +237,67 @@ export function validateScoreConfigDraft(
         domain: 'ScoreConfig',
         path: 'waveClearBonus.perLifeBonus',
         message: 'Must be >= 0.',
+      });
+    }
+  }
+
+  const accuracyThresholds = Array.isArray(draft.accuracyBonus?.thresholds)
+    ? draft.accuracyBonus?.thresholds
+    : [];
+  const seenAccuracy = new Set<number>();
+  accuracyThresholds.forEach((threshold, idx) => {
+    if (
+      !Number.isFinite(threshold.minAccuracy) ||
+      threshold.minAccuracy < 0 ||
+      threshold.minAccuracy > 1
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `accuracyBonus.thresholds[${idx}].minAccuracy`,
+        message: 'Threshold must be between 0 and 1.',
+      });
+    }
+    if (
+      Number.isFinite(threshold.minAccuracy) &&
+      seenAccuracy.has(threshold.minAccuracy)
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `accuracyBonus.thresholds[${idx}].minAccuracy`,
+        message: `Duplicate threshold: ${threshold.minAccuracy}.`,
+      });
+    }
+    if (Number.isFinite(threshold.minAccuracy)) {
+      seenAccuracy.add(threshold.minAccuracy);
+    }
+    if (!Number.isFinite(threshold.bonus) || threshold.bonus < 0) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `accuracyBonus.thresholds[${idx}].bonus`,
+        message: 'Bonus must be >= 0.',
+      });
+    }
+  });
+  for (let i = 1; i < accuracyThresholds.length; i += 1) {
+    const prev = accuracyThresholds[i - 1];
+    const curr = accuracyThresholds[i];
+    if (
+      Number.isFinite(prev.minAccuracy) &&
+      Number.isFinite(curr.minAccuracy) &&
+      curr.minAccuracy <= prev.minAccuracy
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `accuracyBonus.thresholds[${i}].minAccuracy`,
+        message: 'Thresholds must be in ascending order.',
       });
     }
   }

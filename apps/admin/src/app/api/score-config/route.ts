@@ -166,9 +166,8 @@ export async function POST(req: Request) {
             : existing.accuracyBonus?.scaleByLevelMultiplier,
         thresholds: Array.isArray(body.accuracyBonus?.thresholds)
           ? body.accuracyBonus.thresholds.map((t) => ({
-              minAccuracy:
-                typeof t.minAccuracy === 'number' ? t.minAccuracy : 0,
-              bonus: typeof t.bonus === 'number' ? t.bonus : 0,
+              minAccuracy: readFinite(t.minAccuracy, 0),
+              bonus: Math.max(0, readFinite(t.bonus, 0)),
             }))
           : existing.accuracyBonus?.thresholds,
       },
