@@ -1,0 +1,25 @@
+.contentSection {
+  margin-top: 8px;
+}
+
+.gameTitle {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.meta {
+  margin: 0 0 12px;
+  color: #374151;
+}
+
+.link {
+  color: #1d4ed8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.link:hover,
+.link:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}

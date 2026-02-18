@@ -2,7 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
+import dashStyles from '../../../../../components/AdminDashboard/AdminDashboard.module.css';
 import styles from './page.module.css';
 import { validateLevelDraft, ValidationIssue } from './validateLevelDraft';
 
@@ -54,6 +57,13 @@ type LevelConfig = {
   fireTickMs?: number;
   fireChancePerTick?: number;
 };
+
+const navItems = [
+  { label: 'Home', href: '/' },
+  { label: 'Announcements', href: '/announcements' },
+  { label: 'Games', href: '/games' },
+  { label: 'Assets', href: '/assets' },
+];
 
 export default function LevelConfigPage() {
   const { gameId, levelId } = useParams<{ gameId: string; levelId: string }>();
@@ -344,605 +354,662 @@ export default function LevelConfigPage() {
 
   const bgLabel = (bg: BackgroundItem) =>
     `${bg.title} (${bg.width}x${bg.height})`;
+  const gameName = gameId
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <h1>Level Config</h1>
-          <div className={styles.meta}>
-            Game <code>{gameId}</code> · Level <code>{levelId}</code>
-          </div>
+    <div className={dashStyles.shell}>
+      <aside className={dashStyles.sidebar}>
+        <div className={dashStyles.logoWrap}>
+          <Image
+            src="/brand/playmaster_logo.png"
+            alt="Playmasters logo"
+            fill
+            sizes="280px"
+            className={dashStyles.logo}
+            priority
+          />
         </div>
-        <button
-          className={styles.saveBtn}
-          onClick={onSave}
-          disabled={
-            saving ||
-            loading ||
-            !!layoutError ||
-            !!wavesError ||
-            Object.keys(knobErrors).length > 0 ||
-            issues.some((i) => i.severity === 'error')
-          }
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </header>
+        <nav className={dashStyles.menu}>
+          {navItems.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={`${dashStyles.menuItem} ${
+                item.label === 'Games' ? dashStyles.menuActive : ''
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </aside>
 
-      {error && <div className={styles.error}>Error: {error}</div>}
-      {savedAt && <div className={styles.success}>Saved at {savedAt}</div>}
-
-      <section className={styles.card}>
-        <h2>Publish readiness</h2>
-        {issues.length === 0 ? (
-          <div className={styles.success}>Ready to publish</div>
-        ) : (
-          <>
-            <div className={styles.error}>
-              Not ready: {issues.filter((i) => i.severity === 'error').length}{' '}
-              blocking issue(s)
+      <main className={dashStyles.main}>
+        <header className={dashStyles.pageHeader}>
+          <h1>{gameName} Level Editor</h1>
+        </header>
+        <div className={styles.page}>
+          <header className={styles.header}>
+            <div className={styles.meta}>
+              Game <code>{gameId}</code> · Level <code>{levelId}</code>
             </div>
-            <ul className={styles.issueList}>
-              {issues.map((i, idx) => (
-                <li key={idx}>
-                  <strong>{i.path ?? '(general)'}</strong>: {i.message}
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </section>
-
-      <section className={styles.card}>
-        <h2>Difficulty / Fleet Behavior</h2>
-        {knobChanged && (
-          <div className={styles.warning}>
-            Warning: Changing these values affects difficulty and may impact
-            leaderboard comparability. Consider resetting or segmenting
-            leaderboards when publishing.
-          </div>
-        )}
-        <div className={styles.grid2}>
-          <label className={styles.label}>
-            Fleet speed
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={0.1}
-              value={config.fleetSpeed ?? 0}
-              onChange={(e) =>
-                setConfig((c) => ({ ...c, fleetSpeed: Number(e.target.value) }))
-              }
-            />
-            {knobErrors.fleetSpeed && (
-              <div className={styles.error}>{knobErrors.fleetSpeed}</div>
-            )}
-          </label>
-          <label className={styles.label}>
-            Ramp factor
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              max={1}
-              step={0.05}
-              value={config.rampFactor ?? 0}
-              onChange={(e) =>
-                setConfig((c) => ({ ...c, rampFactor: Number(e.target.value) }))
-              }
-            />
-            {knobErrors.rampFactor && (
-              <div className={styles.error}>{knobErrors.rampFactor}</div>
-            )}
-          </label>
-          <label className={styles.label}>
-            Descend step
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={1}
-              value={config.descendStep ?? 0}
-              onChange={(e) =>
-                setConfig((c) => ({
-                  ...c,
-                  descendStep: Number(e.target.value),
-                }))
-              }
-            />
-            {knobErrors.descendStep && (
-              <div className={styles.error}>{knobErrors.descendStep}</div>
-            )}
-          </label>
-          <label className={styles.label}>
-            Max concurrent divers
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={1}
-              value={config.maxConcurrentDivers ?? 0}
-              onChange={(e) =>
-                setConfig((c) => ({
-                  ...c,
-                  maxConcurrentDivers: Number(e.target.value),
-                }))
-              }
-            />
-            {knobErrors.maxConcurrentDivers && (
-              <div className={styles.error}>
-                {knobErrors.maxConcurrentDivers}
-              </div>
-            )}
-          </label>
-          <label className={styles.label}>
-            Max concurrent shots
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={1}
-              value={config.maxConcurrentShots ?? 0}
-              onChange={(e) =>
-                setConfig((c) => ({
-                  ...c,
-                  maxConcurrentShots: Number(e.target.value),
-                }))
-              }
-            />
-            {knobErrors.maxConcurrentShots && (
-              <div className={styles.error}>
-                {knobErrors.maxConcurrentShots}
-              </div>
-            )}
-          </label>
-        </div>
-      </section>
-
-      <section className={styles.card}>
-        <h2>Dive / Attack</h2>
-        {diveKnobChanged && (
-          <div className={styles.warning}>
-            Warning: Changing dive/attack tuning affects difficulty and
-            leaderboard comparability.
-          </div>
-        )}
-        <div className={styles.grid2}>
-          <label className={styles.label}>
-            attackTickMs
-            <input
-              className={styles.input}
-              type="number"
-              min={1}
-              step={1}
-              value={config.attackTickMs ?? 1}
-              onChange={(e) =>
-                setConfig((c) => ({
-                  ...c,
-                  attackTickMs: Number(e.target.value),
-                }))
-              }
-            />
-            {knobErrors.attackTickMs && (
-              <div className={styles.error}>{knobErrors.attackTickMs}</div>
-            )}
-          </label>
-          <label className={styles.label}>
-            diveChancePerTick
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              max={1}
-              step={0.01}
-              value={config.diveChancePerTick ?? 0}
-              onChange={(e) =>
-                setConfig((c) => ({
-                  ...c,
-                  diveChancePerTick: Number(e.target.value),
-                }))
-              }
-            />
-            {knobErrors.diveChancePerTick && (
-              <div className={styles.error}>{knobErrors.diveChancePerTick}</div>
-            )}
-          </label>
-          <label className={styles.label}>
-            Pattern
-            <select
-              className={styles.select}
-              value={config.divePattern ?? 'straight'}
-              onChange={(e) =>
-                setConfig((c) => ({ ...c, divePattern: e.target.value as any }))
+            <button
+              className={styles.saveBtn}
+              onClick={onSave}
+              disabled={
+                saving ||
+                loading ||
+                !!layoutError ||
+                !!wavesError ||
+                Object.keys(knobErrors).length > 0 ||
+                issues.some((i) => i.severity === 'error')
               }
             >
-              <option value="straight">Straight</option>
-              <option value="sine">Sine</option>
-              <option value="track">Track</option>
-            </select>
-            {knobErrors.divePattern && (
-              <div className={styles.error}>{knobErrors.divePattern}</div>
-            )}
-          </label>
-          {trackingEnabled && (
-            <label className={styles.label}>
-              turnRate
-              <input
-                className={styles.input}
-                type="number"
-                min={0}
-                max={10}
-                step={0.1}
-                value={config.turnRate ?? 0}
-                onChange={(e) =>
-                  setConfig((c) => ({ ...c, turnRate: Number(e.target.value) }))
-                }
-              />
-              <div className={styles.helper}>
-                Capped to prevent perfect tracking.
-              </div>
-              {knobErrors.turnRate && (
-                <div className={styles.error}>{knobErrors.turnRate}</div>
-              )}
-            </label>
-          )}
-        </div>
-      </section>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </header>
 
-      <section className={styles.card}>
-        <h2>Shooting</h2>
-        {shootKnobChanged && (
-          <div className={styles.warning}>
-            Warning: Changing shooting tuning affects difficulty and leaderboard
-            comparability.
-          </div>
-        )}
-        <div className={styles.grid2}>
-          <label className={styles.label}>
-            fireTickMs
-            <input
-              className={styles.input}
-              type="number"
-              min={1}
-              step={1}
-              value={config.fireTickMs ?? 1}
-              onChange={(e) =>
-                setConfig((c) => ({ ...c, fireTickMs: Number(e.target.value) }))
-              }
-            />
-            {knobErrors.fireTickMs && (
-              <div className={styles.error}>{knobErrors.fireTickMs}</div>
-            )}
-          </label>
-          <label className={styles.label}>
-            fireChancePerTick
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              max={1}
-              step={0.01}
-              value={config.fireChancePerTick ?? 0}
-              onChange={(e) =>
-                setConfig((c) => ({
-                  ...c,
-                  fireChancePerTick: Number(e.target.value),
-                }))
-              }
-            />
-            {knobErrors.fireChancePerTick && (
-              <div className={styles.error}>{knobErrors.fireChancePerTick}</div>
-            )}
-          </label>
-          <label className={styles.label}>
-            Max concurrent shots
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={1}
-              value={config.maxConcurrentShots ?? 0}
-              onChange={(e) =>
-                setConfig((c) => ({
-                  ...c,
-                  maxConcurrentShots: Number(e.target.value),
-                }))
-              }
-            />
-            {knobErrors.maxConcurrentShots && (
-              <div className={styles.error}>
-                {knobErrors.maxConcurrentShots}
-              </div>
-            )}
-          </label>
-        </div>
-        <div className={styles.helper}>
-          <strong>Shooting Rule:</strong> Column Shooter (locked). Only the
-          bottom-most living enemy in each column may fire. This is a core
-          fairness rule and not editable in v1.
-        </div>
-      </section>
+          {error && <div className={styles.error}>Error: {error}</div>}
+          {savedAt && <div className={styles.success}>Saved at {savedAt}</div>}
 
-      <section className={styles.card}>
-        <div className={styles.cardHeader}>
-          <h2>Waves</h2>
-          <button
-            className={styles.saveBtn}
-            onClick={() =>
-              setConfig((c) => ({
-                ...c,
-                waves: [...(c.waves ?? []), { enemies: [] }],
-              }))
-            }
-          >
-            Add wave
-          </button>
-        </div>
-        {wavesError && <div className={styles.error}>{wavesError}</div>}
-        {(config.waves ?? []).map((wave, idx) => {
-          const total = (wave.enemies ?? []).reduce(
-            (s, e) => s + (e.count ?? 0),
-            0,
-          );
-          const waveError = waveErrors[idx] ?? null;
-          return (
-            <div key={idx} className={styles.waveCard}>
-              <div className={styles.waveHeader}>
-                <div>
-                  <strong>Wave {idx + 1}</strong>{' '}
-                  {total ? `• ${total} enemies` : ''}
-                  {waveError && (
-                    <span className={styles.errorInline}> {waveError}</span>
-                  )}
+          <section className={styles.card}>
+            <h2>Publish readiness</h2>
+            {issues.length === 0 ? (
+              <div className={styles.success}>Ready to publish</div>
+            ) : (
+              <>
+                <div className={styles.error}>
+                  Not ready:{' '}
+                  {issues.filter((i) => i.severity === 'error').length} blocking
+                  issue(s)
                 </div>
-                <div className={styles.waveActions}>
-                  <button
-                    disabled={idx === 0}
-                    onClick={() =>
-                      setConfig((c) => {
-                        const waves = [...(c.waves ?? [])];
-                        [waves[idx - 1], waves[idx]] = [
-                          waves[idx],
-                          waves[idx - 1],
-                        ];
-                        return { ...c, waves };
-                      })
-                    }
-                  >
-                    ↑
-                  </button>
-                  <button
-                    disabled={idx === (config.waves?.length ?? 1) - 1}
-                    onClick={() =>
-                      setConfig((c) => {
-                        const waves = [...(c.waves ?? [])];
-                        [waves[idx + 1], waves[idx]] = [
-                          waves[idx],
-                          waves[idx + 1],
-                        ];
-                        return { ...c, waves };
-                      })
-                    }
-                  >
-                    ↓
-                  </button>
-                  <button
-                    onClick={() =>
+                <ul className={styles.issueList}>
+                  {issues.map((i, idx) => (
+                    <li key={idx}>
+                      <strong>{i.path ?? '(general)'}</strong>: {i.message}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+
+          <section className={styles.card}>
+            <h2>Difficulty / Fleet Behavior</h2>
+            {knobChanged && (
+              <div className={styles.warning}>
+                Warning: Changing these values affects difficulty and may impact
+                leaderboard comparability. Consider resetting or segmenting
+                leaderboards when publishing.
+              </div>
+            )}
+            <div className={styles.grid2}>
+              <label className={styles.label}>
+                Fleet speed
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={config.fleetSpeed ?? 0}
+                  onChange={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      fleetSpeed: Number(e.target.value),
+                    }))
+                  }
+                />
+                {knobErrors.fleetSpeed && (
+                  <div className={styles.error}>{knobErrors.fleetSpeed}</div>
+                )}
+              </label>
+              <label className={styles.label}>
+                Ramp factor
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={config.rampFactor ?? 0}
+                  onChange={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      rampFactor: Number(e.target.value),
+                    }))
+                  }
+                />
+                {knobErrors.rampFactor && (
+                  <div className={styles.error}>{knobErrors.rampFactor}</div>
+                )}
+              </label>
+              <label className={styles.label}>
+                Descend step
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={config.descendStep ?? 0}
+                  onChange={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      descendStep: Number(e.target.value),
+                    }))
+                  }
+                />
+                {knobErrors.descendStep && (
+                  <div className={styles.error}>{knobErrors.descendStep}</div>
+                )}
+              </label>
+              <label className={styles.label}>
+                Max concurrent divers
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={config.maxConcurrentDivers ?? 0}
+                  onChange={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      maxConcurrentDivers: Number(e.target.value),
+                    }))
+                  }
+                />
+                {knobErrors.maxConcurrentDivers && (
+                  <div className={styles.error}>
+                    {knobErrors.maxConcurrentDivers}
+                  </div>
+                )}
+              </label>
+              <label className={styles.label}>
+                Max concurrent shots
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={config.maxConcurrentShots ?? 0}
+                  onChange={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      maxConcurrentShots: Number(e.target.value),
+                    }))
+                  }
+                />
+                {knobErrors.maxConcurrentShots && (
+                  <div className={styles.error}>
+                    {knobErrors.maxConcurrentShots}
+                  </div>
+                )}
+              </label>
+            </div>
+          </section>
+
+          <section className={styles.card}>
+            <h2>Dive / Attack</h2>
+            {diveKnobChanged && (
+              <div className={styles.warning}>
+                Warning: Changing dive/attack tuning affects difficulty and
+                leaderboard comparability.
+              </div>
+            )}
+            <div className={styles.grid2}>
+              <label className={styles.label}>
+                attackTickMs
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={config.attackTickMs ?? 1}
+                  onChange={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      attackTickMs: Number(e.target.value),
+                    }))
+                  }
+                />
+                {knobErrors.attackTickMs && (
+                  <div className={styles.error}>{knobErrors.attackTickMs}</div>
+                )}
+              </label>
+              <label className={styles.label}>
+                diveChancePerTick
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={config.diveChancePerTick ?? 0}
+                  onChange={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      diveChancePerTick: Number(e.target.value),
+                    }))
+                  }
+                />
+                {knobErrors.diveChancePerTick && (
+                  <div className={styles.error}>
+                    {knobErrors.diveChancePerTick}
+                  </div>
+                )}
+              </label>
+              <label className={styles.label}>
+                Pattern
+                <select
+                  className={styles.select}
+                  value={config.divePattern ?? 'straight'}
+                  onChange={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      divePattern: e.target.value as any,
+                    }))
+                  }
+                >
+                  <option value="straight">Straight</option>
+                  <option value="sine">Sine</option>
+                  <option value="track">Track</option>
+                </select>
+                {knobErrors.divePattern && (
+                  <div className={styles.error}>{knobErrors.divePattern}</div>
+                )}
+              </label>
+              {trackingEnabled && (
+                <label className={styles.label}>
+                  turnRate
+                  <input
+                    className={styles.input}
+                    type="number"
+                    min={0}
+                    max={10}
+                    step={0.1}
+                    value={config.turnRate ?? 0}
+                    onChange={(e) =>
                       setConfig((c) => ({
                         ...c,
-                        waves: (c.waves ?? []).filter((_, i) => i !== idx),
+                        turnRate: Number(e.target.value),
+                      }))
+                    }
+                  />
+                  <div className={styles.helper}>
+                    Capped to prevent perfect tracking.
+                  </div>
+                  {knobErrors.turnRate && (
+                    <div className={styles.error}>{knobErrors.turnRate}</div>
+                  )}
+                </label>
+              )}
+            </div>
+          </section>
+
+          <section className={styles.card}>
+            <h2>Shooting</h2>
+            {shootKnobChanged && (
+              <div className={styles.warning}>
+                Warning: Changing shooting tuning affects difficulty and
+                leaderboard comparability.
+              </div>
+            )}
+            <div className={styles.grid2}>
+              <label className={styles.label}>
+                fireTickMs
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={config.fireTickMs ?? 1}
+                  onChange={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      fireTickMs: Number(e.target.value),
+                    }))
+                  }
+                />
+                {knobErrors.fireTickMs && (
+                  <div className={styles.error}>{knobErrors.fireTickMs}</div>
+                )}
+              </label>
+              <label className={styles.label}>
+                fireChancePerTick
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={config.fireChancePerTick ?? 0}
+                  onChange={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      fireChancePerTick: Number(e.target.value),
+                    }))
+                  }
+                />
+                {knobErrors.fireChancePerTick && (
+                  <div className={styles.error}>
+                    {knobErrors.fireChancePerTick}
+                  </div>
+                )}
+              </label>
+              <label className={styles.label}>
+                Max concurrent shots
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={config.maxConcurrentShots ?? 0}
+                  onChange={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      maxConcurrentShots: Number(e.target.value),
+                    }))
+                  }
+                />
+                {knobErrors.maxConcurrentShots && (
+                  <div className={styles.error}>
+                    {knobErrors.maxConcurrentShots}
+                  </div>
+                )}
+              </label>
+            </div>
+            <div className={styles.helper}>
+              <strong>Shooting Rule:</strong> Column Shooter (locked). Only the
+              bottom-most living enemy in each column may fire. This is a core
+              fairness rule and not editable in v1.
+            </div>
+          </section>
+
+          <section className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h2>Waves</h2>
+              <button
+                className={styles.saveBtn}
+                onClick={() =>
+                  setConfig((c) => ({
+                    ...c,
+                    waves: [...(c.waves ?? []), { enemies: [] }],
+                  }))
+                }
+              >
+                Add wave
+              </button>
+            </div>
+            {wavesError && <div className={styles.error}>{wavesError}</div>}
+            {(config.waves ?? []).map((wave, idx) => {
+              const total = (wave.enemies ?? []).reduce(
+                (s, e) => s + (e.count ?? 0),
+                0,
+              );
+              const waveError = waveErrors[idx] ?? null;
+              return (
+                <div key={idx} className={styles.waveCard}>
+                  <div className={styles.waveHeader}>
+                    <div>
+                      <strong>Wave {idx + 1}</strong>{' '}
+                      {total ? `• ${total} enemies` : ''}
+                      {waveError && (
+                        <span className={styles.errorInline}> {waveError}</span>
+                      )}
+                    </div>
+                    <div className={styles.waveActions}>
+                      <button
+                        disabled={idx === 0}
+                        onClick={() =>
+                          setConfig((c) => {
+                            const waves = [...(c.waves ?? [])];
+                            [waves[idx - 1], waves[idx]] = [
+                              waves[idx],
+                              waves[idx - 1],
+                            ];
+                            return { ...c, waves };
+                          })
+                        }
+                      >
+                        ↑
+                      </button>
+                      <button
+                        disabled={idx === (config.waves?.length ?? 1) - 1}
+                        onClick={() =>
+                          setConfig((c) => {
+                            const waves = [...(c.waves ?? [])];
+                            [waves[idx + 1], waves[idx]] = [
+                              waves[idx],
+                              waves[idx + 1],
+                            ];
+                            return { ...c, waves };
+                          })
+                        }
+                      >
+                        ↓
+                      </button>
+                      <button
+                        onClick={() =>
+                          setConfig((c) => ({
+                            ...c,
+                            waves: (c.waves ?? []).filter((_, i) => i !== idx),
+                          }))
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={styles.table}>
+                    <div className={styles.tableHeader}>
+                      <span>Enemy</span>
+                      <span>Count</span>
+                      <span></span>
+                    </div>
+                    {(wave.enemies ?? []).map((row, rIdx) => (
+                      <div key={rIdx} className={styles.tableRow}>
+                        <select
+                          className={styles.select}
+                          value={row.enemyId ?? ''}
+                          onChange={(e) =>
+                            setConfig((c) => {
+                              const waves = [...(c.waves ?? [])];
+                              const enemies = [...(waves[idx].enemies ?? [])];
+                              enemies[rIdx] = {
+                                ...enemies[rIdx],
+                                enemyId: e.target.value,
+                              };
+                              waves[idx] = { ...waves[idx], enemies };
+                              return { ...c, waves };
+                            })
+                          }
+                        >
+                          <option value="">— Select enemy —</option>
+                          {enemies.map((e) => (
+                            <option key={e.enemyId} value={e.enemyId}>
+                              {e.displayName ?? e.enemyId}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          className={styles.input}
+                          type="number"
+                          min={0}
+                          value={row.count ?? 0}
+                          onChange={(e) =>
+                            setConfig((c) => {
+                              const waves = [...(c.waves ?? [])];
+                              const enemies = [...(waves[idx].enemies ?? [])];
+                              enemies[rIdx] = {
+                                ...enemies[rIdx],
+                                count: Number(e.target.value),
+                              };
+                              waves[idx] = { ...waves[idx], enemies };
+                              return { ...c, waves };
+                            })
+                          }
+                        />
+                        <button
+                          onClick={() =>
+                            setConfig((c) => {
+                              const waves = [...(c.waves ?? [])];
+                              const enemies = [
+                                ...(waves[idx].enemies ?? []),
+                              ].filter((_, i) => i !== rIdx);
+                              waves[idx] = { ...waves[idx], enemies };
+                              return { ...c, waves };
+                            })
+                          }
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <div className={styles.tableFooter}>
+                      <button
+                        onClick={() =>
+                          setConfig((c) => {
+                            const waves = [...(c.waves ?? [])];
+                            const enemies = [
+                              ...(waves[idx].enemies ?? []),
+                              { enemyId: '', count: 0 },
+                            ];
+                            waves[idx] = { ...waves[idx], enemies };
+                            return { ...c, waves };
+                          })
+                        }
+                      >
+                        Add enemy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+
+          <section className={styles.card}>
+            <h2>Formation Layout</h2>
+            {loading ? (
+              <div>Loading…</div>
+            ) : (
+              <>
+                <label className={styles.label}>
+                  Choose published layout
+                  <select
+                    className={styles.select}
+                    value={config.layoutId ?? ''}
+                    onChange={(e) =>
+                      setConfig((c) => ({
+                        ...c,
+                        layoutId: e.target.value || undefined,
                       }))
                     }
                   >
-                    Remove
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.table}>
-                <div className={styles.tableHeader}>
-                  <span>Enemy</span>
-                  <span>Count</span>
-                  <span></span>
-                </div>
-                {(wave.enemies ?? []).map((row, rIdx) => (
-                  <div key={rIdx} className={styles.tableRow}>
-                    <select
-                      className={styles.select}
-                      value={row.enemyId ?? ''}
-                      onChange={(e) =>
-                        setConfig((c) => {
-                          const waves = [...(c.waves ?? [])];
-                          const enemies = [...(waves[idx].enemies ?? [])];
-                          enemies[rIdx] = {
-                            ...enemies[rIdx],
-                            enemyId: e.target.value,
-                          };
-                          waves[idx] = { ...waves[idx], enemies };
-                          return { ...c, waves };
-                        })
-                      }
-                    >
-                      <option value="">— Select enemy —</option>
-                      {enemies.map((e) => (
-                        <option key={e.enemyId} value={e.enemyId}>
-                          {e.displayName ?? e.enemyId}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      className={styles.input}
-                      type="number"
-                      min={0}
-                      value={row.count ?? 0}
-                      onChange={(e) =>
-                        setConfig((c) => {
-                          const waves = [...(c.waves ?? [])];
-                          const enemies = [...(waves[idx].enemies ?? [])];
-                          enemies[rIdx] = {
-                            ...enemies[rIdx],
-                            count: Number(e.target.value),
-                          };
-                          waves[idx] = { ...waves[idx], enemies };
-                          return { ...c, waves };
-                        })
-                      }
-                    />
-                    <button
-                      onClick={() =>
-                        setConfig((c) => {
-                          const waves = [...(c.waves ?? [])];
-                          const enemies = [
-                            ...(waves[idx].enemies ?? []),
-                          ].filter((_, i) => i !== rIdx);
-                          waves[idx] = { ...waves[idx], enemies };
-                          return { ...c, waves };
-                        })
-                      }
-                    >
-                      Remove
-                    </button>
+                    <option value="">— Select layout —</option>
+                    {layouts.map((l) => (
+                      <option key={l.layoutId} value={l.layoutId}>
+                        {l.layoutId} ({l.rows}x{l.cols})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {selectedLayout && (
+                  <div className={styles.helper}>
+                    <div>
+                      <strong>Grid:</strong> {selectedLayout.rows} rows ×{' '}
+                      {selectedLayout.cols} cols
+                    </div>
+                    <div>
+                      <strong>Spacing:</strong> {selectedLayout.spacingX ?? '—'}{' '}
+                      / {selectedLayout.spacingY ?? '—'}
+                    </div>
                   </div>
-                ))}
-                <div className={styles.tableFooter}>
-                  <button
-                    onClick={() =>
-                      setConfig((c) => {
-                        const waves = [...(c.waves ?? [])];
-                        const enemies = [
-                          ...(waves[idx].enemies ?? []),
-                          { enemyId: '', count: 0 },
-                        ];
-                        waves[idx] = { ...waves[idx], enemies };
-                        return { ...c, waves };
-                      })
+                )}
+                {layoutError && (
+                  <div className={styles.error}>{layoutError}</div>
+                )}
+              </>
+            )}
+          </section>
+
+          <section className={styles.card}>
+            <h2>Background</h2>
+            {loading ? (
+              <div>Loading…</div>
+            ) : (
+              <>
+                <label className={styles.label}>
+                  Choose published background
+                  <select
+                    className={styles.select}
+                    value={config.backgroundAssetId ?? ''}
+                    onChange={(e) =>
+                      setConfig((c) => ({
+                        ...c,
+                        backgroundAssetId: e.target.value || undefined,
+                        backgroundVersionId: e.target.value
+                          ? backgrounds.find(
+                              (b) => b.assetId === e.target.value,
+                            )?.publishedVersionId
+                          : undefined,
+                      }))
                     }
                   >
-                    Add enemy
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </section>
+                    <option value="">— None —</option>
+                    {backgrounds.map((bg) => (
+                      <option key={bg.assetId} value={bg.assetId}>
+                        {bgLabel(bg)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-      <section className={styles.card}>
-        <h2>Formation Layout</h2>
-        {loading ? (
-          <div>Loading…</div>
-        ) : (
-          <>
-            <label className={styles.label}>
-              Choose published layout
-              <select
-                className={styles.select}
-                value={config.layoutId ?? ''}
-                onChange={(e) =>
-                  setConfig((c) => ({
-                    ...c,
-                    layoutId: e.target.value || undefined,
-                  }))
-                }
-              >
-                <option value="">— Select layout —</option>
-                {layouts.map((l) => (
-                  <option key={l.layoutId} value={l.layoutId}>
-                    {l.layoutId} ({l.rows}x{l.cols})
-                  </option>
-                ))}
-              </select>
-            </label>
-            {selectedLayout && (
-              <div className={styles.helper}>
-                <div>
-                  <strong>Grid:</strong> {selectedLayout.rows} rows ×{' '}
-                  {selectedLayout.cols} cols
-                </div>
-                <div>
-                  <strong>Spacing:</strong> {selectedLayout.spacingX ?? '—'} /{' '}
-                  {selectedLayout.spacingY ?? '—'}
-                </div>
-              </div>
+                <label className={styles.checkboxRow}>
+                  <input
+                    type="checkbox"
+                    checked={!!config.pinnedToVersion}
+                    onChange={(e) =>
+                      setConfig((c) => ({
+                        ...c,
+                        pinnedToVersion: e.target.checked,
+                        backgroundVersionId: e.target.checked
+                          ? c.backgroundVersionId ||
+                            selectedBg?.publishedVersionId ||
+                            undefined
+                          : undefined,
+                      }))
+                    }
+                    disabled={!config.backgroundAssetId}
+                  />
+                  <span>Pin to current published version</span>
+                </label>
+
+                {config.pinnedToVersion && selectedBg && (
+                  <div className={styles.helper}>
+                    Pinned version: <code>{pinnedVersionId}</code>
+                  </div>
+                )}
+
+                {selectedBg && (
+                  <div className={styles.preview}>
+                    <div className={styles.previewMeta}>
+                      <strong>{selectedBg.title}</strong>
+                      <span>
+                        {selectedBg.width}×{selectedBg.height}
+                      </span>
+                    </div>
+                    <img src={selectedBg.publishedUrl} alt={selectedBg.title} />
+                  </div>
+                )}
+              </>
             )}
-            {layoutError && <div className={styles.error}>{layoutError}</div>}
-          </>
-        )}
-      </section>
-
-      <section className={styles.card}>
-        <h2>Background</h2>
-        {loading ? (
-          <div>Loading…</div>
-        ) : (
-          <>
-            <label className={styles.label}>
-              Choose published background
-              <select
-                className={styles.select}
-                value={config.backgroundAssetId ?? ''}
-                onChange={(e) =>
-                  setConfig((c) => ({
-                    ...c,
-                    backgroundAssetId: e.target.value || undefined,
-                    backgroundVersionId: e.target.value
-                      ? backgrounds.find((b) => b.assetId === e.target.value)
-                          ?.publishedVersionId
-                      : undefined,
-                  }))
-                }
-              >
-                <option value="">— None —</option>
-                {backgrounds.map((bg) => (
-                  <option key={bg.assetId} value={bg.assetId}>
-                    {bgLabel(bg)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className={styles.checkboxRow}>
-              <input
-                type="checkbox"
-                checked={!!config.pinnedToVersion}
-                onChange={(e) =>
-                  setConfig((c) => ({
-                    ...c,
-                    pinnedToVersion: e.target.checked,
-                    backgroundVersionId: e.target.checked
-                      ? c.backgroundVersionId ||
-                        selectedBg?.publishedVersionId ||
-                        undefined
-                      : undefined,
-                  }))
-                }
-                disabled={!config.backgroundAssetId}
-              />
-              <span>Pin to current published version</span>
-            </label>
-
-            {config.pinnedToVersion && selectedBg && (
-              <div className={styles.helper}>
-                Pinned version: <code>{pinnedVersionId}</code>
-              </div>
-            )}
-
-            {selectedBg && (
-              <div className={styles.preview}>
-                <div className={styles.previewMeta}>
-                  <strong>{selectedBg.title}</strong>
-                  <span>
-                    {selectedBg.width}×{selectedBg.height}
-                  </span>
-                </div>
-                <img src={selectedBg.publishedUrl} alt={selectedBg.title} />
-              </div>
-            )}
-          </>
-        )}
-      </section>
+          </section>
+        </div>
+      </main>
     </div>
   );
 }
