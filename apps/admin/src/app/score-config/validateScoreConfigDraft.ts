@@ -2,7 +2,7 @@ export type Enemy = { enemyId: string; displayName?: string };
 
 export type ValidationIssue = {
   severity: 'error' | 'warning';
-  stage: 'structural' | 'cross-reference' | 'fairness';
+  stage: 'structural' | 'cross-reference';
   domain: 'ScoreConfig';
   path: string;
   message: string;
@@ -10,12 +10,29 @@ export type ValidationIssue = {
 
 export type ScoreConfigDraft = {
   baseEnemyScores: { enemyId: string; score: number }[];
-  levelScoreMultiplier?: { base: number; perLevel: number; max: number };
-  combo?: {
-    tiers: { minCount: number; multiplier: number; tierBonus?: number }[];
+  levelScoreMultiplier?: {
+    base: number;
+    perLevel: number;
+    max: number;
   };
-  waveClearBonus?: { base: number; perLifeBonus?: number };
-  accuracyBonus?: { thresholds: { minAccuracy: number; bonus: number }[] };
+  combo?: {
+    tiers: {
+      minCount: number;
+      multiplier: number;
+      tierBonus?: number;
+      name?: string;
+    }[];
+  };
+  waveClearBonus?: {
+    base: number;
+    perLifeBonus: number;
+  };
+  accuracyBonus?: {
+    thresholds: {
+      minAccuracy: number;
+      bonus: number;
+    }[];
+  };
 };
 
 export function validateScoreConfigDraft(
@@ -23,181 +40,267 @@ export function validateScoreConfigDraft(
   catalogs: { enemies: Enemy[] },
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
+  const rows = Array.isArray(draft.baseEnemyScores)
+    ? draft.baseEnemyScores
+    : [];
+  const scoreByEnemy = new Map<string, number>();
+  const seenEnemyIds = new Set<string>();
+  const publishedEnemyIds = new Set(catalogs.enemies.map((e) => e.enemyId));
 
-  // Base scores
-  const scoreMap = new Map(
-    draft.baseEnemyScores?.map((r) => [r.enemyId, r.score]),
-  );
-  catalogs.enemies.forEach((e) => {
-    const score = scoreMap.get(e.enemyId);
-    if (score === undefined) {
+  rows.forEach((row, idx) => {
+    const enemyId = row.enemyId?.trim?.() ?? '';
+    if (!enemyId) {
       issues.push({
         severity: 'error',
         stage: 'structural',
         domain: 'ScoreConfig',
-        path: `baseEnemyScores[${e.enemyId}]`,
-        message: `Missing base score for enemyId '${e.enemyId}'.`,
+        path: `baseEnemyScores[${idx}].enemyId`,
+        message: 'Enemy id is required.',
       });
-    } else if (score < 0) {
+      return;
+    }
+    if (seenEnemyIds.has(enemyId)) {
       issues.push({
         severity: 'error',
         stage: 'structural',
         domain: 'ScoreConfig',
-        path: `baseEnemyScores[${e.enemyId}]`,
-        message: 'Score must be ≥ 0.',
+        path: `baseEnemyScores[${idx}].enemyId`,
+        message: `Duplicate base score row for enemyId '${enemyId}'.`,
+      });
+      return;
+    }
+    seenEnemyIds.add(enemyId);
+    scoreByEnemy.set(enemyId, row.score);
+
+    if (!publishedEnemyIds.has(enemyId)) {
+      issues.push({
+        severity: 'error',
+        stage: 'cross-reference',
+        domain: 'ScoreConfig',
+        path: `baseEnemyScores[${idx}].enemyId`,
+        message: `enemyId '${enemyId}' not found in EnemyCatalog.`,
+      });
+    }
+
+    if (!Number.isFinite(row.score) || row.score < 0) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `baseEnemyScores[${enemyId}].score`,
+        message: 'Score must be >= 0.',
       });
     }
   });
 
-  // Level multiplier
-  const mult = draft.levelScoreMultiplier ?? { base: 1, perLevel: 0, max: 1 };
-  if (mult.base < 1) {
-    issues.push({
-      severity: 'error',
-      stage: 'structural',
-      domain: 'ScoreConfig',
-      path: 'levelScoreMultiplier.base',
-      message: 'Base multiplier must be ≥ 1.0.',
-    });
-  }
-  if (mult.perLevel < 0) {
-    issues.push({
-      severity: 'error',
-      stage: 'structural',
-      domain: 'ScoreConfig',
-      path: 'levelScoreMultiplier.perLevel',
-      message: 'Per-level increment must be ≥ 0.',
-    });
-  }
-  if (mult.max < mult.base) {
-    issues.push({
-      severity: 'error',
-      stage: 'structural',
-      domain: 'ScoreConfig',
-      path: 'levelScoreMultiplier.max',
-      message: 'Max multiplier must be ≥ base.',
-    });
-  }
-
-  // Combo tiers
-  const tiers = draft.combo?.tiers ?? [];
-  let prevMin = 0;
-  const seen = new Set<number>();
-  tiers.forEach((t, idx) => {
-    if (t.minCount < 1) {
+  catalogs.enemies.forEach((enemy) => {
+    if (!scoreByEnemy.has(enemy.enemyId)) {
       issues.push({
         severity: 'error',
         stage: 'structural',
         domain: 'ScoreConfig',
-        path: `comboTiers[${idx}].minCount`,
-        message: 'minCount must be ≥ previous tier.',
-      });
-    }
-    if (t.minCount < prevMin) {
-      issues.push({
-        severity: 'error',
-        stage: 'structural',
-        domain: 'ScoreConfig',
-        path: `comboTiers[${idx}].minCount`,
-        message: 'minCount must be ≥ previous tier.',
-      });
-    }
-    if (seen.has(t.minCount)) {
-      issues.push({
-        severity: 'error',
-        stage: 'structural',
-        domain: 'ScoreConfig',
-        path: `comboTiers[${idx}].minCount`,
-        message: 'Duplicate minCount values are not allowed.',
-      });
-    }
-    seen.add(t.minCount);
-    prevMin = t.minCount;
-    if (t.multiplier < 1) {
-      issues.push({
-        severity: 'error',
-        stage: 'structural',
-        domain: 'ScoreConfig',
-        path: `comboTiers[${idx}].multiplier`,
-        message: 'Multiplier must be ≥ 1.',
-      });
-    }
-    if ((t.tierBonus ?? 0) < 0) {
-      issues.push({
-        severity: 'error',
-        stage: 'structural',
-        domain: 'ScoreConfig',
-        path: `comboTiers[${idx}].tierBonus`,
-        message: 'Tier bonus must be ≥ 0.',
+        path: `baseEnemyScores[${enemy.enemyId}]`,
+        message: `Missing base score for enemyId '${enemy.enemyId}'.`,
       });
     }
   });
 
-  // Wave bonus
-  const wave = draft.waveClearBonus ?? { base: 0, perLifeBonus: 0 };
-  if (wave.base < 0) {
-    issues.push({
-      severity: 'error',
-      stage: 'structural',
-      domain: 'ScoreConfig',
-      path: 'waveClearBonus.base',
-      message: 'Base wave bonus must be ≥ 0.',
-    });
-  }
-  if (wave.perLifeBonus !== undefined && wave.perLifeBonus < 0) {
-    issues.push({
-      severity: 'error',
-      stage: 'structural',
-      domain: 'ScoreConfig',
-      path: 'waveClearBonus.perLifeBonus',
-      message: 'Per-life wave bonus must be ≥ 0.',
-    });
+  const multiplier = draft.levelScoreMultiplier;
+  if (multiplier) {
+    if (!Number.isFinite(multiplier.base) || multiplier.base < 0) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'levelScoreMultiplier.base',
+        message: 'Base multiplier must be >= 0.',
+      });
+    }
+    if (!Number.isFinite(multiplier.perLevel) || multiplier.perLevel < 0) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'levelScoreMultiplier.perLevel',
+        message: 'Per-level multiplier must be >= 0.',
+      });
+    }
+    if (!Number.isFinite(multiplier.max) || multiplier.max < 0) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'levelScoreMultiplier.max',
+        message: 'Max multiplier must be >= 0.',
+      });
+    }
+    if (
+      Number.isFinite(multiplier.base) &&
+      Number.isFinite(multiplier.max) &&
+      multiplier.max < multiplier.base
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'levelScoreMultiplier.max',
+        message: 'Max multiplier must be >= base multiplier.',
+      });
+    }
   }
 
-  // Accuracy thresholds
-  const thresholds = draft.accuracyBonus?.thresholds ?? [];
-  let prevAcc = -1;
-  const seenAcc = new Set<number>();
-  thresholds.forEach((t, idx) => {
-    if (t.minAccuracy < 0 || t.minAccuracy > 1) {
+  const tiers = Array.isArray(draft.combo?.tiers) ? draft.combo?.tiers : [];
+  const seenMinCount = new Set<number>();
+  tiers.forEach((tier, idx) => {
+    if (!Number.isFinite(tier.minCount) || tier.minCount < 1) {
       issues.push({
         severity: 'error',
         stage: 'structural',
         domain: 'ScoreConfig',
-        path: `accuracyThresholds[${idx}].minAccuracy`,
-        message: 'Accuracy threshold must be between 0 and 1.',
+        path: `combo.tiers[${idx}].minCount`,
+        message: 'minCount must be >= 1.',
       });
     }
-    if (t.minAccuracy < prevAcc) {
+    if (Number.isFinite(tier.minCount) && seenMinCount.has(tier.minCount)) {
       issues.push({
         severity: 'error',
         stage: 'structural',
         domain: 'ScoreConfig',
-        path: `accuracyThresholds[${idx}].minAccuracy`,
-        message: 'Thresholds must be sorted ascending.',
+        path: `combo.tiers[${idx}].minCount`,
+        message: `Duplicate minCount: ${tier.minCount}.`,
       });
     }
-    if (seenAcc.has(t.minAccuracy)) {
+    if (Number.isFinite(tier.minCount)) {
+      seenMinCount.add(tier.minCount);
+    }
+
+    if (!Number.isFinite(tier.multiplier) || tier.multiplier < 1) {
       issues.push({
         severity: 'error',
         stage: 'structural',
         domain: 'ScoreConfig',
-        path: `accuracyThresholds[${idx}].minAccuracy`,
-        message: 'Duplicate thresholds are not allowed.',
+        path: `combo.tiers[${idx}].multiplier`,
+        message: 'Multiplier must be >= 1.',
       });
     }
-    seenAcc.add(t.minAccuracy);
-    prevAcc = t.minAccuracy;
-    if (t.bonus < 0) {
+
+    if (
+      typeof tier.tierBonus !== 'undefined' &&
+      (!Number.isFinite(tier.tierBonus) || tier.tierBonus < 0)
+    ) {
       issues.push({
         severity: 'error',
         stage: 'structural',
         domain: 'ScoreConfig',
-        path: `accuracyThresholds[${idx}].bonus`,
-        message: 'Bonus must be ≥ 0.',
+        path: `combo.tiers[${idx}].tierBonus`,
+        message: 'Tier bonus must be >= 0.',
       });
     }
   });
+
+  for (let i = 1; i < tiers.length; i += 1) {
+    const prev = tiers[i - 1];
+    const curr = tiers[i];
+    if (
+      Number.isFinite(prev.minCount) &&
+      Number.isFinite(curr.minCount) &&
+      curr.minCount <= prev.minCount
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `combo.tiers[${i}].minCount`,
+        message: 'minCount must be strictly increasing.',
+      });
+    }
+  }
+
+  const waveClearBonus = draft.waveClearBonus;
+  if (waveClearBonus) {
+    if (!Number.isFinite(waveClearBonus.base) || waveClearBonus.base < 0) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'waveClearBonus.base',
+        message: 'Must be >= 0.',
+      });
+    }
+    if (
+      !Number.isFinite(waveClearBonus.perLifeBonus) ||
+      waveClearBonus.perLifeBonus < 0
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: 'waveClearBonus.perLifeBonus',
+        message: 'Must be >= 0.',
+      });
+    }
+  }
+
+  const accuracyThresholds = Array.isArray(draft.accuracyBonus?.thresholds)
+    ? draft.accuracyBonus?.thresholds
+    : [];
+  const seenAccuracy = new Set<number>();
+  accuracyThresholds.forEach((threshold, idx) => {
+    if (
+      !Number.isFinite(threshold.minAccuracy) ||
+      threshold.minAccuracy < 0 ||
+      threshold.minAccuracy > 1
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `accuracyBonus.thresholds[${idx}].minAccuracy`,
+        message: 'Threshold must be between 0 and 1.',
+      });
+    }
+    if (
+      Number.isFinite(threshold.minAccuracy) &&
+      seenAccuracy.has(threshold.minAccuracy)
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `accuracyBonus.thresholds[${idx}].minAccuracy`,
+        message: `Duplicate threshold: ${threshold.minAccuracy}.`,
+      });
+    }
+    if (Number.isFinite(threshold.minAccuracy)) {
+      seenAccuracy.add(threshold.minAccuracy);
+    }
+    if (!Number.isFinite(threshold.bonus) || threshold.bonus < 0) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `accuracyBonus.thresholds[${idx}].bonus`,
+        message: 'Bonus must be >= 0.',
+      });
+    }
+  });
+  for (let i = 1; i < accuracyThresholds.length; i += 1) {
+    const prev = accuracyThresholds[i - 1];
+    const curr = accuracyThresholds[i];
+    if (
+      Number.isFinite(prev.minAccuracy) &&
+      Number.isFinite(curr.minAccuracy) &&
+      curr.minAccuracy <= prev.minAccuracy
+    ) {
+      issues.push({
+        severity: 'error',
+        stage: 'structural',
+        domain: 'ScoreConfig',
+        path: `accuracyBonus.thresholds[${i}].minAccuracy`,
+        message: 'Thresholds must be in ascending order.',
+      });
+    }
+  }
 
   return issues;
 }

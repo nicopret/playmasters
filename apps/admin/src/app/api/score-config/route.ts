@@ -4,6 +4,7 @@ import {
   getScoreConfigDraft,
   saveScoreConfigDraft,
   BaseEnemyScore,
+  type ScoreConfigDraft,
 } from '../../../lib/scoreConfig';
 
 export const runtime = 'nodejs';
@@ -77,76 +78,98 @@ export async function POST(req: Request) {
   const scores = Array.isArray(body.baseEnemyScores)
     ? body.baseEnemyScores
     : [];
+  const readFinite = (value: unknown, fallback: number | undefined): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    return fallback ?? 0;
+  };
 
   try {
+    const existing: ScoreConfigDraft = (await getScoreConfigDraft()) ?? {
+      scoreConfigId: 'default',
+      baseEnemyScores: [],
+      levelScoreMultiplier: { base: 1, perLevel: 0, max: 1 },
+      combo: { enabled: false, tiers: [] },
+      waveClearBonus: { base: 0, perLifeBonus: 0 },
+      accuracyBonus: { scaleByLevelMultiplier: false, thresholds: [] },
+      updatedAt: '',
+    };
+
     const saved = await saveScoreConfigDraft({
       baseEnemyScores: scores.map((s) => ({
         enemyId: s.enemyId?.trim?.() ?? '',
         score: typeof s.score === 'number' ? s.score : 0,
       })),
       levelScoreMultiplier: {
-        base:
-          typeof body.levelScoreMultiplier?.base === 'number'
-            ? body.levelScoreMultiplier.base
-            : undefined,
-        perLevel:
-          typeof body.levelScoreMultiplier?.perLevel === 'number'
-            ? body.levelScoreMultiplier.perLevel
-            : undefined,
-        max:
-          typeof body.levelScoreMultiplier?.max === 'number'
-            ? body.levelScoreMultiplier.max
-            : undefined,
+        base: readFinite(
+          body.levelScoreMultiplier?.base,
+          existing.levelScoreMultiplier?.base,
+        ),
+        perLevel: readFinite(
+          body.levelScoreMultiplier?.perLevel,
+          existing.levelScoreMultiplier?.perLevel,
+        ),
+        max: readFinite(
+          body.levelScoreMultiplier?.max,
+          existing.levelScoreMultiplier?.max,
+        ),
       },
       combo: {
-        enabled: !!body.combo?.enabled,
+        enabled:
+          typeof body.combo?.enabled === 'boolean'
+            ? body.combo.enabled
+            : existing.combo?.enabled,
         tiers: Array.isArray(body.combo?.tiers)
-          ? body.combo?.tiers.map((t) => ({
-              minCount: typeof t.minCount === 'number' ? t.minCount : 1,
-              multiplier: typeof t.multiplier === 'number' ? t.multiplier : 1,
-              tierBonus: typeof t.tierBonus === 'number' ? t.tierBonus : 0,
-              name: t.name,
+          ? body.combo?.tiers.map((t, idx) => ({
+              minCount: Math.max(1, Math.floor(readFinite(t.minCount, 1))),
+              multiplier: readFinite(t.multiplier, 1),
+              tierBonus: readFinite(t.tierBonus, 0),
+              name:
+                typeof t.name === 'string' && t.name.trim().length > 0
+                  ? t.name
+                  : `tier-${idx + 1}`,
             }))
-          : [],
+          : existing.combo?.tiers,
         minWindowMs:
           typeof body.combo?.minWindowMs === 'number'
             ? body.combo?.minWindowMs
-            : undefined,
+            : existing.combo?.minWindowMs,
         windowMs:
           typeof body.combo?.windowMs === 'number'
             ? body.combo?.windowMs
-            : undefined,
+            : existing.combo?.windowMs,
         resetOnPlayerHit:
           typeof body.combo?.resetOnPlayerHit === 'boolean'
             ? body.combo?.resetOnPlayerHit
-            : undefined,
+            : existing.combo?.resetOnPlayerHit,
         windowDecayPerLevelMs:
           typeof body.combo?.windowDecayPerLevelMs === 'number'
             ? body.combo?.windowDecayPerLevelMs
-            : undefined,
+            : existing.combo?.windowDecayPerLevelMs,
       },
       waveClearBonus: {
-        base:
-          typeof body.waveClearBonus?.base === 'number'
-            ? body.waveClearBonus.base
-            : undefined,
-        perLifeBonus:
-          typeof body.waveClearBonus?.perLifeBonus === 'number'
-            ? body.waveClearBonus.perLifeBonus
-            : undefined,
+        base: Math.max(
+          0,
+          readFinite(body.waveClearBonus?.base, existing.waveClearBonus?.base),
+        ),
+        perLifeBonus: Math.max(
+          0,
+          readFinite(
+            body.waveClearBonus?.perLifeBonus,
+            existing.waveClearBonus?.perLifeBonus,
+          ),
+        ),
       },
       accuracyBonus: {
         scaleByLevelMultiplier:
           typeof body.accuracyBonus?.scaleByLevelMultiplier === 'boolean'
             ? body.accuracyBonus.scaleByLevelMultiplier
-            : undefined,
+            : existing.accuracyBonus?.scaleByLevelMultiplier,
         thresholds: Array.isArray(body.accuracyBonus?.thresholds)
           ? body.accuracyBonus.thresholds.map((t) => ({
-              minAccuracy:
-                typeof t.minAccuracy === 'number' ? t.minAccuracy : 0,
-              bonus: typeof t.bonus === 'number' ? t.bonus : 0,
+              minAccuracy: readFinite(t.minAccuracy, 0),
+              bonus: Math.max(0, readFinite(t.bonus, 0)),
             }))
-          : [],
+          : existing.accuracyBonus?.thresholds,
       },
     });
     return NextResponse.json({ config: saved });
