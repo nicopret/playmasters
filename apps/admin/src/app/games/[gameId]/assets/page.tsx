@@ -1,7 +1,13 @@
-import Link from 'next/link';
 import Image from 'next/image';
-import dashStyles from '../../components/AdminDashboard/AdminDashboard.module.css';
+import Link from 'next/link';
+import dashStyles from '../../../../components/AdminDashboard/AdminDashboard.module.css';
 import styles from './page.module.css';
+
+type GameAssetsPageProps = {
+  params: Promise<{
+    gameId: string;
+  }>;
+};
 
 const navItems = [
   { label: 'Home', href: '/' },
@@ -10,9 +16,13 @@ const navItems = [
   { label: 'Assets', href: '/assets' },
 ];
 
-const games = [{ id: 'space-blaster', name: 'Space Blaster' }];
+export default async function GameAssetsPage({ params }: GameAssetsPageProps) {
+  const { gameId } = await params;
+  const gameTitle = gameId
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 
-export default function GamesPage() {
   return (
     <div className={dashStyles.shell}>
       <aside className={dashStyles.sidebar}>
@@ -43,20 +53,25 @@ export default function GamesPage() {
 
       <main className={dashStyles.main}>
         <header className={dashStyles.pageHeader}>
-          <h1>Games Admin</h1>
+          <div className={styles.headingRow}>
+            <div className={styles.headingIcon}>
+              <Image
+                src="/brand/playmaster_logo.png"
+                alt=""
+                fill
+                sizes="28px"
+                className={styles.headingIconImage}
+              />
+            </div>
+            <h1>{gameTitle} Assets</h1>
+          </div>
         </header>
 
-        <section className={styles.listSection}>
-          <h2 className={styles.listHeading}>Games</h2>
-          <ul className={styles.gameList}>
-            {games.map((game) => (
-              <li key={game.id}>
-                <Link href={`/games/${game.id}`} className={styles.gameLink}>
-                  {game.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <section className={styles.contentSection}>
+          <p className={styles.meta}>Manage game-specific assets here.</p>
+          <Link href={`/games/${gameId}`} className={styles.link}>
+            Back to {gameTitle} admin
+          </Link>
         </section>
       </main>
     </div>

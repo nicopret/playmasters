@@ -1,0 +1,35 @@
+.listSection {
+  margin-top: 8px;
+}
+
+.listHeading {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.gameList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+}
+
+.gameLink {
+  display: block;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  color: #111827;
+  font-weight: 600;
+  text-decoration: none;
+  background: #ffffff;
+}
+
+.gameLink:hover,
+.gameLink:focus-visible {
+  border-color: #2563eb;
+  outline: none;
+}

@@ -1,6 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import dashStyles from '../../../../components/AdminDashboard/AdminDashboard.module.css';
 import styles from './page.module.css';
 import {
   type ValidationIssue,
@@ -91,7 +95,15 @@ const computeLevelMultiplierPreview = (params: {
   return clamp(raw, 0, params.max);
 };
 
+const navItems = [
+  { label: 'Home', href: '/' },
+  { label: 'Announcements', href: '/announcements' },
+  { label: 'Games', href: '/games' },
+  { label: 'Assets', href: '/assets' },
+];
+
 export default function ScoreConfigPage() {
+  const { gameId } = useParams<{ gameId: string }>();
   const comboRowIdRef = useRef(0);
   const accuracyRowIdRef = useRef(0);
   const [config, setConfig] = useState<ScoreConfig>(DEFAULT_SCORE_CONFIG);
@@ -101,6 +113,10 @@ export default function ScoreConfigPage() {
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [wavePerLifeEnabled, setWavePerLifeEnabled] = useState(false);
+  const gameName = (gameId ?? '')
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 
   const createComboRowId = (): string => {
     comboRowIdRef.current += 1;
@@ -575,28 +591,59 @@ export default function ScoreConfigPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <h1>Score Config</h1>
-          <div className={styles.meta}>Base enemy score editor</div>
+    <div className={dashStyles.shell}>
+      <aside className={dashStyles.sidebar}>
+        <div className={dashStyles.logoWrap}>
+          <Image
+            src="/brand/playmaster_logo.png"
+            alt="Playmasters logo"
+            fill
+            sizes="280px"
+            className={dashStyles.logo}
+            priority
+          />
         </div>
-        <button
-          className={styles.saveBtn}
-          type="button"
-          onClick={() => {
-            void onSaveDraft();
-          }}
-          disabled={saving || loading}
-        >
-          {saving ? 'Saving...' : 'Save Draft'}
-        </button>
-      </header>
+        <nav className={dashStyles.menu}>
+          {navItems.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={`${dashStyles.menuItem} ${
+                item.label === 'Games' ? dashStyles.menuActive : ''
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </aside>
 
-      {error && <div className={styles.error}>Error: {error}</div>}
-      {savedAt && <div className={styles.success}>Saved at {savedAt}</div>}
+      <main className={dashStyles.main}>
+        <header className={dashStyles.pageHeader}>
+          <h1>{gameName} Score Config</h1>
+        </header>
 
-      <section className={styles.card}>
+        <div className={styles.page}>
+          <header className={styles.header}>
+            <div>
+              <div className={styles.meta}>Base enemy score editor</div>
+            </div>
+            <button
+              className={styles.saveBtn}
+              type="button"
+              onClick={() => {
+                void onSaveDraft();
+              }}
+              disabled={saving || loading}
+            >
+              {saving ? 'Saving...' : 'Save Draft'}
+            </button>
+          </header>
+
+          {error && <div className={styles.error}>Error: {error}</div>}
+          {savedAt && <div className={styles.success}>Saved at {savedAt}</div>}
+
+          <section className={styles.card}>
         <h2>Publish Readiness</h2>
         {issues.length === 0 ? (
           <div className={styles.success}>Ready to publish</div>
@@ -621,9 +668,9 @@ export default function ScoreConfigPage() {
             Publish is blocked until blocking issues are resolved.
           </div>
         )}
-      </section>
+          </section>
 
-      <section className={styles.card}>
+          <section className={styles.card}>
         <h2>Level Multiplier</h2>
         <div className={styles.helper}>
           Runtime preview uses ScoreSystem formula: clamp(base + perLevel *
@@ -712,9 +759,9 @@ export default function ScoreConfigPage() {
             </div>
           </div>
         )}
-      </section>
+          </section>
 
-      <section className={styles.card}>
+          <section className={styles.card}>
         <div className={styles.sectionHeader}>
           <h2>Combo Tiers</h2>
           <button
@@ -848,9 +895,9 @@ export default function ScoreConfigPage() {
             <div className={styles.helper}>No tiers configured.</div>
           )}
         </div>
-      </section>
+          </section>
 
-      <section className={styles.card}>
+          <section className={styles.card}>
         <h2>Wave Bonus</h2>
         <div className={styles.helper}>
           Disabled per-life bonus is stored as{' '}
@@ -923,9 +970,9 @@ export default function ScoreConfigPage() {
             Number(config.waveClearBonus?.perLifeBonus ?? 0) * 3
           ).toFixed(0)}
         </div>
-      </section>
+          </section>
 
-      <section className={styles.card}>
+          <section className={styles.card}>
         <div className={styles.sectionHeader}>
           <h2>Accuracy Bonus</h2>
           <button
@@ -1048,9 +1095,9 @@ export default function ScoreConfigPage() {
             </div>
           )}
         </div>
-      </section>
+          </section>
 
-      <section className={styles.card}>
+          <section className={styles.card}>
         <div className={styles.sectionHeader}>
           <h2>Base Enemy Scores</h2>
           <button
@@ -1119,7 +1166,9 @@ export default function ScoreConfigPage() {
             not in published EnemyCatalog and will block publish until fixed.
           </div>
         )}
-      </section>
+          </section>
+        </div>
+      </main>
     </div>
   );
 }

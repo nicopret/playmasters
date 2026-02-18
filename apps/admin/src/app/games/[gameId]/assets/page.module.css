@@ -1,0 +1,37 @@
+.headingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headingIcon {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.headingIconImage {
+  object-fit: contain;
+}
+
+.contentSection {
+  margin-top: 8px;
+}
+
+.meta {
+  margin: 0 0 12px;
+  color: #374151;
+}
+
+.link {
+  color: #1d4ed8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.link:hover,
+.link:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
