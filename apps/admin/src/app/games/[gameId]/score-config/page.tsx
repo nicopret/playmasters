@@ -644,528 +644,540 @@ export default function ScoreConfigPage() {
           {savedAt && <div className={styles.success}>Saved at {savedAt}</div>}
 
           <section className={styles.card}>
-        <h2>Publish Readiness</h2>
-        {issues.length === 0 ? (
-          <div className={styles.success}>Ready to publish</div>
-        ) : (
-          <>
-            <div className={styles.error}>
-              Not ready:{' '}
-              {issues.filter((issue) => issue.severity === 'error').length}{' '}
-              blocking issue(s)
-            </div>
-            <ul className={styles.issueList}>
-              {issues.map((issue, idx) => (
-                <li key={`${issue.path}-${idx}`}>
-                  <strong>{issue.path}</strong>: {issue.message}
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-        {hasBlocking && (
-          <div className={styles.helper}>
-            Publish is blocked until blocking issues are resolved.
-          </div>
-        )}
-          </section>
-
-          <section className={styles.card}>
-        <h2>Level Multiplier</h2>
-        <div className={styles.helper}>
-          Runtime preview uses ScoreSystem formula: clamp(base + perLevel *
-          (level - 1), 0, max).
-        </div>
-        <div className={styles.formGrid}>
-          <label className={styles.field}>
-            <span>Base</span>
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={0.01}
-              value={
-                Number.isFinite(config.levelScoreMultiplier?.base)
-                  ? config.levelScoreMultiplier?.base
-                  : ''
-              }
-              onChange={(event) =>
-                setLevelMultiplierField('base', event.target.value)
-              }
-            />
-            {getIssueForPath('levelScoreMultiplier.base') && (
-              <div className={styles.errorInline}>
-                {getIssueForPath('levelScoreMultiplier.base')?.message}
-              </div>
-            )}
-          </label>
-
-          <label className={styles.field}>
-            <span>Per Level</span>
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={0.01}
-              value={
-                Number.isFinite(config.levelScoreMultiplier?.perLevel)
-                  ? config.levelScoreMultiplier?.perLevel
-                  : ''
-              }
-              onChange={(event) =>
-                setLevelMultiplierField('perLevel', event.target.value)
-              }
-            />
-            {getIssueForPath('levelScoreMultiplier.perLevel') && (
-              <div className={styles.errorInline}>
-                {getIssueForPath('levelScoreMultiplier.perLevel')?.message}
-              </div>
-            )}
-          </label>
-
-          <label className={styles.field}>
-            <span>Max</span>
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={0.01}
-              value={
-                Number.isFinite(config.levelScoreMultiplier?.max)
-                  ? config.levelScoreMultiplier?.max
-                  : ''
-              }
-              onChange={(event) =>
-                setLevelMultiplierField('max', event.target.value)
-              }
-            />
-            {getIssueForPath('levelScoreMultiplier.max') && (
-              <div className={styles.errorInline}>
-                {getIssueForPath('levelScoreMultiplier.max')?.message}
-              </div>
-            )}
-          </label>
-        </div>
-
-        {multiplierPreviews && (
-          <div className={styles.exampleBox}>
-            <strong>Examples (Preview)</strong>
-            <div className={styles.exampleList}>
-              {multiplierPreviews.map((row) => (
-                <span key={row.level}>
-                  L{row.level}: {row.value.toFixed(2)}x
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-          </section>
-
-          <section className={styles.card}>
-        <div className={styles.sectionHeader}>
-          <h2>Combo Tiers</h2>
-          <button
-            className={styles.secondaryBtn}
-            type="button"
-            onClick={addComboTier}
-            disabled={loading || saving}
-          >
-            Add tier
-          </button>
-        </div>
-        <div className={styles.helper}>
-          Tiers must be strictly increasing by minCount, unique, multiplier must
-          be &gt;= 1, and tier bonus must be &gt;= 0.
-        </div>
-        {comboTierIssues.length > 0 && (
-          <div className={styles.error}>
-            Combo tier errors: {comboTierIssues.length}
-          </div>
-        )}
-        <div className={styles.table}>
-          <div className={styles.comboHeader}>
-            <span>Name</span>
-            <span>minCount</span>
-            <span>Multiplier</span>
-            <span>Tier Bonus</span>
-            <span>Actions</span>
-          </div>
-          {comboTiers.map((tier, idx) => (
-            <div
-              key={tier.uiId ?? tier.name ?? `combo-${idx}`}
-              className={styles.comboRow}
-            >
-              <span>
-                <strong>{tier.name ?? `tier-${idx + 1}`}</strong>
-              </span>
-              <div>
-                <input
-                  className={styles.input}
-                  type="number"
-                  step={1}
-                  min={1}
-                  value={Number.isFinite(tier.minCount) ? tier.minCount : ''}
-                  onChange={(event) =>
-                    updateComboTierField(
-                      tier.uiId ?? '',
-                      'minCount',
-                      event.target.value,
-                    )
-                  }
-                />
-                {getIssueForTierPath(idx, 'minCount') && (
-                  <div className={styles.errorInline}>
-                    {getIssueForTierPath(idx, 'minCount')?.message}
-                  </div>
-                )}
-              </div>
-              <div>
-                <input
-                  className={styles.input}
-                  type="number"
-                  step={0.01}
-                  min={1}
-                  value={
-                    Number.isFinite(tier.multiplier) ? tier.multiplier : ''
-                  }
-                  onChange={(event) =>
-                    updateComboTierField(
-                      tier.uiId ?? '',
-                      'multiplier',
-                      event.target.value,
-                    )
-                  }
-                />
-                {getIssueForTierPath(idx, 'multiplier') && (
-                  <div className={styles.errorInline}>
-                    {getIssueForTierPath(idx, 'multiplier')?.message}
-                  </div>
-                )}
-              </div>
-              <div>
-                <input
-                  className={styles.input}
-                  type="number"
-                  step={1}
-                  min={0}
-                  value={Number.isFinite(tier.tierBonus) ? tier.tierBonus : ''}
-                  onChange={(event) =>
-                    updateComboTierField(
-                      tier.uiId ?? '',
-                      'tierBonus',
-                      event.target.value,
-                    )
-                  }
-                />
-                {getIssueForTierPath(idx, 'tierBonus') && (
-                  <div className={styles.errorInline}>
-                    {getIssueForTierPath(idx, 'tierBonus')?.message}
-                  </div>
-                )}
-              </div>
-              <div className={styles.comboActions}>
-                <button
-                  className={styles.secondaryBtn}
-                  type="button"
-                  onClick={() => moveComboTier(tier.uiId ?? '', 'up')}
-                  disabled={idx === 0 || saving}
-                >
-                  Up
-                </button>
-                <button
-                  className={styles.secondaryBtn}
-                  type="button"
-                  onClick={() => moveComboTier(tier.uiId ?? '', 'down')}
-                  disabled={idx === comboTiers.length - 1 || saving}
-                >
-                  Down
-                </button>
-                <button
-                  className={styles.secondaryBtn}
-                  type="button"
-                  onClick={() => removeComboTier(tier.uiId ?? '')}
-                  disabled={saving}
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          ))}
-          {comboTiers.length === 0 && (
-            <div className={styles.helper}>No tiers configured.</div>
-          )}
-        </div>
-          </section>
-
-          <section className={styles.card}>
-        <h2>Wave Bonus</h2>
-        <div className={styles.helper}>
-          Disabled per-life bonus is stored as{' '}
-          <code>waveClearBonus.perLifeBonus = 0</code>. Runtime applies:
-          round(base * levelMultiplier) + round(perLifeBonus * livesRemaining *
-          levelMultiplier).
-        </div>
-        <div className={styles.formGrid}>
-          <label className={styles.field}>
-            <span>Base</span>
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={1}
-              value={
-                Number.isFinite(config.waveClearBonus?.base)
-                  ? config.waveClearBonus?.base
-                  : ''
-              }
-              onChange={(event) =>
-                setWaveBonusField('base', event.target.value)
-              }
-            />
-            {getIssueForPath('waveClearBonus.base') && (
-              <div className={styles.errorInline}>
-                {getIssueForPath('waveClearBonus.base')?.message}
-              </div>
-            )}
-          </label>
-
-          <label className={styles.field}>
-            <span>Per-life bonus enabled</span>
-            <input
-              type="checkbox"
-              checked={wavePerLifeEnabled}
-              onChange={(event) => toggleWavePerLife(event.target.checked)}
-            />
-          </label>
-
-          <label className={styles.field}>
-            <span>Per-life bonus</span>
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              step={1}
-              disabled={!wavePerLifeEnabled}
-              value={
-                Number.isFinite(config.waveClearBonus?.perLifeBonus)
-                  ? config.waveClearBonus?.perLifeBonus
-                  : ''
-              }
-              onChange={(event) =>
-                setWaveBonusField('perLifeBonus', event.target.value)
-              }
-            />
-            {wavePerLifeEnabled &&
-              getIssueForPath('waveClearBonus.perLifeBonus') && (
-                <div className={styles.errorInline}>
-                  {getIssueForPath('waveClearBonus.perLifeBonus')?.message}
+            <h2>Publish Readiness</h2>
+            {issues.length === 0 ? (
+              <div className={styles.success}>Ready to publish</div>
+            ) : (
+              <>
+                <div className={styles.error}>
+                  Not ready:{' '}
+                  {issues.filter((issue) => issue.severity === 'error').length}{' '}
+                  blocking issue(s)
                 </div>
-              )}
-          </label>
-        </div>
-        <div className={styles.helper}>
-          Example (livesRemaining=3, levelMultiplier=1):{' '}
-          {(
-            Number(config.waveClearBonus?.base ?? 0) +
-            Number(config.waveClearBonus?.perLifeBonus ?? 0) * 3
-          ).toFixed(0)}
-        </div>
+                <ul className={styles.issueList}>
+                  {issues.map((issue, idx) => (
+                    <li key={`${issue.path}-${idx}`}>
+                      <strong>{issue.path}</strong>: {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {hasBlocking && (
+              <div className={styles.helper}>
+                Publish is blocked until blocking issues are resolved.
+              </div>
+            )}
           </section>
 
           <section className={styles.card}>
-        <div className={styles.sectionHeader}>
-          <h2>Accuracy Bonus</h2>
-          <button
-            className={styles.secondaryBtn}
-            type="button"
-            onClick={addAccuracyThreshold}
-            disabled={loading || saving}
-          >
-            Add threshold
-          </button>
-        </div>
-        <div className={styles.helper}>
-          Thresholds use decimal accuracy values from 0 to 1. At run end, the
-          highest threshold met is applied (no stacking).
-        </div>
-        <div className={styles.helper}>
-          Thresholds must be in ascending order; unsorted rows block publish.
-        </div>
-        {accuracyThresholdIssues.length > 0 && (
-          <div className={styles.error}>
-            Accuracy threshold errors: {accuracyThresholdIssues.length}
-          </div>
-        )}
-        <div className={styles.table}>
-          <div className={styles.accuracyHeader}>
-            <span>Threshold (0..1)</span>
-            <span>Bonus</span>
-            <span>Actions</span>
-          </div>
-          {accuracyThresholds.map((threshold, idx) => (
-            <div
-              key={threshold.uiId ?? `accuracy-${idx}`}
-              className={styles.accuracyRow}
-            >
-              <div>
+            <h2>Level Multiplier</h2>
+            <div className={styles.helper}>
+              Runtime preview uses ScoreSystem formula: clamp(base + perLevel *
+              (level - 1), 0, max).
+            </div>
+            <div className={styles.formGrid}>
+              <label className={styles.field}>
+                <span>Base</span>
                 <input
                   className={styles.input}
                   type="number"
-                  step={0.01}
                   min={0}
-                  max={1}
+                  step={0.01}
                   value={
-                    Number.isFinite(threshold.minAccuracy)
-                      ? threshold.minAccuracy
+                    Number.isFinite(config.levelScoreMultiplier?.base)
+                      ? config.levelScoreMultiplier?.base
                       : ''
                   }
                   onChange={(event) =>
-                    updateAccuracyThresholdField(
-                      threshold.uiId ?? '',
-                      'minAccuracy',
-                      event.target.value,
-                    )
+                    setLevelMultiplierField('base', event.target.value)
                   }
                 />
-                {getIssueForAccuracyPath(idx, 'minAccuracy') && (
+                {getIssueForPath('levelScoreMultiplier.base') && (
                   <div className={styles.errorInline}>
-                    {getIssueForAccuracyPath(idx, 'minAccuracy')?.message}
+                    {getIssueForPath('levelScoreMultiplier.base')?.message}
                   </div>
                 )}
-              </div>
-              <div>
+              </label>
+
+              <label className={styles.field}>
+                <span>Per Level</span>
                 <input
                   className={styles.input}
                   type="number"
-                  step={1}
                   min={0}
+                  step={0.01}
                   value={
-                    Number.isFinite(threshold.bonus) ? threshold.bonus : ''
+                    Number.isFinite(config.levelScoreMultiplier?.perLevel)
+                      ? config.levelScoreMultiplier?.perLevel
+                      : ''
                   }
                   onChange={(event) =>
-                    updateAccuracyThresholdField(
-                      threshold.uiId ?? '',
-                      'bonus',
-                      event.target.value,
-                    )
+                    setLevelMultiplierField('perLevel', event.target.value)
                   }
                 />
-                {getIssueForAccuracyPath(idx, 'bonus') && (
+                {getIssueForPath('levelScoreMultiplier.perLevel') && (
                   <div className={styles.errorInline}>
-                    {getIssueForAccuracyPath(idx, 'bonus')?.message}
+                    {getIssueForPath('levelScoreMultiplier.perLevel')?.message}
                   </div>
                 )}
-              </div>
-              <div className={styles.comboActions}>
-                <button
-                  className={styles.secondaryBtn}
-                  type="button"
-                  onClick={() =>
-                    moveAccuracyThreshold(threshold.uiId ?? '', 'up')
+              </label>
+
+              <label className={styles.field}>
+                <span>Max</span>
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={
+                    Number.isFinite(config.levelScoreMultiplier?.max)
+                      ? config.levelScoreMultiplier?.max
+                      : ''
                   }
-                  disabled={idx === 0 || saving}
-                >
-                  Up
-                </button>
-                <button
-                  className={styles.secondaryBtn}
-                  type="button"
-                  onClick={() =>
-                    moveAccuracyThreshold(threshold.uiId ?? '', 'down')
+                  onChange={(event) =>
+                    setLevelMultiplierField('max', event.target.value)
                   }
-                  disabled={idx === accuracyThresholds.length - 1 || saving}
-                >
-                  Down
-                </button>
-                <button
-                  className={styles.secondaryBtn}
-                  type="button"
-                  onClick={() => removeAccuracyThreshold(threshold.uiId ?? '')}
-                  disabled={saving}
-                >
-                  Remove
-                </button>
+                />
+                {getIssueForPath('levelScoreMultiplier.max') && (
+                  <div className={styles.errorInline}>
+                    {getIssueForPath('levelScoreMultiplier.max')?.message}
+                  </div>
+                )}
+              </label>
+            </div>
+
+            {multiplierPreviews && (
+              <div className={styles.exampleBox}>
+                <strong>Examples (Preview)</strong>
+                <div className={styles.exampleList}>
+                  {multiplierPreviews.map((row) => (
+                    <span key={row.level}>
+                      L{row.level}: {row.value.toFixed(2)}x
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-          {accuracyThresholds.length === 0 && (
-            <div className={styles.helper}>
-              No thresholds configured. This is valid and applies no accuracy
-              bonus.
-            </div>
-          )}
-        </div>
+            )}
           </section>
 
           <section className={styles.card}>
-        <div className={styles.sectionHeader}>
-          <h2>Base Enemy Scores</h2>
-          <button
-            className={styles.secondaryBtn}
-            type="button"
-            onClick={addMissingEnemyRows}
-            disabled={loading || saving || enemies.length === 0}
-          >
-            Add missing enemy rows
-          </button>
-        </div>
-        <div className={styles.helper}>
-          Enemy list is sourced from published EnemyCatalog. Missing scores are
-          blocking.
-        </div>
-
-        {loading ? (
-          <div>Loading...</div>
-        ) : (
-          <div className={styles.table}>
-            <div className={styles.tableHeader}>
-              <span>Enemy</span>
-              <span>Score</span>
-              <span>Status</span>
+            <div className={styles.sectionHeader}>
+              <h2>Combo Tiers</h2>
+              <button
+                className={styles.secondaryBtn}
+                type="button"
+                onClick={addComboTier}
+                disabled={loading || saving}
+              >
+                Add tier
+              </button>
             </div>
-            {enemies.map((enemy) => {
-              const score = scoreByEnemyId.get(enemy.enemyId);
-              const issue = getIssueForEnemy(enemy.enemyId);
-              const status = issue ? 'Missing/Error' : 'OK';
-
-              return (
-                <div key={enemy.enemyId} className={styles.tableRow}>
+            <div className={styles.helper}>
+              Tiers must be strictly increasing by minCount, unique, multiplier
+              must be &gt;= 1, and tier bonus must be &gt;= 0.
+            </div>
+            {comboTierIssues.length > 0 && (
+              <div className={styles.error}>
+                Combo tier errors: {comboTierIssues.length}
+              </div>
+            )}
+            <div className={styles.table}>
+              <div className={styles.comboHeader}>
+                <span>Name</span>
+                <span>minCount</span>
+                <span>Multiplier</span>
+                <span>Tier Bonus</span>
+                <span>Actions</span>
+              </div>
+              {comboTiers.map((tier, idx) => (
+                <div
+                  key={tier.uiId ?? tier.name ?? `combo-${idx}`}
+                  className={styles.comboRow}
+                >
                   <span>
-                    <strong>{enemy.displayName ?? enemy.enemyId}</strong>
-                    <div className={styles.rowMeta}>{enemy.enemyId}</div>
+                    <strong>{tier.name ?? `tier-${idx + 1}`}</strong>
                   </span>
                   <div>
                     <input
                       className={styles.input}
                       type="number"
-                      min={0}
                       step={1}
-                      value={typeof score === 'number' ? score : ''}
+                      min={1}
+                      value={
+                        Number.isFinite(tier.minCount) ? tier.minCount : ''
+                      }
                       onChange={(event) =>
-                        setEnemyScore(enemy.enemyId, event.target.value)
+                        updateComboTierField(
+                          tier.uiId ?? '',
+                          'minCount',
+                          event.target.value,
+                        )
                       }
                     />
-                    {issue && (
-                      <div className={styles.errorInline}>{issue.message}</div>
+                    {getIssueForTierPath(idx, 'minCount') && (
+                      <div className={styles.errorInline}>
+                        {getIssueForTierPath(idx, 'minCount')?.message}
+                      </div>
                     )}
                   </div>
-                  <span
-                    className={issue ? styles.badgeError : styles.badgeSuccess}
-                  >
-                    {status}
-                  </span>
+                  <div>
+                    <input
+                      className={styles.input}
+                      type="number"
+                      step={0.01}
+                      min={1}
+                      value={
+                        Number.isFinite(tier.multiplier) ? tier.multiplier : ''
+                      }
+                      onChange={(event) =>
+                        updateComboTierField(
+                          tier.uiId ?? '',
+                          'multiplier',
+                          event.target.value,
+                        )
+                      }
+                    />
+                    {getIssueForTierPath(idx, 'multiplier') && (
+                      <div className={styles.errorInline}>
+                        {getIssueForTierPath(idx, 'multiplier')?.message}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      className={styles.input}
+                      type="number"
+                      step={1}
+                      min={0}
+                      value={
+                        Number.isFinite(tier.tierBonus) ? tier.tierBonus : ''
+                      }
+                      onChange={(event) =>
+                        updateComboTierField(
+                          tier.uiId ?? '',
+                          'tierBonus',
+                          event.target.value,
+                        )
+                      }
+                    />
+                    {getIssueForTierPath(idx, 'tierBonus') && (
+                      <div className={styles.errorInline}>
+                        {getIssueForTierPath(idx, 'tierBonus')?.message}
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.comboActions}>
+                    <button
+                      className={styles.secondaryBtn}
+                      type="button"
+                      onClick={() => moveComboTier(tier.uiId ?? '', 'up')}
+                      disabled={idx === 0 || saving}
+                    >
+                      Up
+                    </button>
+                    <button
+                      className={styles.secondaryBtn}
+                      type="button"
+                      onClick={() => moveComboTier(tier.uiId ?? '', 'down')}
+                      disabled={idx === comboTiers.length - 1 || saving}
+                    >
+                      Down
+                    </button>
+                    <button
+                      className={styles.secondaryBtn}
+                      type="button"
+                      onClick={() => removeComboTier(tier.uiId ?? '')}
+                      disabled={saving}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              ))}
+              {comboTiers.length === 0 && (
+                <div className={styles.helper}>No tiers configured.</div>
+              )}
+            </div>
+          </section>
 
-        {unknownBaseScoreRows.length > 0 && (
-          <div className={styles.warning}>
-            {unknownBaseScoreRows.length} base score row(s) reference enemyIds
-            not in published EnemyCatalog and will block publish until fixed.
-          </div>
-        )}
+          <section className={styles.card}>
+            <h2>Wave Bonus</h2>
+            <div className={styles.helper}>
+              Disabled per-life bonus is stored as{' '}
+              <code>waveClearBonus.perLifeBonus = 0</code>. Runtime applies:
+              round(base * levelMultiplier) + round(perLifeBonus *
+              livesRemaining * levelMultiplier).
+            </div>
+            <div className={styles.formGrid}>
+              <label className={styles.field}>
+                <span>Base</span>
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={
+                    Number.isFinite(config.waveClearBonus?.base)
+                      ? config.waveClearBonus?.base
+                      : ''
+                  }
+                  onChange={(event) =>
+                    setWaveBonusField('base', event.target.value)
+                  }
+                />
+                {getIssueForPath('waveClearBonus.base') && (
+                  <div className={styles.errorInline}>
+                    {getIssueForPath('waveClearBonus.base')?.message}
+                  </div>
+                )}
+              </label>
+
+              <label className={styles.field}>
+                <span>Per-life bonus enabled</span>
+                <input
+                  type="checkbox"
+                  checked={wavePerLifeEnabled}
+                  onChange={(event) => toggleWavePerLife(event.target.checked)}
+                />
+              </label>
+
+              <label className={styles.field}>
+                <span>Per-life bonus</span>
+                <input
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  step={1}
+                  disabled={!wavePerLifeEnabled}
+                  value={
+                    Number.isFinite(config.waveClearBonus?.perLifeBonus)
+                      ? config.waveClearBonus?.perLifeBonus
+                      : ''
+                  }
+                  onChange={(event) =>
+                    setWaveBonusField('perLifeBonus', event.target.value)
+                  }
+                />
+                {wavePerLifeEnabled &&
+                  getIssueForPath('waveClearBonus.perLifeBonus') && (
+                    <div className={styles.errorInline}>
+                      {getIssueForPath('waveClearBonus.perLifeBonus')?.message}
+                    </div>
+                  )}
+              </label>
+            </div>
+            <div className={styles.helper}>
+              Example (livesRemaining=3, levelMultiplier=1):{' '}
+              {(
+                Number(config.waveClearBonus?.base ?? 0) +
+                Number(config.waveClearBonus?.perLifeBonus ?? 0) * 3
+              ).toFixed(0)}
+            </div>
+          </section>
+
+          <section className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <h2>Accuracy Bonus</h2>
+              <button
+                className={styles.secondaryBtn}
+                type="button"
+                onClick={addAccuracyThreshold}
+                disabled={loading || saving}
+              >
+                Add threshold
+              </button>
+            </div>
+            <div className={styles.helper}>
+              Thresholds use decimal accuracy values from 0 to 1. At run end,
+              the highest threshold met is applied (no stacking).
+            </div>
+            <div className={styles.helper}>
+              Thresholds must be in ascending order; unsorted rows block
+              publish.
+            </div>
+            {accuracyThresholdIssues.length > 0 && (
+              <div className={styles.error}>
+                Accuracy threshold errors: {accuracyThresholdIssues.length}
+              </div>
+            )}
+            <div className={styles.table}>
+              <div className={styles.accuracyHeader}>
+                <span>Threshold (0..1)</span>
+                <span>Bonus</span>
+                <span>Actions</span>
+              </div>
+              {accuracyThresholds.map((threshold, idx) => (
+                <div
+                  key={threshold.uiId ?? `accuracy-${idx}`}
+                  className={styles.accuracyRow}
+                >
+                  <div>
+                    <input
+                      className={styles.input}
+                      type="number"
+                      step={0.01}
+                      min={0}
+                      max={1}
+                      value={
+                        Number.isFinite(threshold.minAccuracy)
+                          ? threshold.minAccuracy
+                          : ''
+                      }
+                      onChange={(event) =>
+                        updateAccuracyThresholdField(
+                          threshold.uiId ?? '',
+                          'minAccuracy',
+                          event.target.value,
+                        )
+                      }
+                    />
+                    {getIssueForAccuracyPath(idx, 'minAccuracy') && (
+                      <div className={styles.errorInline}>
+                        {getIssueForAccuracyPath(idx, 'minAccuracy')?.message}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      className={styles.input}
+                      type="number"
+                      step={1}
+                      min={0}
+                      value={
+                        Number.isFinite(threshold.bonus) ? threshold.bonus : ''
+                      }
+                      onChange={(event) =>
+                        updateAccuracyThresholdField(
+                          threshold.uiId ?? '',
+                          'bonus',
+                          event.target.value,
+                        )
+                      }
+                    />
+                    {getIssueForAccuracyPath(idx, 'bonus') && (
+                      <div className={styles.errorInline}>
+                        {getIssueForAccuracyPath(idx, 'bonus')?.message}
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.comboActions}>
+                    <button
+                      className={styles.secondaryBtn}
+                      type="button"
+                      onClick={() =>
+                        moveAccuracyThreshold(threshold.uiId ?? '', 'up')
+                      }
+                      disabled={idx === 0 || saving}
+                    >
+                      Up
+                    </button>
+                    <button
+                      className={styles.secondaryBtn}
+                      type="button"
+                      onClick={() =>
+                        moveAccuracyThreshold(threshold.uiId ?? '', 'down')
+                      }
+                      disabled={idx === accuracyThresholds.length - 1 || saving}
+                    >
+                      Down
+                    </button>
+                    <button
+                      className={styles.secondaryBtn}
+                      type="button"
+                      onClick={() =>
+                        removeAccuracyThreshold(threshold.uiId ?? '')
+                      }
+                      disabled={saving}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {accuracyThresholds.length === 0 && (
+                <div className={styles.helper}>
+                  No thresholds configured. This is valid and applies no
+                  accuracy bonus.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <h2>Base Enemy Scores</h2>
+              <button
+                className={styles.secondaryBtn}
+                type="button"
+                onClick={addMissingEnemyRows}
+                disabled={loading || saving || enemies.length === 0}
+              >
+                Add missing enemy rows
+              </button>
+            </div>
+            <div className={styles.helper}>
+              Enemy list is sourced from published EnemyCatalog. Missing scores
+              are blocking.
+            </div>
+
+            {loading ? (
+              <div>Loading...</div>
+            ) : (
+              <div className={styles.table}>
+                <div className={styles.tableHeader}>
+                  <span>Enemy</span>
+                  <span>Score</span>
+                  <span>Status</span>
+                </div>
+                {enemies.map((enemy) => {
+                  const score = scoreByEnemyId.get(enemy.enemyId);
+                  const issue = getIssueForEnemy(enemy.enemyId);
+                  const status = issue ? 'Missing/Error' : 'OK';
+
+                  return (
+                    <div key={enemy.enemyId} className={styles.tableRow}>
+                      <span>
+                        <strong>{enemy.displayName ?? enemy.enemyId}</strong>
+                        <div className={styles.rowMeta}>{enemy.enemyId}</div>
+                      </span>
+                      <div>
+                        <input
+                          className={styles.input}
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={typeof score === 'number' ? score : ''}
+                          onChange={(event) =>
+                            setEnemyScore(enemy.enemyId, event.target.value)
+                          }
+                        />
+                        {issue && (
+                          <div className={styles.errorInline}>
+                            {issue.message}
+                          </div>
+                        )}
+                      </div>
+                      <span
+                        className={
+                          issue ? styles.badgeError : styles.badgeSuccess
+                        }
+                      >
+                        {status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {unknownBaseScoreRows.length > 0 && (
+              <div className={styles.warning}>
+                {unknownBaseScoreRows.length} base score row(s) reference
+                enemyIds not in published EnemyCatalog and will block publish
+                until fixed.
+              </div>
+            )}
           </section>
         </div>
       </main>

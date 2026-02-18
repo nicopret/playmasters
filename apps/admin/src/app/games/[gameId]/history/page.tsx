@@ -119,7 +119,9 @@ export default function GameHistoryPage() {
                     <span>{new Date(entry.publishedAt).toLocaleString()}</span>
                     <span>{entry.configHash ?? entry.versionId}</span>
                     <span>
-                      {entry.publisher?.email ?? entry.publisher?.id ?? 'Unknown'}
+                      {entry.publisher?.email ??
+                        entry.publisher?.id ??
+                        'Unknown'}
                     </span>
                     <span>{entry.prevVersionId ?? '-'}</span>
                   </div>

@@ -22,7 +22,9 @@
 
 .tableHeader {
   display: grid;
-  grid-template-columns: minmax(160px, 1.3fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(120px, 0.8fr);
+  grid-template-columns:
+    minmax(160px, 1.3fr) minmax(180px, 1.2fr) minmax(180px, 1fr)
+    minmax(120px, 0.8fr);
   gap: 12px;
   font-size: 12px;
   color: #475569;
@@ -32,7 +34,9 @@
 
 .tableRow {
   display: grid;
-  grid-template-columns: minmax(160px, 1.3fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(120px, 0.8fr);
+  grid-template-columns:
+    minmax(160px, 1.3fr) minmax(180px, 1.2fr) minmax(180px, 1fr)
+    minmax(120px, 0.8fr);
   gap: 12px;
   align-items: start;
   padding: 8px 0;
