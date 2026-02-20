@@ -1,10 +1,10 @@
-import Link from 'next/link';
 import Image from 'next/image';
-import dashStyles from '../../../components/AdminDashboard/AdminDashboard.module.css';
-import { getGameDisplayName } from '../../../lib/games';
+import Link from 'next/link';
+import dashStyles from '../../../../components/AdminDashboard/AdminDashboard.module.css';
+import { getGameDisplayName } from '../../../../lib/games';
 import styles from './page.module.css';
 
-type GamePageProps = {
+type GameSfxPageProps = {
   params: Promise<{
     gameId: string;
   }>;
@@ -17,7 +17,7 @@ const navItems = [
   { label: 'Assets', href: '/assets' },
 ];
 
-export default async function GamePage({ params }: GamePageProps) {
+export default async function GameSfxPage({ params }: GameSfxPageProps) {
   const { gameId } = await params;
   const gameTitle = getGameDisplayName(gameId);
 
@@ -51,31 +51,36 @@ export default async function GamePage({ params }: GamePageProps) {
 
       <main className={dashStyles.main}>
         <header className={dashStyles.pageHeader}>
-          <h1>{gameTitle} Admin Page</h1>
+          <div className={styles.headingRow}>
+            <div className={styles.headingIcon}>
+              <Image
+                src="/brand/playmaster_logo.png"
+                alt=""
+                fill
+                sizes="28px"
+                className={styles.headingIconImage}
+              />
+            </div>
+            <div>
+              <h1>{gameTitle} SFX</h1>
+              <p className={styles.subtitle}>
+                Manage sound effects for this game.
+              </p>
+            </div>
+          </div>
         </header>
 
         <section className={styles.contentSection}>
-          <h2 className={styles.gameTitle}>{gameId}</h2>
-          <p className={styles.meta}>Game admin entry point.</p>
-          <Link href={`/games/${gameId}/levels/demo`} className={styles.link}>
-            Open demo level
+          <Link href={`/games/${gameId}`} className={styles.backButton}>
+            Back to {gameTitle} admin
           </Link>
-          <br />
-          <Link href={`/games/${gameId}/assets`} className={styles.link}>
-            Open game assets
-          </Link>
-          <br />
-          <Link href={`/games/${gameId}/history`} className={styles.link}>
-            Open publish history
-          </Link>
-          <br />
-          <Link href={`/games/${gameId}/score-config`} className={styles.link}>
-            Open score config
-          </Link>
-          <br />
-          <Link href={`/games/${gameId}/sfx`} className={styles.link}>
-            Open game SFX
-          </Link>
+
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>SFX editor coming soon</h2>
+            <p className={styles.meta}>
+              This page will allow uploading and configuring SFX assets.
+            </p>
+          </div>
         </section>
       </main>
     </div>
