@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import dashStyles from '../../../../components/AdminDashboard/AdminDashboard.module.css';
 import { getGameDisplayName } from '../../../../lib/games';
+import SFXComponent from '../../../../components/SFXComponent/SFXComponent';
 import styles from './page.module.css';
 
 type GameSfxPageProps = {
@@ -15,6 +16,14 @@ const navItems = [
   { label: 'Announcements', href: '/announcements' },
   { label: 'Games', href: '/games' },
   { label: 'Assets', href: '/assets' },
+];
+
+const SFX_ENTRIES = [
+  'Player Fire',
+  'Enemy Fire',
+  'Explosion Small',
+  'Explosion Medium',
+  'Explosion Large',
 ];
 
 export default async function GameSfxPage({ params }: GameSfxPageProps) {
@@ -75,11 +84,10 @@ export default async function GameSfxPage({ params }: GameSfxPageProps) {
             Back to {gameTitle} admin
           </Link>
 
-          <div className={styles.card}>
-            <h2 className={styles.cardTitle}>SFX editor coming soon</h2>
-            <p className={styles.meta}>
-              This page will allow uploading and configuring SFX assets.
-            </p>
+          <div className={styles.sfxList}>
+            {SFX_ENTRIES.map((entry) => (
+              <SFXComponent key={entry} title={entry} />
+            ))}
           </div>
         </section>
       </main>

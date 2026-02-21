@@ -1,0 +1,39 @@
+import {
+  normalizePreset,
+  parsePreset,
+  sanitizeFileBase,
+  wavDataUriToUint8Array,
+} from './sfxUtils';
+
+describe('sfxUtils', () => {
+  it('sanitizeFileBase should normalize title to safe kebab-case', () => {
+    expect(sanitizeFileBase('Player Fire')).toBe('player-fire');
+    expect(sanitizeFileBase('  Enemy__Fire!!  ')).toBe('enemy_fire');
+  });
+
+  it('parsePreset returns invalid-json error on malformed payload', () => {
+    const result = parsePreset('{', ['wave_type']);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errorMessage).toBe('Invalid JSON preset');
+    }
+  });
+
+  it('wavDataUriToUint8Array decodes a data uri into bytes', () => {
+    const bytes = wavDataUriToUint8Array('data:audio/wav;base64,UklGRg==');
+    expect(bytes.length).toBeGreaterThan(0);
+  });
+
+  it('normalizePreset defaults sample_rate and forces sample_size 16', () => {
+    const preset = normalizePreset({ wave_type: 0 }, ['wave_type']);
+    expect(preset.sample_rate).toBe(44100);
+    expect(preset.sample_size).toBe(16);
+
+    const presetWithValues = normalizePreset(
+      { wave_type: 0, sample_rate: 22050, sample_size: 8 },
+      ['wave_type'],
+    );
+    expect(presetWithValues.sample_rate).toBe(22050);
+    expect(presetWithValues.sample_size).toBe(16);
+  });
+});
