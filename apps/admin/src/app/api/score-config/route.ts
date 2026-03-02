@@ -23,12 +23,17 @@ export async function GET() {
   if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin)
     return bad('unauthorized', 401);
 
-  const cfg = (await getScoreConfigDraft()) ?? {
-    scoreConfigId: 'default',
-    baseEnemyScores: [],
-    updatedAt: '',
-  };
-  return NextResponse.json({ config: cfg });
+  try {
+    const cfg = (await getScoreConfigDraft()) ?? {
+      scoreConfigId: 'default',
+      baseEnemyScores: [],
+      updatedAt: '',
+    };
+    return NextResponse.json({ config: cfg });
+  } catch (err) {
+    console.error('score_config_get_error', err);
+    return bad('fetch_failed', 500);
+  }
 }
 
 export async function POST(req: Request) {

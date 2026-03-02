@@ -84,20 +84,30 @@
 }
 
 .stage {
-  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 14%, transparent);
-  border-radius: var(--pm-radius-md);
-  padding: var(--pm-space-2xs);
-  background: color-mix(in srgb, var(--pm-color-surface) 85%, var(--pm-color-background) 15%);
+  border: 2px solid #1f2937;
+  border-radius: 10px;
+  padding: 8px;
+  background: #e5e7eb;
 }
 
 .canvas {
   width: 100%;
   aspect-ratio: 16 / 9;
-  border-radius: var(--pm-radius-md);
+  border-radius: 8px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--pm-color-background) 86%, var(--pm-color-surface) 14%);
-  border: 1px solid color-mix(in srgb, var(--pm-color-text-secondary) 16%, transparent);
-  box-shadow: var(--pm-shadow-card);
+  background: #020617;
+  border: 2px solid #1f2937;
+  position: relative;
+  display: block;
+}
+
+.canvas :global(canvas) {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+  max-height: 100%;
+  display: block !important;
+  margin: 0 !important;
 }
 
 .footer {

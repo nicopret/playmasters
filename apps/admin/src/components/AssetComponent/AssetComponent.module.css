@@ -119,6 +119,19 @@
   font-size: 14px;
 }
 
+.textInput {
+  width: 100%;
+  border: 1px solid #4b5563;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 13px;
+  resize: vertical;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+}
+
 .fxRow {
   grid-column: 1 / -1;
 }

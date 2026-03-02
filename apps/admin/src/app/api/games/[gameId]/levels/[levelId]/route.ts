@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '../../../../../../auth';
 import {
+  deleteLevelConfig,
   getLevelConfig,
   saveLevelConfig,
 } from '../../../../../../../lib/levelConfig';
@@ -62,6 +63,7 @@ export async function POST(
     backgroundVersionId?: string;
     pinToVersion?: boolean;
     waves?: unknown[];
+    formationGrid?: unknown;
     fleetSpeed?: number;
     rampFactor?: number;
     descendStep?: number;
@@ -86,6 +88,10 @@ export async function POST(
       waves: Array.isArray(body.waves)
         ? (body.waves as LevelConfig['waves'])
         : [],
+      formationGrid:
+        body.formationGrid && typeof body.formationGrid === 'object'
+          ? (body.formationGrid as LevelConfig['formationGrid'])
+          : undefined,
       fleetSpeed:
         typeof body.fleetSpeed === 'number' ? body.fleetSpeed : undefined,
       rampFactor:
@@ -128,5 +134,30 @@ export async function POST(
     }
     console.error('level_config_save_error', err);
     return bad('save_failed', 500);
+  }
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ gameId: string; levelId: string }> },
+) {
+  let session;
+  try {
+    session = await auth();
+  } catch (err) {
+    console.error('auth_error_level_delete', err);
+    return bad('auth_failed', 500);
+  }
+  if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin) {
+    return bad('unauthorized', 401);
+  }
+
+  const { gameId, levelId } = await params;
+  try {
+    await deleteLevelConfig(gameId, levelId);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error('level_config_delete_error', err);
+    return bad('delete_failed', 500);
   }
 }

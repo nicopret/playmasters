@@ -1,4 +1,6 @@
 import {
+  buildWavFile,
+  generateWavBytesFromPreset,
   normalizePreset,
   parsePreset,
   sanitizeFileBase,
@@ -35,5 +37,26 @@ describe('sfxUtils', () => {
     );
     expect(presetWithValues.sample_rate).toBe(22050);
     expect(presetWithValues.sample_size).toBe(16);
+  });
+
+  it('buildWavFile returns wav file with sanitized name and audio type', () => {
+    const file = buildWavFile('Player Fire', new Uint8Array([1, 2, 3]));
+    expect(file.name).toBe('player-fire.wav');
+    expect(file.type).toBe('audio/wav');
+    expect(file.size).toBe(3);
+  });
+
+  it('generateWavBytesFromPreset reads bytes from jsfxr data URI', () => {
+    const bytes = generateWavBytesFromPreset(
+      { wave_type: 0 },
+      {
+        sfxr: {
+          toWave: () => ({
+            dataURI: 'data:audio/wav;base64,UklGRg==',
+          }),
+        },
+      },
+    );
+    expect(bytes.length).toBeGreaterThan(0);
   });
 });

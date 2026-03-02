@@ -66,8 +66,9 @@ type MountOptions = {
 const GAME_ID = 'game-space-blaster';
 const WORLD_WIDTH = 800;
 const WORLD_HEIGHT = 450;
-const ENEMY_WIDTH = 34;
-const ENEMY_HEIGHT = 24;
+// Match the visual footprint used by the lightweight admin preview.
+const ENEMY_WIDTH = 62;
+const ENEMY_HEIGHT = 56;
 const ENEMY_COLOR = 0xe94b5a;
 const DEFAULT_RESPAWN_INVULNERABILITY_MS = 1200;
 const COUNTDOWN_MS = 1200;
@@ -77,11 +78,24 @@ const LEVEL_COMPLETE_MS = 900;
 const RUN_ENDING_DELAY_MS = 900;
 const SUBMITTING_TIMEOUT_MS = 7000;
 const RUN_STATE_EVENT = 'playmasters:space-blaster-run-state';
+const isRenderableTextureRef = (value: string | undefined): boolean => {
+  if (!value) return false;
+  return (
+    value.startsWith('http://') ||
+    value.startsWith('https://') ||
+    value.startsWith('/') ||
+    value.startsWith('data:image/')
+  );
+};
 const IS_DEV_RUNTIME = (() => {
   const globalWithProcess = globalThis as {
     process?: { env?: { NODE_ENV?: string } };
   };
-  return globalWithProcess.process?.env?.NODE_ENV !== 'production';
+  const isDev = globalWithProcess.process?.env?.NODE_ENV !== 'production';
+  const debugOverlayEnabled =
+    (globalWithProcess.process?.env as { ENABLE_POOL_DEBUG_OVERLAY?: string } | undefined)
+      ?.ENABLE_POOL_DEBUG_OVERLAY === '1';
+  return isDev && debugOverlayEnabled;
 })();
 
 class SpaceBlasterScene extends Phaser.Scene {
@@ -91,6 +105,7 @@ class SpaceBlasterScene extends Phaser.Scene {
   private disposables: DisposableBag;
 
   private player!: Phaser.GameObjects.Rectangle;
+  private playerVisual?: Phaser.GameObjects.Image;
   private playerBody!: Phaser.Physics.Arcade.Body;
   private playerController!: PlayerController;
   private lifeSystem!: PlayerLifeSystem;
@@ -109,6 +124,12 @@ class SpaceBlasterScene extends Phaser.Scene {
   private poolMetricsOverlay?: PoolMetricsOverlay;
   private poolBaseline?: PoolBaselineSnapshot;
   private enemies!: Phaser.Physics.Arcade.Group;
+  private enemyVisuals = new Map<
+    Phaser.GameObjects.Rectangle,
+    Phaser.GameObjects.Image
+  >();
+  private backdropVisual?: Phaser.GameObjects.Image;
+  private textureKeyByAssetRef = new Map<string, string>();
   private enemyControllers = new Map<
     Phaser.GameObjects.Rectangle,
     EnemyController
@@ -169,9 +190,41 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.disposables = opts.disposables;
   }
 
+  preload() {
+    this.load.setCORS('anonymous');
+
+    const register = (assetRef: string | undefined) => {
+      if (!isRenderableTextureRef(assetRef)) return;
+      if (!assetRef) return;
+      if (this.textureKeyByAssetRef.has(assetRef)) return;
+      const key = `asset-${this.textureKeyByAssetRef.size + 1}`;
+      this.textureKeyByAssetRef.set(assetRef, key);
+      this.load.image(key, assetRef);
+    };
+
+    const firstLevel = this.deps.levelConfigs[0] as ResolvedLevelConfigV1 & {
+      backgroundUrl?: string;
+    };
+    register(firstLevel?.backgroundUrl);
+
+    const heroEntry = this.deps.heroCatalog.entries[0];
+    register(heroEntry?.spriteUrl ?? heroEntry?.spriteKey);
+
+    this.deps.enemyCatalog.entries.forEach((enemy) => {
+      register(enemy.spriteUrl ?? enemy.spriteKey);
+    });
+
+    this.deps.ammoCatalog.entries.forEach((ammo) => {
+      register(ammo.spriteUrl ?? ammo.spriteKey);
+    });
+  }
+
   create() {
     this.cameras.main.setBackgroundColor('#0f111a');
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    const levelConfig = (this.deps.levelConfigs[0] ?? {}) as ResolvedLevelConfigV1 & {
+      backgroundUrl?: string;
+    };
 
     const backdrop = this.add.rectangle(
       WORLD_WIDTH / 2,
@@ -180,6 +233,15 @@ class SpaceBlasterScene extends Phaser.Scene {
       WORLD_HEIGHT,
       0x101628,
     );
+    const backgroundTextureKey = this.getTextureKeyForAssetRef(
+      levelConfig.backgroundUrl,
+    );
+    if (backgroundTextureKey) {
+      this.backdropVisual = this.add
+        .image(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, backgroundTextureKey)
+        .setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT)
+        .setDepth(-20);
+    }
     backdrop.setStrokeStyle(2, 0x3aa9e0, 0.35);
 
     this.player = this.add.rectangle(
@@ -194,6 +256,16 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.playerBody.setCollideWorldBounds(true);
 
     const heroEntry = this.deps.heroCatalog.entries[0];
+    const playerTextureKey = this.getTextureKeyForAssetRef(
+      heroEntry?.spriteUrl ?? heroEntry?.spriteKey,
+    );
+    if (playerTextureKey) {
+      this.playerVisual = this.add
+        .image(this.player.x, this.player.y, playerTextureKey)
+        .setDisplaySize(this.player.width, this.player.height)
+        .setDepth(8);
+      this.player.setFillStyle(0x3aa9e0, 0.01);
+    }
     const moveSpeed =
       heroEntry?.moveSpeed && heroEntry.moveSpeed > 0
         ? heroEntry.moveSpeed
@@ -239,7 +311,6 @@ class SpaceBlasterScene extends Phaser.Scene {
         poolMaxSize: PoolLimits.playerBullets.max,
       },
     );
-    const levelConfig = this.deps.levelConfigs[0];
     const firstWave = levelConfig?.waves?.[0];
     const enemyEntry = this.deps.enemyCatalog.entries.find(
       (entry) => entry.enemyId === firstWave?.enemyId,
@@ -292,7 +363,18 @@ class SpaceBlasterScene extends Phaser.Scene {
           const body = enemy.body as Phaser.Physics.Arcade.Body;
           body.setAllowGravity(false);
           body.setVelocity(0);
-          body.setCircle(12);
+          body.setCircle(Math.floor(Math.min(ENEMY_WIDTH, ENEMY_HEIGHT) * 0.3));
+          const enemyTextureKey = this.getTextureKeyForAssetRef(
+            enemyEntry?.spriteUrl ?? enemyEntry?.spriteKey,
+          );
+          if (enemyTextureKey) {
+            const visual = this.add
+              .image(x, y, enemyTextureKey)
+              .setDisplaySize(ENEMY_WIDTH, ENEMY_HEIGHT)
+              .setDepth(7);
+            this.enemyVisuals.set(enemy, visual);
+            enemy.setFillStyle(ENEMY_COLOR, 0.01);
+          }
           this.enemies.add(enemy);
           this.enemyCanDive.set(enemy, enemyEntry?.canDive !== false);
           this.enemyProfile.set(enemy, enemyEntry);
@@ -304,6 +386,8 @@ class SpaceBlasterScene extends Phaser.Scene {
             .filter((enemy) => (enemy as Phaser.GameObjects.Rectangle).active)
             .map((enemy) => enemy as Phaser.GameObjects.Rectangle),
         clearEnemies: () => {
+          this.enemyVisuals.forEach((visual) => visual.destroy());
+          this.enemyVisuals.clear();
           this.enemyCanDive.clear();
           this.enemyProfile.clear();
           this.enemies.clear(true, true);
@@ -507,6 +591,11 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.formationSystem.onEnemyDeath(target);
         const killX = target.x;
         const killY = target.y;
+        const visual = this.enemyVisuals.get(target);
+        if (visual) {
+          visual.destroy();
+          this.enemyVisuals.delete(target);
+        }
         target.destroy();
         if (enemyId) {
           this.runBus.emit(RUN_EVENT.ENEMY_KILLED, {
@@ -565,6 +654,9 @@ class SpaceBlasterScene extends Phaser.Scene {
             ? 1
             : 0;
         this.playerController.update(dtMs, inputAxis);
+        if (this.playerVisual) {
+          this.playerVisual.setPosition(this.player.x, this.player.y);
+        }
         this.lifeSystem.update(dtMs);
 
         if (this.cursors.space?.isDown) {
@@ -586,6 +678,7 @@ class SpaceBlasterScene extends Phaser.Scene {
 
         this.levelSystem.update(dtMs);
         this.syncReachedProgress();
+        this.syncEnemyVisuals();
 
         this.weaponSystem.update(dtMs);
         this.enemyWeaponSystem.update(dtMs);
@@ -599,9 +692,38 @@ class SpaceBlasterScene extends Phaser.Scene {
     if (this.lifeSystem.invulnerable) {
       const flashVisible = Math.floor(_time / 80) % 2 === 0;
       this.player.setAlpha(flashVisible ? 0.5 : 1);
+      if (this.playerVisual) {
+        this.playerVisual.setAlpha(flashVisible ? 0.5 : 1);
+      }
       return;
     }
     this.player.setAlpha(1);
+    if (this.playerVisual) {
+      this.playerVisual.setAlpha(1);
+    }
+  }
+
+  private getTextureKeyForAssetRef(
+    assetRef: string | undefined,
+  ): string | undefined {
+    if (!assetRef) return undefined;
+    const textureKey = this.textureKeyByAssetRef.get(assetRef);
+    if (!textureKey) return undefined;
+    if (!this.textures.exists(textureKey)) return undefined;
+    return textureKey;
+  }
+
+  private syncEnemyVisuals(): void {
+    this.enemyVisuals.forEach((visual, enemy) => {
+      if (!enemy.active) {
+        visual.destroy();
+        this.enemyVisuals.delete(enemy);
+        return;
+      }
+      visual.setPosition(enemy.x, enemy.y);
+      visual.setVisible(enemy.visible);
+      visual.setAlpha(enemy.alpha);
+    });
   }
 
   private handleSpace() {
@@ -654,11 +776,20 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.enemyCanDive.clear();
     this.enemyProfile.clear();
     this.player.setPosition(WORLD_WIDTH / 2, WORLD_HEIGHT - 60);
+    if (this.playerVisual) {
+      this.playerVisual.setPosition(this.player.x, this.player.y);
+    }
     this.playerController.resetPosition(WORLD_WIDTH / 2);
     this.playerBody.setVelocity(0);
     this.playerBody.enable = true;
     this.player.setVisible(true);
+    if (this.playerVisual) {
+      this.playerVisual.setVisible(true);
+    }
     this.player.setAlpha(1);
+    if (this.playerVisual) {
+      this.playerVisual.setAlpha(1);
+    }
   }
 
   private fireManualShot() {
@@ -951,6 +1082,7 @@ class SpaceBlasterScene extends Phaser.Scene {
       case RunState.READY:
         this.resetEntities();
         this.beginNewRunSession();
+        this.renderReadyPreviewFormation();
         this.playAgainBtn.setVisible(false);
         this.resultsText.setVisible(false);
         this.statusText.setText('Press space or tap to start');
@@ -979,6 +1111,9 @@ class SpaceBlasterScene extends Phaser.Scene {
         this.resetEntities();
         this.playerBody.enable = false;
         this.player.setVisible(false);
+        if (this.playerVisual) {
+          this.playerVisual.setVisible(false);
+        }
         this.statusText.setText(
           `Respawning (${this.lifeSystem.lives} lives left)`,
         );
@@ -1090,6 +1225,12 @@ class SpaceBlasterScene extends Phaser.Scene {
     this.diveScheduler = undefined;
     this.enemyCanDive.clear();
     this.enemyProfile.clear();
+    this.enemyVisuals.forEach((visual) => visual.destroy());
+    this.enemyVisuals.clear();
+    this.playerVisual?.destroy();
+    this.playerVisual = undefined;
+    this.backdropVisual?.destroy();
+    this.backdropVisual = undefined;
     this.sound?.stopAll();
     this.sound?.removeAll();
     this.scoreSystem.dispose();
@@ -1224,6 +1365,15 @@ class SpaceBlasterScene extends Phaser.Scene {
       this.poolBaseline,
     );
     this.poolMetricsOverlay?.setLeakReport(report);
+  }
+
+  private renderReadyPreviewFormation(): void {
+    const level = this.deps.levelConfigs[0];
+    const wave = level?.waves?.[0];
+    if (!level || !wave) return;
+    this.formationSystem.setLevelIndex?.(0);
+    this.formationSystem.spawnFormation(wave);
+    this.initializeEnemyControllers(level);
   }
 }
 

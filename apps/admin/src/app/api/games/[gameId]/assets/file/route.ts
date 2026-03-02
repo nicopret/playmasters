@@ -8,6 +8,54 @@ export const runtime = 'nodejs';
 
 const bad = (message: string, status = 400) =>
   NextResponse.json({ error: message }, { status });
+const defaultAllowedOrigins = new Set(['http://localhost:3000']);
+
+function isLocalDevOrigin(origin: string): boolean {
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname.toLowerCase();
+    return (
+      parsed.protocol === 'http:' &&
+      (host === 'localhost' || host === '127.0.0.1')
+    );
+  } catch {
+    return false;
+  }
+}
+
+function buildCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('origin');
+  const envAllowed = (process.env.CORS_ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  const allowedOrigins = new Set([...defaultAllowedOrigins, ...envAllowed]);
+
+  const allowOrigin =
+    !!origin &&
+    (allowedOrigins.has(origin) ||
+      (process.env.NODE_ENV === 'development' && isLocalDevOrigin(origin)));
+
+  if (!allowOrigin || !origin) {
+    return {
+      Vary: 'Origin',
+    };
+  }
+
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    Vary: 'Origin',
+  };
+}
+
+export async function OPTIONS(req: Request) {
+  return new NextResponse(null, {
+    status: 204,
+    headers: buildCorsHeaders(req),
+  });
+}
 
 export async function GET(
   req: Request,
@@ -52,6 +100,7 @@ export async function GET(
       headers: {
         'Content-Type': obj.ContentType || 'application/octet-stream',
         'Cache-Control': 'no-store',
+        ...buildCorsHeaders(req),
       },
     });
   } catch (err) {

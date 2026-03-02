@@ -1,4 +1,4 @@
-import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '../../lib/ddb';
 
 export type CoreAssetKind = 'hero' | 'enemy' | 'ammo' | 'vfx' | 'sfx';
@@ -42,11 +42,11 @@ export type CoreAssetDraft = {
 type VariableSpec = {
   key: string;
   label: string;
-  type: 'number' | 'boolean';
+  type: 'number' | 'boolean' | 'text';
   min?: number;
   max?: number;
   step?: number;
-  defaultValue: number | boolean;
+  defaultValue: number | boolean | string;
 };
 
 type FxSpec = {
@@ -191,6 +191,22 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         type: 'boolean',
         defaultValue: false,
       },
+      {
+        key: 'hitboxWidth',
+        label: 'Hitbox Width',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
+      },
+      {
+        key: 'hitboxHeight',
+        label: 'Hitbox Height',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
+      },
     ],
     fx: [
       { key: 'ammoId', label: 'Ammo', allowedKinds: ['ammo'] },
@@ -255,6 +271,22 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         label: 'Can Shoot',
         type: 'boolean',
         defaultValue: true,
+      },
+      {
+        key: 'hitboxWidth',
+        label: 'Hitbox Width',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
+      },
+      {
+        key: 'hitboxHeight',
+        label: 'Hitbox Height',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
       },
     ],
     fx: [
@@ -321,6 +353,22 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         type: 'boolean',
         defaultValue: true,
       },
+      {
+        key: 'hitboxWidth',
+        label: 'Hitbox Width',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
+      },
+      {
+        key: 'hitboxHeight',
+        label: 'Hitbox Height',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
+      },
     ],
     fx: [
       { key: 'ammoId', label: 'Ammo', allowedKinds: ['ammo'] },
@@ -385,6 +433,22 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         label: 'Can Shoot',
         type: 'boolean',
         defaultValue: true,
+      },
+      {
+        key: 'hitboxWidth',
+        label: 'Hitbox Width',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
+      },
+      {
+        key: 'hitboxHeight',
+        label: 'Hitbox Height',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
       },
     ],
     fx: [
@@ -451,6 +515,22 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         type: 'boolean',
         defaultValue: true,
       },
+      {
+        key: 'hitboxWidth',
+        label: 'Hitbox Width',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
+      },
+      {
+        key: 'hitboxHeight',
+        label: 'Hitbox Height',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
+      },
     ],
     fx: [
       { key: 'ammoId', label: 'Ammo', allowedKinds: ['ammo'] },
@@ -515,6 +595,22 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         label: 'Can Shoot',
         type: 'boolean',
         defaultValue: true,
+      },
+      {
+        key: 'hitboxWidth',
+        label: 'Hitbox Width',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
+      },
+      {
+        key: 'hitboxHeight',
+        label: 'Hitbox Height',
+        type: 'number',
+        min: 0,
+        step: 1,
+        defaultValue: 28,
       },
     ],
     fx: [
@@ -943,6 +1039,12 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         type: 'boolean',
         defaultValue: false,
       },
+      {
+        key: 'presetJson',
+        label: 'Preset JSON',
+        type: 'text',
+        defaultValue: '',
+      },
     ],
     fx: [],
   },
@@ -967,6 +1069,12 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         label: 'Music Category',
         type: 'boolean',
         defaultValue: false,
+      },
+      {
+        key: 'presetJson',
+        label: 'Preset JSON',
+        type: 'text',
+        defaultValue: '',
       },
     ],
     fx: [],
@@ -993,6 +1101,12 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         type: 'boolean',
         defaultValue: false,
       },
+      {
+        key: 'presetJson',
+        label: 'Preset JSON',
+        type: 'text',
+        defaultValue: '',
+      },
     ],
     fx: [],
   },
@@ -1017,6 +1131,43 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         label: 'Music Category',
         type: 'boolean',
         defaultValue: false,
+      },
+      {
+        key: 'presetJson',
+        label: 'Preset JSON',
+        type: 'text',
+        defaultValue: '',
+      },
+    ],
+    fx: [],
+  },
+  {
+    id: 'sfx.explosion.medium',
+    displayName: 'SFX Explosion Medium',
+    kind: 'sfx',
+    group: 'Audio',
+    slots: [{ slotId: 'audioKey', label: 'Audio', media: 'audio' }],
+    variables: [
+      {
+        key: 'volume',
+        label: 'Volume',
+        type: 'number',
+        min: 0,
+        max: 1,
+        step: 0.01,
+        defaultValue: 0.95,
+      },
+      {
+        key: 'isMusic',
+        label: 'Music Category',
+        type: 'boolean',
+        defaultValue: false,
+      },
+      {
+        key: 'presetJson',
+        label: 'Preset JSON',
+        type: 'text',
+        defaultValue: '',
       },
     ],
     fx: [],
@@ -1043,6 +1194,12 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         type: 'boolean',
         defaultValue: false,
       },
+      {
+        key: 'presetJson',
+        label: 'Preset JSON',
+        type: 'text',
+        defaultValue: '',
+      },
     ],
     fx: [],
   },
@@ -1067,6 +1224,12 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         label: 'Music Category',
         type: 'boolean',
         defaultValue: false,
+      },
+      {
+        key: 'presetJson',
+        label: 'Preset JSON',
+        type: 'text',
+        defaultValue: '',
       },
     ],
     fx: [],
@@ -1093,6 +1256,12 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         type: 'boolean',
         defaultValue: false,
       },
+      {
+        key: 'presetJson',
+        label: 'Preset JSON',
+        type: 'text',
+        defaultValue: '',
+      },
     ],
     fx: [],
   },
@@ -1117,6 +1286,12 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         label: 'Music Category',
         type: 'boolean',
         defaultValue: false,
+      },
+      {
+        key: 'presetJson',
+        label: 'Preset JSON',
+        type: 'text',
+        defaultValue: '',
       },
     ],
     fx: [],
@@ -1143,6 +1318,12 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
         type: 'boolean',
         defaultValue: false,
       },
+      {
+        key: 'presetJson',
+        label: 'Preset JSON',
+        type: 'text',
+        defaultValue: '',
+      },
     ],
     fx: [],
   },
@@ -1150,14 +1331,12 @@ export const SPACE_BLASTER_CORE_ASSET_SPECS: CoreAssetSpec[] = [
 
 const CORE_ASSETS_TABLE =
   process.env.DDB_TABLE_GAME_CORE_ASSETS ?? 'PlaymastersGameAssets';
-const PK_ATTR =
-  process.env.DDB_PK_NAME_GAME_CORE_ASSETS || process.env.DDB_PK_NAME || 'PK';
-const SK_ATTR =
-  process.env.DDB_SK_NAME_GAME_CORE_ASSETS || process.env.DDB_SK_NAME || 'SK';
+const PK_ATTR = process.env.DDB_PK_NAME_GAME_CORE_ASSETS || 'PK';
+const SK_ATTR = process.env.DDB_SK_NAME_GAME_CORE_ASSETS || 'SK';
 
-const coreAssetsKey = (gameId: string) => ({
-  [PK_ATTR]: `GAME#${gameId}`,
-  [SK_ATTR]: 'CORE_ASSETS#DRAFT',
+const coreAssetItemKey = (gameId: string, definitionId: string) => ({
+  [PK_ATTR]: gameId,
+  [SK_ATTR]: definitionId,
 });
 
 export type CoreAssetValidationIssue = {
@@ -1231,6 +1410,12 @@ export function validateCoreAssetsDraft(
         }
         return;
       }
+      if (variableSpec.type === 'text') {
+        if (typeof value !== 'string') {
+          issues.push({ path, message: 'Expected text string.' });
+        }
+        return;
+      }
 
       if (typeof value !== 'number' || !Number.isFinite(value)) {
         issues.push({ path, message: 'Expected finite number.' });
@@ -1287,33 +1472,121 @@ export async function getCoreAssetsDraft(
   gameId: string,
 ): Promise<CoreAssetDraft> {
   const res = await ddbDocClient.send(
-    new GetCommand({
+    new QueryCommand({
       TableName: CORE_ASSETS_TABLE,
-      Key: coreAssetsKey(gameId),
+      KeyConditionExpression: '#pk = :pk',
+      ExpressionAttributeNames: {
+        '#pk': PK_ATTR,
+      },
+      ExpressionAttributeValues: {
+        ':pk': gameId,
+      },
     }),
   );
 
-  if (!res.Item) return createDefaultCoreAssetsDraft(gameId);
+  const items = Array.isArray(res.Items) ? res.Items : [];
+  if (items.length === 0) return createDefaultCoreAssetsDraft(gameId);
 
-  const { [PK_ATTR]: _pk, [SK_ATTR]: _sk, ...rest } = res.Item;
-  void _pk;
-  void _sk;
-  const candidate = rest as Partial<CoreAssetDraft>;
-  if (!Array.isArray(candidate.definitions)) {
-    return createDefaultCoreAssetsDraft(gameId);
+  // Backward compatibility for older single-item storage shape.
+  const legacyItem = items.find((item) => Array.isArray(item.definitions));
+  const loadedById = new Map<string, CoreAssetDefinition>();
+  let defaultTextureKey = 'default.space.background';
+  let updatedAt = new Date().toISOString();
+
+  if (legacyItem) {
+    const { [PK_ATTR]: _pk, [SK_ATTR]: _sk, ...rest } = legacyItem;
+    void _pk;
+    void _sk;
+    const candidate = rest as Partial<CoreAssetDraft>;
+    if (typeof candidate.defaultTextureKey === 'string') {
+      defaultTextureKey = candidate.defaultTextureKey;
+    }
+    if (typeof candidate.updatedAt === 'string') {
+      updatedAt = candidate.updatedAt;
+    }
+    if (Array.isArray(candidate.definitions)) {
+      candidate.definitions
+        .filter((definition): definition is CoreAssetDefinition =>
+          Boolean(definition && typeof definition.id === 'string'),
+        )
+        .forEach((definition) => loadedById.set(definition.id, definition));
+    }
+  } else {
+    items.forEach((item) => {
+      const definition = item.definition as CoreAssetDefinition | undefined;
+      if (!definition || typeof definition.id !== 'string') {
+        return;
+      }
+      loadedById.set(definition.id, definition);
+      if (typeof item.defaultTextureKey === 'string') {
+        defaultTextureKey = item.defaultTextureKey;
+      }
+      if (typeof item.updatedAt === 'string') {
+        updatedAt = item.updatedAt;
+      }
+    });
   }
+
+  const normalizedDefinitions = SPACE_BLASTER_CORE_ASSET_SPECS.map((spec) => {
+    const loaded = loadedById.get(spec.id);
+    return {
+      id: spec.id,
+      displayName: loaded?.displayName ?? spec.displayName,
+      kind: spec.kind,
+      slots: spec.slots.map((slot) => {
+        const existingSlot = loaded?.slots?.find(
+          (entry) => entry.slotId === slot.slotId,
+        );
+        return {
+          slotId: slot.slotId,
+          label: slot.label,
+          media: slot.media,
+          file: existingSlot?.file,
+        };
+      }),
+      variables: Object.fromEntries(
+        spec.variables.map((variable) => {
+          const existingValue = loaded?.variables?.[variable.key];
+          if (variable.type === 'boolean') {
+            return [
+              variable.key,
+              typeof existingValue === 'boolean'
+                ? existingValue
+                : variable.defaultValue,
+            ];
+          }
+          if (variable.type === 'text') {
+            return [
+              variable.key,
+              typeof existingValue === 'string'
+                ? existingValue
+                : variable.defaultValue,
+            ];
+          }
+          return [
+            variable.key,
+            typeof existingValue === 'number' && Number.isFinite(existingValue)
+              ? existingValue
+              : variable.defaultValue,
+          ];
+        }),
+      ),
+      fx: Object.fromEntries(
+        spec.fx.map((fxSpec) => [
+          fxSpec.key,
+          typeof loaded?.fx?.[fxSpec.key] === 'string'
+            ? loaded.fx[fxSpec.key]
+            : '',
+        ]),
+      ),
+    };
+  });
   return {
     gameId,
     schemaVersion: 'core-assets.v1',
-    defaultTextureKey:
-      typeof candidate.defaultTextureKey === 'string'
-        ? candidate.defaultTextureKey
-        : 'default.space.background',
-    definitions: candidate.definitions as CoreAssetDefinition[],
-    updatedAt:
-      typeof candidate.updatedAt === 'string'
-        ? candidate.updatedAt
-        : new Date().toISOString(),
+    defaultTextureKey,
+    definitions: normalizedDefinitions,
+    updatedAt,
   };
 }
 
@@ -1326,15 +1599,64 @@ export async function saveCoreAssetsDraft(
     updatedAt: new Date().toISOString(),
   };
 
+  await Promise.all(
+    next.definitions.map((definition) =>
+      ddbDocClient.send(
+        new PutCommand({
+          TableName: CORE_ASSETS_TABLE,
+          Item: {
+            ...coreAssetItemKey(draft.gameId, definition.id),
+            gameId: draft.gameId,
+            schemaVersion: next.schemaVersion,
+            defaultTextureKey: next.defaultTextureKey,
+            definition,
+            updatedAt: next.updatedAt,
+          },
+        }),
+      ),
+    ),
+  );
+
+  return next;
+}
+
+export async function saveCoreAssetDefinition(args: {
+  gameId: string;
+  defaultTextureKey: string;
+  definition: CoreAssetDefinition;
+}): Promise<CoreAssetDefinition> {
+  const updatedAt = new Date().toISOString();
   await ddbDocClient.send(
     new PutCommand({
       TableName: CORE_ASSETS_TABLE,
       Item: {
-        ...coreAssetsKey(draft.gameId),
-        ...next,
+        ...coreAssetItemKey(args.gameId, args.definition.id),
+        gameId: args.gameId,
+        schemaVersion: 'core-assets.v1',
+        defaultTextureKey: args.defaultTextureKey,
+        definition: args.definition,
+        updatedAt,
       },
     }),
   );
 
-  return next;
+  return args.definition;
+}
+
+export async function getCoreAssetDefinition(args: {
+  gameId: string;
+  definitionId: string;
+}): Promise<CoreAssetDefinition | null> {
+  const res = await ddbDocClient.send(
+    new GetCommand({
+      TableName: CORE_ASSETS_TABLE,
+      Key: coreAssetItemKey(args.gameId, args.definitionId),
+    }),
+  );
+
+  const definition = res.Item?.definition as CoreAssetDefinition | undefined;
+  if (!definition || typeof definition.id !== 'string') {
+    return null;
+  }
+  return definition;
 }

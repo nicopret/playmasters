@@ -1,4 +1,10 @@
 export type SynthPreset = Record<string, number>;
+export type JsfxrWave = { dataURI: string };
+export type JsfxrModuleLike = {
+  sfxr: {
+    toWave: (preset: SynthPreset) => JsfxrWave;
+  };
+};
 
 export type ParsePresetResult =
   | { ok: true; preset: SynthPreset }
@@ -155,4 +161,19 @@ export const downloadBlob = (blob: Blob, filename: string): void => {
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
+};
+
+export const generateWavBytesFromPreset = (
+  preset: SynthPreset,
+  generator: JsfxrModuleLike,
+): Uint8Array => {
+  const wave = generator.sfxr.toWave(preset);
+  return wavDataUriToUint8Array(wave.dataURI);
+};
+
+export const buildWavFile = (title: string, wavBytes: Uint8Array): File => {
+  const fileBase = sanitizeFileBase(title);
+  const name = `${fileBase}.wav`;
+  const bytes = Uint8Array.from(wavBytes);
+  return new File([bytes], name, { type: 'audio/wav' });
 };

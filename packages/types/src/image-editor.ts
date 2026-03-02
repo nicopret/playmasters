@@ -44,6 +44,18 @@ export type LevelConfig = {
     enemies?: Array<{ enemyId?: string; count?: number }>;
     overrides?: Record<string, unknown>;
   }>;
+  formationGrid?: {
+    columns?: number;
+    rows?: number;
+    placements?: Array<{
+      id?: string;
+      enemyId?: string;
+      col?: number;
+      row?: number;
+      width?: number;
+      height?: number;
+    }>;
+  };
   fleetSpeed?: number;
   rampFactor?: number;
   descendStep?: number;

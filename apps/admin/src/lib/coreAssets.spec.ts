@@ -1,4 +1,4 @@
-import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import {
   createDefaultCoreAssetsDraft,
   getCoreAssetsDraft,
@@ -67,14 +67,15 @@ describe('coreAssets persistence', () => {
   });
 
   it('saves then loads draft via ddb commands', async () => {
-    const store: { item?: Record<string, unknown> } = {};
+    const store = new Map<string, Record<string, unknown>>();
     sendMock.mockImplementation(async (command: unknown) => {
       if (command instanceof PutCommand) {
-        store.item = command.input.Item as Record<string, unknown>;
+        const item = command.input.Item as Record<string, unknown>;
+        store.set(String(item.SK), item);
         return {};
       }
-      if (command instanceof GetCommand) {
-        return { Item: store.item };
+      if (command instanceof QueryCommand) {
+        return { Items: Array.from(store.values()) };
       }
       return {};
     });
@@ -87,5 +88,6 @@ describe('coreAssets persistence', () => {
     expect(saved.gameId).toBe('space-blaster');
     expect(loaded.definitions.length).toBe(saved.definitions.length);
     expect(loaded.defaultTextureKey).toBe('default.space.background');
+    expect(store.size).toBe(saved.definitions.length);
   });
 });

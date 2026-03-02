@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dashStyles from '../../../components/AdminDashboard/AdminDashboard.module.css';
 import { getGameDisplayName } from '../../../lib/games';
+import PublishButton from './PublishButton';
 import styles from './page.module.css';
 
 type GamePageProps = {
@@ -57,8 +58,10 @@ export default async function GamePage({ params }: GamePageProps) {
         <section className={styles.contentSection}>
           <h2 className={styles.gameTitle}>{gameId}</h2>
           <p className={styles.meta}>Game admin entry point.</p>
-          <Link href={`/games/${gameId}/levels/demo`} className={styles.link}>
-            Open demo level
+          <PublishButton gameId={gameId} />
+          <br />
+          <Link href={`/games/${gameId}/levels`} className={styles.link}>
+            Open levels
           </Link>
           <br />
           <Link href={`/games/${gameId}/assets`} className={styles.link}>

@@ -1,6 +1,13 @@
 'use client';
 
-import { DragEvent, KeyboardEvent, useMemo, useRef, useState } from 'react';
+import {
+  DragEvent,
+  KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   CoreAssetDefinition,
   CoreAssetFileRef,
@@ -62,6 +69,7 @@ export default function AssetComponent({
 }: AssetComponentProps) {
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [textDrafts, setTextDrafts] = useState<Record<string, string>>({});
   const firstSlot = spec.slots[0];
   const hasAnyAsset = definition.slots.some((slot) => !!slot.file);
   const unlockEditors = hasAnyAsset;
@@ -74,6 +82,16 @@ export default function AssetComponent({
       ]),
     ) as Record<string, FxOption[]>;
   }, [fxOptions, spec.fx]);
+
+  useEffect(() => {
+    const nextTextDrafts: Record<string, string> = {};
+    spec.variables.forEach((variable) => {
+      if (variable.type !== 'text') return;
+      const raw = definition.variables[variable.key];
+      nextTextDrafts[variable.key] = typeof raw === 'string' ? raw : '';
+    });
+    setTextDrafts(nextTextDrafts);
+  }, [definition, spec.variables]);
 
   const setVariable = (key: string, value: CoreAssetVariableValue) => {
     const next = {
@@ -274,6 +292,31 @@ export default function AssetComponent({
                         }
                       />
                       <span>{variable.label}</span>
+                    </label>
+                  );
+                }
+                if (variable.type === 'text') {
+                  return (
+                    <label key={variable.key} className={styles.variableField}>
+                      <span>{variable.label}</span>
+                      <textarea
+                        className={styles.textInput}
+                        value={textDrafts[variable.key] ?? ''}
+                        onChange={(event) =>
+                          setTextDrafts((current) => ({
+                            ...current,
+                            [variable.key]: event.target.value,
+                          }))
+                        }
+                        onBlur={() => {
+                          const nextValue = textDrafts[variable.key] ?? '';
+                          const currentValue = typeof raw === 'string' ? raw : '';
+                          if (nextValue !== currentValue) {
+                            setVariable(variable.key, nextValue);
+                          }
+                        }}
+                        rows={5}
+                      />
                     </label>
                   );
                 }

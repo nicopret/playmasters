@@ -5,6 +5,7 @@ import { Badge, Button, Card } from '@playmasters/ui';
 import { createGameSdk, type GameSdk } from '@playmasters/game-sdk';
 import type { EmbeddedGame } from '@playmasters/types';
 import styles from './GameHost.module.css';
+import SpaceBlasterLightHost from '../SpaceBlasterLightHost';
 
 type Props = {
   gameId: string;
@@ -80,6 +81,7 @@ export const GameHost = ({
   );
   const [message, setMessage] = useState<string | null>(null);
   const [lastScore, setLastScore] = useState<number | null>(null);
+  const [runtimeBundle, setRuntimeBundle] = useState<unknown>(null);
 
   const loader = useMemo(() => gameLoaders[gameId], [gameId]);
   const displayName = user?.displayName ?? user?.id ?? 'Guest';
@@ -87,7 +89,6 @@ export const GameHost = ({
   const pendingBundleRef = useRef<unknown>(undefined);
   const pendingBundleHashRef = useRef<string | undefined>(undefined);
   const runStateRef = useRef<string>('BOOT');
-  const updateToastShownHashRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +97,7 @@ export const GameHost = ({
 
     const mount = async () => {
       const el = mountRef.current;
-      if (!el) return;
+      if (!el && !isSpaceBlasterGame(gameId)) return;
 
       if (!loader) {
         setStatus('error');
@@ -110,6 +111,43 @@ export const GameHost = ({
       );
 
       try {
+        const fetchRuntimeBundle = async (): Promise<unknown> => {
+          if (!apiBaseUrl) {
+            throw new Error(
+              'Missing NEXT_PUBLIC_API_BASE_URL for Space Blaster runtime config.',
+            );
+          }
+          const runtimeResp = await fetch(
+            `${apiBaseUrl}/api/space-blaster/runtime?env=dev`,
+            { cache: 'no-store' },
+          );
+          if (!runtimeResp.ok) {
+            throw new Error(
+              `Failed to load runtime config (${runtimeResp.status}).`,
+            );
+          }
+          const runtimePayload =
+            (await runtimeResp.json()) as RuntimeBundleResponse;
+          return runtimePayload.bundle;
+        };
+
+        if (isSpaceBlasterGame(gameId)) {
+          const loadBundle = async () => {
+            const bundle = await fetchRuntimeBundle();
+            if (cancelled) return;
+            setRuntimeBundle(bundle);
+            setStatus('ready');
+          };
+          await loadBundle();
+          intervalId = setInterval(() => {
+            void loadBundle().catch(() => {
+              // Keep current bundle if refresh fails.
+            });
+          }, CONFIG_UPDATE_POLL_MS);
+          return;
+        }
+
+        if (!el) return;
         const game = await loader();
         if (cancelled) return;
 
@@ -156,26 +194,6 @@ export const GameHost = ({
           });
         };
 
-        const fetchRuntimeBundle = async (): Promise<unknown> => {
-          if (!apiBaseUrl) {
-            throw new Error(
-              'Missing NEXT_PUBLIC_API_BASE_URL for Space Blaster runtime config.',
-            );
-          }
-          const runtimeResp = await fetch(
-            `${apiBaseUrl}/api/space-blaster/runtime?env=dev`,
-            { cache: 'no-store' },
-          );
-          if (!runtimeResp.ok) {
-            throw new Error(
-              `Failed to load runtime config (${runtimeResp.status}).`,
-            );
-          }
-          const runtimePayload =
-            (await runtimeResp.json()) as RuntimeBundleResponse;
-          return runtimePayload.bundle;
-        };
-
         const applyPendingWhenSafe = () => {
           const pending = pendingBundleRef.current;
           if (!pending) return;
@@ -186,41 +204,7 @@ export const GameHost = ({
           pendingBundleHashRef.current = undefined;
         };
 
-        const checkForConfigUpdate = async () => {
-          if (!isSpaceBlasterGame(gameId)) return;
-          try {
-            const latestBundle = await fetchRuntimeBundle();
-            if (cancelled) return;
-            const latestHash = extractConfigHash(latestBundle);
-            const currentHash = mountedConfigHashRef.current;
-            if (!latestHash || !currentHash || latestHash === currentHash) {
-              return;
-            }
-            if (pendingBundleHashRef.current === latestHash) {
-              return;
-            }
-            pendingBundleRef.current = latestBundle;
-            pendingBundleHashRef.current = latestHash;
-            if (updateToastShownHashRef.current !== latestHash) {
-              updateToastShownHashRef.current = latestHash;
-              setMessage('New update available. It will apply next run.');
-            }
-            applyPendingWhenSafe();
-          } catch {
-            // Ignore refresh errors and keep the current mounted config.
-          }
-        };
-
-        if (isSpaceBlasterGame(gameId)) {
-          const initialConfig = await fetchRuntimeBundle();
-          if (cancelled) return;
-          mountWithConfig(initialConfig);
-          intervalId = setInterval(() => {
-            void checkForConfigUpdate();
-          }, CONFIG_UPDATE_POLL_MS);
-        } else {
-          mountWithConfig(undefined);
-        }
+        mountWithConfig(undefined);
 
         runStateListener = ((event: Event): void => {
           const custom = event as CustomEvent<SpaceBlasterRunStateDetail>;
@@ -258,6 +242,7 @@ export const GameHost = ({
           runStateListener,
         );
       }
+      setRuntimeBundle(null);
       pendingBundleRef.current = undefined;
       pendingBundleHashRef.current = undefined;
       mountedConfigHashRef.current = undefined;
@@ -316,7 +301,17 @@ export const GameHost = ({
       </div>
 
       <div className={styles.stage} aria-label={`${gameTitle} stage`}>
-        <div ref={mountRef} className={styles.canvas} />
+        {isSpaceBlasterGame(gameId) ? (
+          <div className={styles.canvas}>
+            {runtimeBundle ? (
+              <SpaceBlasterLightHost
+                bundle={runtimeBundle as Record<string, unknown>}
+              />
+            ) : null}
+          </div>
+        ) : (
+          <div ref={mountRef} className={styles.canvas} />
+        )}
       </div>
 
       <div className={styles.footer}>

@@ -23,7 +23,7 @@ export type SpaceBlasterCoreAssetItem = {
   id: string;
   displayName: string;
   kind: CoreAssetKind;
-  category: 'Hero' | 'Enemies' | 'Ammo' | 'VFX' | 'SFX';
+  category: 'Hero' | 'Enemies' | 'Ammo' | 'VFX';
   acceptedFileTypes: string[];
 };
 
@@ -96,98 +96,35 @@ export const SPACE_BLASTER_CORE_ASSETS: SpaceBlasterCoreAssetItem[] = [
     displayName: 'Explosion (Small)',
     kind: 'vfx',
     category: 'VFX',
-    acceptedFileTypes: ['image/png'],
+    acceptedFileTypes: ['image/png', 'image/webp', 'image/jpeg'],
   },
   {
     id: 'vfx.explosion.medium',
     displayName: 'Explosion (Medium)',
     kind: 'vfx',
     category: 'VFX',
-    acceptedFileTypes: ['image/png'],
+    acceptedFileTypes: ['image/png', 'image/webp', 'image/jpeg'],
   },
   {
     id: 'vfx.explosion.large',
     displayName: 'Explosion (Large)',
     kind: 'vfx',
     category: 'VFX',
-    acceptedFileTypes: ['image/png'],
+    acceptedFileTypes: ['image/png', 'image/webp', 'image/jpeg'],
   },
   {
     id: 'vfx.hitSpark',
     displayName: 'Hit Spark',
     kind: 'vfx',
     category: 'VFX',
-    acceptedFileTypes: ['image/png'],
+    acceptedFileTypes: ['image/png', 'image/webp', 'image/jpeg'],
   },
   {
     id: 'vfx.diveWarning',
     displayName: 'Dive Warning',
     kind: 'vfx',
     category: 'VFX',
-    acceptedFileTypes: ['image/png'],
-  },
-  {
-    id: 'sfx.player.fire',
-    displayName: 'SFX: Player Fire',
-    kind: 'sfx',
-    category: 'SFX',
-    acceptedFileTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg'],
-  },
-  {
-    id: 'sfx.enemy.fire',
-    displayName: 'SFX: Enemy Fire',
-    kind: 'sfx',
-    category: 'SFX',
-    acceptedFileTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg'],
-  },
-  {
-    id: 'sfx.hit',
-    displayName: 'SFX: Hit',
-    kind: 'sfx',
-    category: 'SFX',
-    acceptedFileTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg'],
-  },
-  {
-    id: 'sfx.explosion.small',
-    displayName: 'SFX: Explosion (Small)',
-    kind: 'sfx',
-    category: 'SFX',
-    acceptedFileTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg'],
-  },
-  {
-    id: 'sfx.explosion.large',
-    displayName: 'SFX: Explosion (Large)',
-    kind: 'sfx',
-    category: 'SFX',
-    acceptedFileTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg'],
-  },
-  {
-    id: 'sfx.waveClear',
-    displayName: 'SFX: Wave Clear',
-    kind: 'sfx',
-    category: 'SFX',
-    acceptedFileTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg'],
-  },
-  {
-    id: 'sfx.tierUp',
-    displayName: 'SFX: Tier Up',
-    kind: 'sfx',
-    category: 'SFX',
-    acceptedFileTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg'],
-  },
-  {
-    id: 'sfx.gameOver',
-    displayName: 'SFX: Game Over',
-    kind: 'sfx',
-    category: 'SFX',
-    acceptedFileTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg'],
-  },
-  {
-    id: 'sfx.diveWarning',
-    displayName: 'SFX: Dive Warning',
-    kind: 'sfx',
-    category: 'SFX',
-    acceptedFileTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg'],
+    acceptedFileTypes: ['image/png', 'image/webp', 'image/jpeg'],
   },
 ];
 
@@ -241,8 +178,7 @@ export default async function GameAssetsPage({ params }: GameAssetsPageProps) {
 
         <section className={styles.contentSection}>
           <p className={styles.meta}>
-            Manage core gameplay assets for catalogs (Hero, Enemy, Ammo, VFX,
-            SFX).
+            Manage core gameplay assets for catalogs (Hero, Enemy, Ammo, VFX).
           </p>
           <CoreAssetsEditor
             gameId={gameId}

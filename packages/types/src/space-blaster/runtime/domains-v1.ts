@@ -17,6 +17,19 @@ export interface ResolvedLevelWaveV1 {
 
 export interface ResolvedLevelConfigV1 {
   layoutId: string;
+  backgroundUrl?: string;
+  formationGrid?: {
+    columns: number;
+    rows: number;
+    placements: Array<{
+      id?: string;
+      enemyId: string;
+      col: number;
+      row: number;
+      width: number;
+      height: number;
+    }>;
+  };
   heroId?: string;
   boss?: boolean;
   dive?: number;
@@ -76,6 +89,7 @@ export interface ResolvedLevelConfigV1 {
 export interface HeroCatalogEntryV1 {
   heroId: string;
   spriteKey: string;
+  spriteUrl?: string;
   hurtFlashSpriteKey?: string;
   engineTrailFxKey?: string;
   fireSfxKey?: string;
@@ -97,6 +111,7 @@ export interface EnemyCatalogEntryV1 {
   enemyId: string;
   hp: number;
   spriteKey: string;
+  spriteUrl?: string;
   fireSfxKey?: string;
   deathSfxKey?: string;
   diveTelegraphSfxKey?: string;
@@ -123,6 +138,7 @@ export interface EnemyCatalogV1 {
 export interface AmmoCatalogEntryV1 {
   ammoId: string;
   spriteKey: string;
+  spriteUrl?: string;
   fireSfxKey?: string;
   impactFxKey?: string;
   damage?: number;

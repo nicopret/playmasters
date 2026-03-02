@@ -1,6 +1,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import dashStyles from '../../../../components/AdminDashboard/AdminDashboard.module.css';
+import {
+  getCoreAssetsDraft,
+  SPACE_BLASTER_CORE_ASSET_SPECS,
+} from '../../../../lib/coreAssets';
 import { getGameDisplayName } from '../../../../lib/games';
 import SFXComponent from '../../../../components/SFXComponent/SFXComponent';
 import styles from './page.module.css';
@@ -19,16 +23,30 @@ const navItems = [
 ];
 
 const SFX_ENTRIES = [
-  'Player Fire',
-  'Enemy Fire',
-  'Explosion Small',
-  'Explosion Medium',
-  'Explosion Large',
+  { title: 'Player Fire', definitionId: 'sfx.player.fire' },
+  { title: 'Enemy Fire', definitionId: 'sfx.enemy.fire' },
+  { title: 'Explosion Small', definitionId: 'sfx.explosion.small' },
+  { title: 'Explosion Medium', definitionId: 'sfx.explosion.medium' },
+  { title: 'Explosion Large', definitionId: 'sfx.explosion.large' },
+  { title: 'Hit', definitionId: 'sfx.hit' },
+  { title: 'Wave Clear', definitionId: 'sfx.waveClear' },
+  { title: 'Tier Up', definitionId: 'sfx.tierUp' },
+  { title: 'Game Over', definitionId: 'sfx.gameOver' },
+  { title: 'Dive Warning', definitionId: 'sfx.diveWarning' },
 ];
 
 export default async function GameSfxPage({ params }: GameSfxPageProps) {
   const { gameId } = await params;
   const gameTitle = getGameDisplayName(gameId);
+  const draft = await getCoreAssetsDraft(gameId);
+  const presetByDefinitionId = new Map(
+    draft.definitions.map((definition) => [
+      definition.id,
+      typeof definition.variables.presetJson === 'string'
+        ? definition.variables.presetJson
+        : '',
+    ]),
+  );
 
   return (
     <div className={dashStyles.shell}>
@@ -85,9 +103,26 @@ export default async function GameSfxPage({ params }: GameSfxPageProps) {
           </Link>
 
           <div className={styles.sfxList}>
-            {SFX_ENTRIES.map((entry) => (
-              <SFXComponent key={entry} title={entry} />
-            ))}
+            {SFX_ENTRIES.map((entry) => {
+              const spec = SPACE_BLASTER_CORE_ASSET_SPECS.find(
+                (item) => item.id === entry.definitionId,
+              );
+              const slot = spec?.slots.find((item) => item.media === 'audio');
+              if (!slot) return null;
+
+              return (
+                <SFXComponent
+                  key={entry.definitionId}
+                  gameId={gameId}
+                  definitionId={entry.definitionId}
+                  slotId={slot.slotId}
+                  title={entry.title}
+                  initialPresetJson={
+                    presetByDefinitionId.get(entry.definitionId) ?? ''
+                  }
+                />
+              );
+            })}
           </div>
         </section>
       </main>

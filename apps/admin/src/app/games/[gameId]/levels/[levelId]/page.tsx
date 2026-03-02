@@ -1,40 +1,50 @@
 'use client';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import dashStyles from '../../../../../components/AdminDashboard/AdminDashboard.module.css';
+import AssetComponent from '../../../../../components/AssetComponent/AssetComponent';
+import FormationComponent, { type FormationGrid } from '../../../../../components/FormationComponent/FormationComponent';
+import LevelPreviewComponent from '../../../../../components/LevelPreviewComponent/LevelPreviewComponent';
 import styles from './page.module.css';
-import { validateLevelDraft, ValidationIssue } from './validateLevelDraft';
-
-type BackgroundItem = {
-  assetId: string;
-  title: string;
-  tags: string[];
-  width: number;
-  height: number;
-  publishedVersionId: string;
-  publishedUrl: string;
-  updatedAt: string;
-};
-
-type FormationLayout = {
-  layoutId: string;
-  rows: number;
-  cols: number;
-  spacingX?: number;
-  spacingY?: number;
-};
+import type {
+  CoreAssetDefinition,
+  CoreAssetFileRef,
+  CoreAssetSpec,
+} from '../../../../../lib/coreAssets';
 
 type EnemyOption = {
   enemyId: string;
   displayName?: string;
+  hp?: number;
+};
+
+type EnemyHitbox = {
+  hitboxWidth: number;
+  hitboxHeight: number;
+};
+
+type PreviewPlayerShip = {
+  label: string;
+  iconUrl?: string;
+  hitboxWidth: number;
+  hitboxHeight: number;
 };
 
 type WaveEnemy = { enemyId: string; count: number };
 type Wave = { enemies: WaveEnemy[]; overrides?: Record<string, unknown> };
+
+type FormationPlacement = {
+  id: string;
+  enemyId: string;
+  col: number;
+  row: number;
+  width: number;
+  height: number;
+};
 
 type LevelConfig = {
   gameId: string;
@@ -45,6 +55,7 @@ type LevelConfig = {
   pinnedToVersion?: boolean;
   updatedAt?: string;
   waves: Wave[];
+  formationGrid: FormationGrid;
   fleetSpeed?: number;
   rampFactor?: number;
   descendStep?: number;
@@ -65,21 +76,226 @@ const navItems = [
   { label: 'Assets', href: '/assets' },
 ];
 
+const FORMATION_COLUMNS = 10;
+const FORMATION_ROWS = 5;
+
+const emptyFormationGrid = (): FormationGrid => ({
+  columns: FORMATION_COLUMNS,
+  rows: FORMATION_ROWS,
+  placements: [],
+});
+
+const normalizeFormationGrid = (value: unknown): FormationGrid => {
+  if (!value || typeof value !== 'object') return emptyFormationGrid();
+  const raw = value as {
+    columns?: unknown;
+    rows?: unknown;
+    placements?: unknown;
+  };
+  const columns =
+    typeof raw.columns === 'number' && Number.isFinite(raw.columns) && raw.columns > 0
+      ? Math.floor(raw.columns)
+      : FORMATION_COLUMNS;
+  const rows =
+    typeof raw.rows === 'number' && Number.isFinite(raw.rows) && raw.rows > 0
+      ? Math.floor(raw.rows)
+      : FORMATION_ROWS;
+  const placements = Array.isArray(raw.placements)
+    ? raw.placements
+        .map((entry, index) => {
+          if (!entry || typeof entry !== 'object') return null;
+          const rawPlacement = entry as Record<string, unknown>;
+          const enemyId =
+            typeof rawPlacement.enemyId === 'string' ? rawPlacement.enemyId.trim() : '';
+          if (!enemyId) return null;
+          const col = Number(rawPlacement.col);
+          const row = Number(rawPlacement.row);
+          const width = Number(rawPlacement.width);
+          const height = Number(rawPlacement.height);
+          if (
+            !Number.isFinite(col) ||
+            !Number.isFinite(row) ||
+            !Number.isFinite(width) ||
+            !Number.isFinite(height)
+          ) {
+            return null;
+          }
+          return {
+            id:
+              typeof rawPlacement.id === 'string' && rawPlacement.id.trim()
+                ? rawPlacement.id
+                : `placement-${index}`,
+            enemyId,
+            col: Math.floor(col),
+            row: Math.floor(row),
+            width: width >= 2 ? 2 : 1,
+            height: height >= 2 ? 2 : 1,
+          } satisfies FormationPlacement;
+        })
+        .filter((entry): entry is FormationPlacement => !!entry)
+    : [];
+  return { columns, rows, placements };
+};
+
+const getEnemyCellSize = (
+  enemyId: string,
+  hitboxes: Record<string, EnemyHitbox>,
+  hpById: Record<string, number>,
+): { width: 1 | 2; height: 1 | 2 } => {
+  const lower = enemyId.toLowerCase();
+  if (lower === 'grunt' || lower === 'fast' || lower.endsWith('_grunt') || lower.endsWith('_fast')) {
+    return { width: 1, height: 1 };
+  }
+  if (lower.includes('boss')) return { width: 2, height: 2 };
+  const hitbox = hitboxes[enemyId];
+  const hp = hpById[enemyId] ?? 1;
+  if ((hitbox?.hitboxWidth ?? 0) >= 56 || (hitbox?.hitboxHeight ?? 0) >= 56 || hp >= 12) {
+    return { width: 2, height: 2 };
+  }
+  if ((hitbox?.hitboxWidth ?? 0) >= 40 || (hitbox?.hitboxHeight ?? 0) >= 40 || hp >= 4) {
+    return { width: 2, height: 1 };
+  }
+  return { width: 1, height: 1 };
+};
+
+const toWavesFromFormation = (formation: FormationGrid): Wave[] => {
+  const counts = new Map<string, number>();
+  (formation.placements ?? []).forEach((placement) => {
+    const enemyId = `${placement.enemyId ?? ''}`.trim();
+    if (!enemyId) return;
+    counts.set(enemyId, (counts.get(enemyId) ?? 0) + 1);
+  });
+  if (counts.size === 0) return [];
+  return [
+    {
+      enemies: Array.from(counts.entries()).map(([enemyId, count]) => ({
+        enemyId,
+        count,
+      })),
+    },
+  ];
+};
+
+const canPlaceFormationPlacement = (
+  existingPlacements: FormationPlacement[],
+  candidate: FormationPlacement,
+): boolean => {
+  if (candidate.col < 0 || candidate.row < 0) return false;
+  if (candidate.col + candidate.width > FORMATION_COLUMNS) return false;
+  if (candidate.row + candidate.height > FORMATION_ROWS) return false;
+  return !existingPlacements.some((entry) => {
+    const overlapX =
+      candidate.col < entry.col + entry.width &&
+      candidate.col + candidate.width > entry.col;
+    const overlapY =
+      candidate.row < entry.row + entry.height &&
+      candidate.row + candidate.height > entry.row;
+    return overlapX && overlapY;
+  });
+};
+
+const toFormationFromWaves = (
+  waves: Wave[],
+  hitboxes: Record<string, EnemyHitbox>,
+  hpById: Record<string, number>,
+): FormationGrid => {
+  const placements: FormationPlacement[] = [];
+  let seq = 0;
+  const enemyIds: string[] = [];
+  waves.forEach((wave) => {
+    (wave.enemies ?? []).forEach((enemy) => {
+      const count = Number.isFinite(enemy.count) ? Math.max(0, enemy.count) : 0;
+      for (let idx = 0; idx < count; idx += 1) {
+        enemyIds.push(enemy.enemyId);
+      }
+    });
+  });
+  enemyIds.forEach((enemyId) => {
+    const size = getEnemyCellSize(enemyId, hitboxes, hpById);
+    let placed = false;
+    for (let row = 0; row < FORMATION_ROWS && !placed; row += 1) {
+      for (let col = 0; col < FORMATION_COLUMNS && !placed; col += 1) {
+        const candidate: FormationPlacement = {
+          id: `placement-${seq}`,
+          enemyId,
+          col,
+          row,
+          width: size.width,
+          height: size.height,
+        };
+        if (!canPlaceFormationPlacement(placements, candidate)) continue;
+        placements.push(candidate);
+        seq += 1;
+        placed = true;
+      }
+    }
+  });
+  return {
+    columns: FORMATION_COLUMNS,
+    rows: FORMATION_ROWS,
+    placements,
+  };
+};
+
+const LEVEL_BACKGROUND_SPEC: CoreAssetSpec = {
+  id: 'level.background',
+  displayName: 'Level Background',
+  kind: 'vfx',
+  group: 'VFX',
+  slots: [{ slotId: 'image.main', label: 'Background Image', media: 'image' }],
+  variables: [],
+  fx: [],
+};
+
+const createDefaultBackgroundDefinition = (
+  levelId: string,
+): CoreAssetDefinition => ({
+  id: `${levelId}.background`,
+  displayName: `Level ${levelId} Background`,
+  kind: 'vfx',
+  slots: [{ slotId: 'image.main', label: 'Background Image', media: 'image' }],
+  variables: {},
+  fx: {},
+});
+
+const getAssetFileUrl = (
+  gameId: string,
+  file: CoreAssetFileRef | undefined,
+): string | undefined => {
+  if (!file) return undefined;
+  if (file.inlineDataUrl) return file.inlineDataUrl;
+  if (file.objectKey) {
+    return `/api/games/${gameId}/assets/file?key=${encodeURIComponent(file.objectKey)}`;
+  }
+  return undefined;
+};
+
 export default function LevelConfigPage() {
   const { gameId, levelId } = useParams<{ gameId: string; levelId: string }>();
   if (!gameId || !levelId) {
     return <div className={styles.page}>Missing route parameters</div>;
   }
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [backgrounds, setBackgrounds] = useState<BackgroundItem[]>([]);
-  const [layouts, setLayouts] = useState<FormationLayout[]>([]);
   const [enemies, setEnemies] = useState<EnemyOption[]>([]);
-  const [issues, setIssues] = useState<ValidationIssue[]>([]);
+  const [enemyIcons, setEnemyIcons] = useState<Record<string, string>>({});
+  const [enemyHitboxes, setEnemyHitboxes] = useState<Record<string, EnemyHitbox>>(
+    {},
+  );
+  const [enemyHpById, setEnemyHpById] = useState<Record<string, number>>({});
+  const [playerShip, setPlayerShip] = useState<PreviewPlayerShip>({
+    label: 'Player Ship',
+    hitboxWidth: 28,
+    hitboxHeight: 28,
+  });
+  const [backgroundDefinition, setBackgroundDefinition] =
+    useState<CoreAssetDefinition>(() => createDefaultBackgroundDefinition(levelId));
+  const [uploadingBackgroundSlotId, setUploadingBackgroundSlotId] = useState<
+    string | null
+  >(null);
   const [config, setConfig] = useState<LevelConfig>({
     gameId,
     levelId,
     waves: [],
+    formationGrid: emptyFormationGrid(),
     fleetSpeed: 0,
     rampFactor: 0,
     descendStep: 0,
@@ -108,33 +324,48 @@ export default function LevelConfigPage() {
   > | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const knobPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const knobPersistRequestIdRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        setLoading(true);
-        const [cfgRes, bgRes, layoutRes, enemyRes] = await Promise.all([
+        const [cfgRes, enemyRes, backgroundAssetRes, assetsRes] =
+          await Promise.all([
           fetch(`/api/games/${gameId}/levels/${levelId}`),
-          fetch(`/api/catalog/backgrounds`),
-          fetch(`/api/catalog/formation-layouts`),
-          fetch(`/api/catalog/enemies`),
+          fetch(`/api/catalog/enemies?gameId=${encodeURIComponent(gameId)}`),
+          fetch(`/api/games/${gameId}/levels/${levelId}/background-asset`),
+          fetch(`/api/games/${gameId}/assets`, { cache: 'no-store' }),
         ]);
         if (!cfgRes.ok) throw new Error('Failed to load level');
-        if (!bgRes.ok) throw new Error('Failed to load backgrounds');
-        if (!layoutRes.ok) throw new Error('Failed to load formation layouts');
         if (!enemyRes.ok) throw new Error('Failed to load enemies');
+        if (!backgroundAssetRes.ok) {
+          throw new Error('Failed to load level background asset');
+        }
+        if (!assetsRes.ok) throw new Error('Failed to load game assets')
         const cfgJson = await cfgRes.json();
-        const bgJson = await bgRes.json();
-        const layoutJson = await layoutRes.json();
         const enemyJson = await enemyRes.json();
+        const backgroundAssetJson = await backgroundAssetRes.json();
+        const assetsJson = await assetsRes.json();
         if (!cancelled) {
+          const readPositiveNumber = (
+            value: unknown,
+            fallback: number,
+            min = 1,
+            max = 128,
+          ): number => {
+            if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+            return Math.min(max, Math.max(min, value));
+          };
+
           const cfgData =
             cfgJson.config ??
             ({
               gameId,
               levelId,
               waves: [],
+              formationGrid: emptyFormationGrid(),
               fleetSpeed: 0,
               rampFactor: 0,
               descendStep: 0,
@@ -150,6 +381,7 @@ export default function LevelConfigPage() {
           setConfig({
             ...cfgData,
             waves: Array.isArray(cfgData.waves) ? cfgData.waves : [],
+            formationGrid: normalizeFormationGrid((cfgData as any).formationGrid),
             fleetSpeed: cfgData.fleetSpeed ?? 0,
             rampFactor: cfgData.rampFactor ?? 0,
             descendStep: cfgData.descendStep ?? 0,
@@ -175,14 +407,112 @@ export default function LevelConfigPage() {
             fireTickMs: cfgData.fireTickMs ?? 1000,
             fireChancePerTick: cfgData.fireChancePerTick ?? 0,
           });
-          setBackgrounds(bgJson.backgrounds ?? []);
-          setLayouts(layoutJson.layouts ?? []);
-          setEnemies(enemyJson.enemies ?? []);
+          const definitions = Array.isArray(assetsJson?.draft?.definitions)
+            ? assetsJson.draft.definitions
+            : [];
+          const draftEnemyOptions: EnemyOption[] = definitions
+            .filter(
+              (definition: CoreAssetDefinition) => definition.kind === 'enemy',
+            )
+            .map((definition: CoreAssetDefinition) => ({
+              enemyId: definition.id.replace(/^enemy\./, ''),
+              displayName:
+                definition.displayName ?? definition.id.replace(/^enemy\./, ''),
+            }));
+          const catalogEnemyOptions: EnemyOption[] = Array.isArray(
+            enemyJson.enemies,
+          )
+            ? enemyJson.enemies
+            : [];
+          const mergedEnemyMap = new Map<string, EnemyOption>();
+          draftEnemyOptions.forEach((enemy) =>
+            mergedEnemyMap.set(enemy.enemyId, enemy),
+          );
+          catalogEnemyOptions.forEach((enemy) =>
+            mergedEnemyMap.set(enemy.enemyId, {
+              enemyId: enemy.enemyId,
+              displayName: enemy.displayName ?? enemy.enemyId,
+            }),
+          );
+          setEnemies(Array.from(mergedEnemyMap.values()));
+          const nextEnemyIcons: Record<string, string> = {};
+          const nextEnemyHitboxes: Record<string, EnemyHitbox> = {};
+          const nextEnemyHp: Record<string, number> = {};
+          let nextPlayerShip: PreviewPlayerShip = {
+            label: 'Player Ship',
+            hitboxWidth: 28,
+            hitboxHeight: 28,
+          };
+          definitions.forEach((definition: CoreAssetDefinition) => {
+            if (definition.id === 'hero.playerShip') {
+              const playerSpriteSlot = definition.slots.find(
+                (slot) => slot.slotId === 'spriteKey' && slot.media === 'image',
+              );
+              const playerFile = playerSpriteSlot?.file;
+              let iconUrl: string | undefined;
+              if (playerFile?.inlineDataUrl) {
+                iconUrl = playerFile.inlineDataUrl;
+              } else if (playerFile?.objectKey) {
+                iconUrl = `/api/games/${gameId}/assets/file?key=${encodeURIComponent(playerFile.objectKey)}`;
+              }
+              nextPlayerShip = {
+                label: definition.displayName ?? 'Player Ship',
+                iconUrl,
+                hitboxWidth: readPositiveNumber(
+                  definition.variables?.hitboxWidth,
+                  28,
+                ),
+                hitboxHeight: readPositiveNumber(
+                  definition.variables?.hitboxHeight,
+                  28,
+                ),
+              };
+              return;
+            }
+            if (definition.kind !== 'enemy') return;
+            const enemyId = definition.id.replace(/^enemy\./, '');
+            nextEnemyHitboxes[enemyId] = {
+              hitboxWidth: readPositiveNumber(
+                definition.variables?.hitboxWidth,
+                28,
+              ),
+              hitboxHeight: readPositiveNumber(
+                definition.variables?.hitboxHeight,
+                28,
+              ),
+            };
+            nextEnemyHp[enemyId] = readPositiveNumber(definition.variables?.hp, 1, 1, 999);
+            const spriteSlot = definition.slots.find(
+              (slot) => slot.slotId === 'spriteKey' && slot.media === 'image',
+            );
+            const file = spriteSlot?.file;
+            if (!file) return;
+            if (file.inlineDataUrl) {
+              nextEnemyIcons[enemyId] = file.inlineDataUrl;
+              return;
+            }
+            if (file.objectKey) {
+              nextEnemyIcons[enemyId] =
+                `/api/games/${gameId}/assets/file?key=${encodeURIComponent(file.objectKey)}`;
+            }
+          });
+          catalogEnemyOptions.forEach((enemy) => {
+            if (nextEnemyHp[enemy.enemyId]) return;
+            if (typeof enemy.hp === 'number' && Number.isFinite(enemy.hp) && enemy.hp > 0) {
+              nextEnemyHp[enemy.enemyId] = Math.floor(enemy.hp);
+            }
+          });
+          setEnemyIcons(nextEnemyIcons);
+          setEnemyHitboxes(nextEnemyHitboxes);
+          setEnemyHpById(nextEnemyHp);
+          setPlayerShip(nextPlayerShip);
+          setBackgroundDefinition(
+            (backgroundAssetJson.definition as CoreAssetDefinition) ??
+              createDefaultBackgroundDefinition(levelId),
+          );
         }
       } catch (err: any) {
         if (!cancelled) setError(err?.message ?? 'Load failed');
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
     load();
@@ -191,43 +521,77 @@ export default function LevelConfigPage() {
     };
   }, [gameId, levelId]);
 
-  const selectedBg = useMemo(
-    () => backgrounds.find((b) => b.assetId === config.backgroundAssetId),
-    [backgrounds, config.backgroundAssetId],
-  );
+  const previewBackgroundUrl = useMemo(() => {
+    const backgroundFile = backgroundDefinition.slots.find(
+      (slot) => slot.slotId === 'image.main',
+    )?.file;
+    return getAssetFileUrl(gameId, backgroundFile);
+  }, [backgroundDefinition, gameId]);
 
-  const pinnedVersionId =
-    config.pinnedToVersion && config.backgroundVersionId
-      ? config.backgroundVersionId
-      : selectedBg?.publishedVersionId;
+  const enemyCellSizes = useMemo(() => {
+    const map: Record<string, { width: 1 | 2; height: 1 | 2 }> = {};
+    enemies.forEach((enemy) => {
+      map[enemy.enemyId] = getEnemyCellSize(enemy.enemyId, enemyHitboxes, enemyHpById);
+    });
+    return map;
+  }, [enemies, enemyHitboxes, enemyHpById]);
 
-  const selectedLayout = useMemo(
-    () => layouts.find((l) => l.layoutId === config.layoutId),
-    [layouts, config.layoutId],
-  );
+  useEffect(() => {
+    const hasFormationShips = (config.formationGrid?.placements ?? []).length > 0;
+    if (hasFormationShips || (config.waves ?? []).length === 0) return;
+    setConfig((current) => {
+      if ((current.formationGrid?.placements ?? []).length > 0) return current;
+      return {
+        ...current,
+        formationGrid: toFormationFromWaves(
+          current.waves ?? [],
+          enemyHitboxes,
+          enemyHpById,
+        ),
+      };
+    });
+  }, [config.formationGrid?.placements, config.waves, enemyHitboxes, enemyHpById]);
 
-  const layoutError =
-    !loading &&
-    (!config.layoutId
-      ? 'Layout is required'
-      : !selectedLayout
-        ? 'Selected layout is not published'
-        : null);
-
-  const waveErrors = (config.waves ?? []).map((w) => {
-    const counts = (w.enemies ?? []).map((e) => e.count ?? 0);
-    const negative = counts.some((c) => c < 0);
-    const total = counts.reduce((s, c) => s + c, 0);
-    return negative
-      ? 'Counts must be >= 0'
-      : total <= 0
-        ? 'Wave must have enemies'
-        : null;
-  });
-  const wavesError =
-    !loading && (config.waves?.length ?? 0) === 0
-      ? 'At least one wave is required'
-      : (waveErrors.find((e) => e) ?? null);
+  const previewShips = useMemo(() => {
+    const placements = config.formationGrid?.placements ?? [];
+    if (placements.length > 0) {
+      return placements.map((placement) => ({
+        enemyId: placement.enemyId,
+        label:
+          enemies.find((enemy) => enemy.enemyId === placement.enemyId)?.displayName ??
+          placement.enemyId,
+        iconUrl: enemyIcons[placement.enemyId],
+        hitboxWidth: enemyHitboxes[placement.enemyId]?.hitboxWidth ?? 28,
+        hitboxHeight: enemyHitboxes[placement.enemyId]?.hitboxHeight ?? 28,
+        hp:
+          enemyHpById[placement.enemyId] ??
+          enemies.find((enemy) => enemy.enemyId === placement.enemyId)?.hp ??
+          1,
+        gridCol: placement.col,
+        gridRow: placement.row,
+        gridWidthCells: placement.width,
+        gridHeightCells: placement.height,
+      }));
+    }
+    const expandedEnemyIds: string[] = [];
+    (config.waves ?? []).forEach((wave) => {
+      (wave.enemies ?? []).forEach((enemy) => {
+        const count = Number.isFinite(enemy.count) ? Math.max(0, enemy.count) : 0;
+        for (let idx = 0; idx < count; idx += 1) {
+          expandedEnemyIds.push(enemy.enemyId);
+        }
+      });
+    });
+    return expandedEnemyIds.map((enemyId) => ({
+      enemyId,
+      label:
+        enemies.find((enemy) => enemy.enemyId === enemyId)?.displayName ?? enemyId,
+      iconUrl: enemyIcons[enemyId],
+      hitboxWidth: enemyHitboxes[enemyId]?.hitboxWidth ?? 28,
+      hitboxHeight: enemyHitboxes[enemyId]?.hitboxHeight ?? 28,
+      hp: enemyHpById[enemyId] ?? enemies.find((enemy) => enemy.enemyId === enemyId)?.hp ?? 1,
+    }));
+  }, [config.formationGrid?.placements, config.waves, enemies, enemyIcons, enemyHitboxes, enemyHpById]);
 
   const knobErrors: Partial<Record<keyof LevelConfig, string>> = {};
   if ((config.fleetSpeed ?? 0) < 0) knobErrors.fleetSpeed = 'Must be >= 0';
@@ -289,71 +653,149 @@ export default function LevelConfigPage() {
       (k) => (config as any)[k] !== (originalKnobs as any)[k],
     );
 
-  useEffect(() => {
-    const nextIssues = validateLevelDraft(config, {
-      enemies,
-      layouts,
-    });
-    setIssues(nextIssues);
-  }, [config, enemies, layouts]);
-
-  async function onSave() {
-    setError(null);
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/games/${gameId}/levels/${levelId}`, {
+  const persistBackgroundDefinition = async (definition: CoreAssetDefinition) => {
+    const res = await fetch(
+      `/api/games/${gameId}/levels/${levelId}/background-asset`,
+      {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          layoutId: config.layoutId,
-          backgroundAssetId: config.backgroundAssetId,
-          backgroundVersionId: config.pinnedToVersion
-            ? (config.backgroundVersionId ?? selectedBg?.publishedVersionId)
-            : undefined,
-          pinToVersion: config.pinnedToVersion,
-          fleetSpeed: config.fleetSpeed,
-          rampFactor: config.rampFactor,
-          descendStep: config.descendStep,
-          maxConcurrentDivers: config.maxConcurrentDivers,
-          maxConcurrentShots: config.maxConcurrentShots,
-          waves: config.waves,
-          attackTickMs: config.attackTickMs,
-          diveChancePerTick: config.diveChancePerTick,
-          divePattern: config.divePattern,
-          turnRate: config.turnRate,
-          fireTickMs: config.fireTickMs,
-          fireChancePerTick: config.fireChancePerTick,
-        }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j.error || 'Save failed');
-      }
-      const j = await res.json();
-      setConfig(j.config);
-      setOriginalKnobs({
-        fleetSpeed: j.config.fleetSpeed ?? 0,
-        rampFactor: j.config.rampFactor ?? 0,
-        descendStep: j.config.descendStep ?? 0,
-        maxConcurrentDivers: j.config.maxConcurrentDivers ?? 0,
-        maxConcurrentShots: j.config.maxConcurrentShots ?? 0,
-        attackTickMs: j.config.attackTickMs ?? 1000,
-        diveChancePerTick: j.config.diveChancePerTick ?? 0,
-        divePattern: (j.config.divePattern as any) ?? 'straight',
-        turnRate: j.config.turnRate ?? 0,
-        fireTickMs: j.config.fireTickMs ?? 1000,
-        fireChancePerTick: j.config.fireChancePerTick ?? 0,
-      });
-      setSavedAt(new Date().toLocaleTimeString());
-    } catch (err: any) {
-      setError(err?.message ?? 'Save failed');
-    } finally {
-      setSaving(false);
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ definition }),
+      },
+    );
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json.error ?? 'Failed to save level background asset');
     }
-  }
+  };
 
-  const bgLabel = (bg: BackgroundItem) =>
-    `${bg.title} (${bg.width}x${bg.height})`;
+  const uploadBackgroundSlot = async (
+    slotId: string,
+    media: 'image' | 'audio',
+    file: File,
+  ) => {
+    setUploadingBackgroundSlotId(slotId);
+    try {
+      const definitionId = `${levelId}.background`;
+      const form = new FormData();
+      form.set('definitionId', definitionId);
+      form.set('slotId', slotId);
+      form.set('media', media);
+      form.set('file', file);
+
+      const res = await fetch(`/api/games/${gameId}/assets/upload`, {
+        method: 'POST',
+        body: form,
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error ?? 'Upload failed');
+      }
+
+      const uploadedFile = json.file as CoreAssetFileRef;
+      const nextDefinition: CoreAssetDefinition = {
+        ...backgroundDefinition,
+        slots: backgroundDefinition.slots.map((slot) =>
+          slot.slotId === slotId ? { ...slot, file: uploadedFile } : slot,
+        ),
+      };
+
+      await persistBackgroundDefinition(nextDefinition);
+      setBackgroundDefinition(nextDefinition);
+      setConfig((current) => ({
+        ...current,
+        backgroundAssetId: definitionId,
+        backgroundVersionId: undefined,
+        pinnedToVersion: false,
+      }));
+      setError(null);
+    } finally {
+      setUploadingBackgroundSlotId(null);
+    }
+  };
+
+  const persistLevelConfig = async (nextConfig: LevelConfig) => {
+    const res = await fetch(`/api/games/${gameId}/levels/${levelId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        layoutId: nextConfig.layoutId,
+        backgroundAssetId: nextConfig.backgroundAssetId,
+        backgroundVersionId: undefined,
+        pinToVersion: false,
+        fleetSpeed: nextConfig.fleetSpeed,
+        rampFactor: nextConfig.rampFactor,
+        descendStep: nextConfig.descendStep,
+        maxConcurrentDivers: nextConfig.maxConcurrentDivers,
+        maxConcurrentShots: nextConfig.maxConcurrentShots,
+        waves: nextConfig.waves,
+        formationGrid: nextConfig.formationGrid,
+        attackTickMs: nextConfig.attackTickMs,
+        diveChancePerTick: nextConfig.diveChancePerTick,
+        divePattern: nextConfig.divePattern,
+        turnRate: nextConfig.turnRate,
+        fireTickMs: nextConfig.fireTickMs,
+        fireChancePerTick: nextConfig.fireChancePerTick,
+      }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error || 'Save failed');
+    }
+    const json = await res.json();
+    const saved = json.config as LevelConfig;
+    return {
+      ...saved,
+      waves: Array.isArray(saved.waves) ? saved.waves : [],
+      formationGrid: normalizeFormationGrid((saved as any).formationGrid),
+    };
+  };
+
+  const scheduleKnobPersist = (nextConfig: LevelConfig) => {
+    if (knobPersistTimerRef.current) {
+      clearTimeout(knobPersistTimerRef.current);
+    }
+
+    const requestId = ++knobPersistRequestIdRef.current;
+    knobPersistTimerRef.current = setTimeout(() => {
+      void persistLevelConfig(nextConfig)
+        .then((savedConfig) => {
+          if (requestId !== knobPersistRequestIdRef.current) return;
+          setConfig(savedConfig);
+          setSavedAt(new Date().toLocaleTimeString());
+          setError(null);
+        })
+        .catch((err) => {
+          if (requestId !== knobPersistRequestIdRef.current) return;
+          setError((err as Error).message);
+        });
+    }, 450);
+  };
+
+  const updateKnob = <K extends keyof LevelConfig>(
+    key: K,
+    value: LevelConfig[K],
+  ) => {
+    setConfig((current) => {
+      const nextConfig: LevelConfig = {
+        ...current,
+        [key]: value,
+      };
+      scheduleKnobPersist(nextConfig);
+      return nextConfig;
+    });
+  };
+
+  useEffect(
+    () => () => {
+      if (knobPersistTimerRef.current) {
+        clearTimeout(knobPersistTimerRef.current);
+      }
+    },
+    [],
+  );
+
   const gameName = gameId
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -389,625 +831,341 @@ export default function LevelConfigPage() {
 
       <main className={dashStyles.main}>
         <header className={dashStyles.pageHeader}>
-          <h1>{gameName} Level Editor</h1>
+          <h1>
+            {gameName} Level Editor - <code>{levelId}</code>
+          </h1>
         </header>
         <div className={styles.page}>
           <header className={styles.header}>
             <div className={styles.meta}>
-              Game <code>{gameId}</code> · Level <code>{levelId}</code>
+              Game <code>{gameId}</code>
             </div>
-            <button
-              className={styles.saveBtn}
-              onClick={onSave}
-              disabled={
-                saving ||
-                loading ||
-                !!layoutError ||
-                !!wavesError ||
-                Object.keys(knobErrors).length > 0 ||
-                issues.some((i) => i.severity === 'error')
-              }
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </button>
+            <Link href={`/games/${gameId}/levels`} className={styles.saveBtn}>
+              Back to Levels
+            </Link>
           </header>
 
           {error && <div className={styles.error}>Error: {error}</div>}
           {savedAt && <div className={styles.success}>Saved at {savedAt}</div>}
 
           <section className={styles.card}>
-            <h2>Publish readiness</h2>
-            {issues.length === 0 ? (
-              <div className={styles.success}>Ready to publish</div>
-            ) : (
-              <>
-                <div className={styles.error}>
-                  Not ready:{' '}
-                  {issues.filter((i) => i.severity === 'error').length} blocking
-                  issue(s)
-                </div>
-                <ul className={styles.issueList}>
-                  {issues.map((i, idx) => (
-                    <li key={idx}>
-                      <strong>{i.path ?? '(general)'}</strong>: {i.message}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </section>
-
-          <section className={styles.card}>
-            <h2>Difficulty / Fleet Behavior</h2>
-            {knobChanged && (
-              <div className={styles.warning}>
-                Warning: Changing these values affects difficulty and may impact
-                leaderboard comparability. Consider resetting or segmenting
-                leaderboards when publishing.
-              </div>
-            )}
-            <div className={styles.grid2}>
-              <label className={styles.label}>
-                Fleet speed
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  step={0.1}
-                  value={config.fleetSpeed ?? 0}
-                  onChange={(e) =>
-                    setConfig((c) => ({
-                      ...c,
-                      fleetSpeed: Number(e.target.value),
-                    }))
-                  }
-                />
-                {knobErrors.fleetSpeed && (
-                  <div className={styles.error}>{knobErrors.fleetSpeed}</div>
-                )}
-              </label>
-              <label className={styles.label}>
-                Ramp factor
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={config.rampFactor ?? 0}
-                  onChange={(e) =>
-                    setConfig((c) => ({
-                      ...c,
-                      rampFactor: Number(e.target.value),
-                    }))
-                  }
-                />
-                {knobErrors.rampFactor && (
-                  <div className={styles.error}>{knobErrors.rampFactor}</div>
-                )}
-              </label>
-              <label className={styles.label}>
-                Descend step
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={config.descendStep ?? 0}
-                  onChange={(e) =>
-                    setConfig((c) => ({
-                      ...c,
-                      descendStep: Number(e.target.value),
-                    }))
-                  }
-                />
-                {knobErrors.descendStep && (
-                  <div className={styles.error}>{knobErrors.descendStep}</div>
-                )}
-              </label>
-              <label className={styles.label}>
-                Max concurrent divers
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={config.maxConcurrentDivers ?? 0}
-                  onChange={(e) =>
-                    setConfig((c) => ({
-                      ...c,
-                      maxConcurrentDivers: Number(e.target.value),
-                    }))
-                  }
-                />
-                {knobErrors.maxConcurrentDivers && (
-                  <div className={styles.error}>
-                    {knobErrors.maxConcurrentDivers}
-                  </div>
-                )}
-              </label>
-              <label className={styles.label}>
-                Max concurrent shots
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={config.maxConcurrentShots ?? 0}
-                  onChange={(e) =>
-                    setConfig((c) => ({
-                      ...c,
-                      maxConcurrentShots: Number(e.target.value),
-                    }))
-                  }
-                />
-                {knobErrors.maxConcurrentShots && (
-                  <div className={styles.error}>
-                    {knobErrors.maxConcurrentShots}
-                  </div>
-                )}
-              </label>
-            </div>
-          </section>
-
-          <section className={styles.card}>
-            <h2>Dive / Attack</h2>
-            {diveKnobChanged && (
-              <div className={styles.warning}>
-                Warning: Changing dive/attack tuning affects difficulty and
-                leaderboard comparability.
-              </div>
-            )}
-            <div className={styles.grid2}>
-              <label className={styles.label}>
-                attackTickMs
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={config.attackTickMs ?? 1}
-                  onChange={(e) =>
-                    setConfig((c) => ({
-                      ...c,
-                      attackTickMs: Number(e.target.value),
-                    }))
-                  }
-                />
-                {knobErrors.attackTickMs && (
-                  <div className={styles.error}>{knobErrors.attackTickMs}</div>
-                )}
-              </label>
-              <label className={styles.label}>
-                diveChancePerTick
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={config.diveChancePerTick ?? 0}
-                  onChange={(e) =>
-                    setConfig((c) => ({
-                      ...c,
-                      diveChancePerTick: Number(e.target.value),
-                    }))
-                  }
-                />
-                {knobErrors.diveChancePerTick && (
-                  <div className={styles.error}>
-                    {knobErrors.diveChancePerTick}
-                  </div>
-                )}
-              </label>
-              <label className={styles.label}>
-                Pattern
-                <select
-                  className={styles.select}
-                  value={config.divePattern ?? 'straight'}
-                  onChange={(e) =>
-                    setConfig((c) => ({
-                      ...c,
-                      divePattern: e.target.value as any,
-                    }))
-                  }
-                >
-                  <option value="straight">Straight</option>
-                  <option value="sine">Sine</option>
-                  <option value="track">Track</option>
-                </select>
-                {knobErrors.divePattern && (
-                  <div className={styles.error}>{knobErrors.divePattern}</div>
-                )}
-              </label>
-              {trackingEnabled && (
-                <label className={styles.label}>
-                  turnRate
-                  <input
-                    className={styles.input}
-                    type="number"
-                    min={0}
-                    max={10}
-                    step={0.1}
-                    value={config.turnRate ?? 0}
-                    onChange={(e) =>
-                      setConfig((c) => ({
-                        ...c,
-                        turnRate: Number(e.target.value),
-                      }))
-                    }
-                  />
-                  <div className={styles.helper}>
-                    Capped to prevent perfect tracking.
-                  </div>
-                  {knobErrors.turnRate && (
-                    <div className={styles.error}>{knobErrors.turnRate}</div>
-                  )}
-                </label>
-              )}
-            </div>
-          </section>
-
-          <section className={styles.card}>
-            <h2>Shooting</h2>
-            {shootKnobChanged && (
-              <div className={styles.warning}>
-                Warning: Changing shooting tuning affects difficulty and
-                leaderboard comparability.
-              </div>
-            )}
-            <div className={styles.grid2}>
-              <label className={styles.label}>
-                fireTickMs
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={config.fireTickMs ?? 1}
-                  onChange={(e) =>
-                    setConfig((c) => ({
-                      ...c,
-                      fireTickMs: Number(e.target.value),
-                    }))
-                  }
-                />
-                {knobErrors.fireTickMs && (
-                  <div className={styles.error}>{knobErrors.fireTickMs}</div>
-                )}
-              </label>
-              <label className={styles.label}>
-                fireChancePerTick
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={config.fireChancePerTick ?? 0}
-                  onChange={(e) =>
-                    setConfig((c) => ({
-                      ...c,
-                      fireChancePerTick: Number(e.target.value),
-                    }))
-                  }
-                />
-                {knobErrors.fireChancePerTick && (
-                  <div className={styles.error}>
-                    {knobErrors.fireChancePerTick}
-                  </div>
-                )}
-              </label>
-              <label className={styles.label}>
-                Max concurrent shots
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={config.maxConcurrentShots ?? 0}
-                  onChange={(e) =>
-                    setConfig((c) => ({
-                      ...c,
-                      maxConcurrentShots: Number(e.target.value),
-                    }))
-                  }
-                />
-                {knobErrors.maxConcurrentShots && (
-                  <div className={styles.error}>
-                    {knobErrors.maxConcurrentShots}
-                  </div>
-                )}
-              </label>
-            </div>
+            <h2>Background Asset</h2>
+            <AssetComponent
+              gameId={gameId}
+              assetId={`${levelId}.background`}
+              displayName="Level Background"
+              kind={backgroundDefinition.kind}
+              acceptedFileTypes={['image/png', 'image/webp', 'image/jpeg']}
+              definition={backgroundDefinition}
+              spec={LEVEL_BACKGROUND_SPEC}
+              fxOptions={[]}
+              uploadingSlotId={uploadingBackgroundSlotId}
+              onDefinitionChange={setBackgroundDefinition}
+              onAssetUpdated={(next) => {
+                setBackgroundDefinition(next);
+                void persistBackgroundDefinition(next).catch((err) => {
+                  setError((err as Error).message);
+                });
+              }}
+              onUploadSlot={uploadBackgroundSlot}
+            />
             <div className={styles.helper}>
-              <strong>Shooting Rule:</strong> Column Shooter (locked). Only the
-              bottom-most living enemy in each column may fire. This is a core
-              fairness rule and not editable in v1.
+              Saved to core assets as <code>{`${levelId}.background`}</code>.
+              Uploading here stores the file in S3 and definition in DynamoDB.
             </div>
           </section>
 
           <section className={styles.card}>
-            <div className={styles.cardHeader}>
-              <h2>Waves</h2>
-              <button
-                className={styles.saveBtn}
-                onClick={() =>
-                  setConfig((c) => ({
-                    ...c,
-                    waves: [...(c.waves ?? []), { enemies: [] }],
-                  }))
-                }
-              >
-                Add wave
-              </button>
-            </div>
-            {wavesError && <div className={styles.error}>{wavesError}</div>}
-            {(config.waves ?? []).map((wave, idx) => {
-              const total = (wave.enemies ?? []).reduce(
-                (s, e) => s + (e.count ?? 0),
-                0,
-              );
-              const waveError = waveErrors[idx] ?? null;
-              return (
-                <div key={idx} className={styles.waveCard}>
-                  <div className={styles.waveHeader}>
-                    <div>
-                      <strong>Wave {idx + 1}</strong>{' '}
-                      {total ? `• ${total} enemies` : ''}
-                      {waveError && (
-                        <span className={styles.errorInline}> {waveError}</span>
-                      )}
-                    </div>
-                    <div className={styles.waveActions}>
-                      <button
-                        disabled={idx === 0}
-                        onClick={() =>
-                          setConfig((c) => {
-                            const waves = [...(c.waves ?? [])];
-                            [waves[idx - 1], waves[idx]] = [
-                              waves[idx],
-                              waves[idx - 1],
-                            ];
-                            return { ...c, waves };
-                          })
-                        }
-                      >
-                        ↑
-                      </button>
-                      <button
-                        disabled={idx === (config.waves?.length ?? 1) - 1}
-                        onClick={() =>
-                          setConfig((c) => {
-                            const waves = [...(c.waves ?? [])];
-                            [waves[idx + 1], waves[idx]] = [
-                              waves[idx],
-                              waves[idx + 1],
-                            ];
-                            return { ...c, waves };
-                          })
-                        }
-                      >
-                        ↓
-                      </button>
-                      <button
-                        onClick={() =>
-                          setConfig((c) => ({
-                            ...c,
-                            waves: (c.waves ?? []).filter((_, i) => i !== idx),
-                          }))
-                        }
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
+            <h2>Formation</h2>
+            <FormationComponent
+              enemies={enemies}
+              enemyIcons={enemyIcons}
+              enemyCellSizes={enemyCellSizes}
+              formation={config.formationGrid}
+              onChange={(nextFormation) => {
+                const nextConfig: LevelConfig = {
+                  ...config,
+                  formationGrid: nextFormation,
+                  waves: toWavesFromFormation(nextFormation),
+                };
+                setConfig(nextConfig);
+                void persistLevelConfig(nextConfig)
+                  .then((savedConfig) => {
+                    setConfig(savedConfig);
+                    setSavedAt(new Date().toLocaleTimeString());
+                    setError(null);
+                  })
+                  .catch((err) => {
+                    setError((err as Error).message);
+                  });
+              }}
+            />
+          </section>
 
-                  <div className={styles.table}>
-                    <div className={styles.tableHeader}>
-                      <span>Enemy</span>
-                      <span>Count</span>
-                      <span></span>
-                    </div>
-                    {(wave.enemies ?? []).map((row, rIdx) => (
-                      <div key={rIdx} className={styles.tableRow}>
-                        <select
-                          className={styles.select}
-                          value={row.enemyId ?? ''}
-                          onChange={(e) =>
-                            setConfig((c) => {
-                              const waves = [...(c.waves ?? [])];
-                              const enemies = [...(waves[idx].enemies ?? [])];
-                              enemies[rIdx] = {
-                                ...enemies[rIdx],
-                                enemyId: e.target.value,
-                              };
-                              waves[idx] = { ...waves[idx], enemies };
-                              return { ...c, waves };
-                            })
-                          }
-                        >
-                          <option value="">— Select enemy —</option>
-                          {enemies.map((e) => (
-                            <option key={e.enemyId} value={e.enemyId}>
-                              {e.displayName ?? e.enemyId}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          className={styles.input}
-                          type="number"
-                          min={0}
-                          value={row.count ?? 0}
-                          onChange={(e) =>
-                            setConfig((c) => {
-                              const waves = [...(c.waves ?? [])];
-                              const enemies = [...(waves[idx].enemies ?? [])];
-                              enemies[rIdx] = {
-                                ...enemies[rIdx],
-                                count: Number(e.target.value),
-                              };
-                              waves[idx] = { ...waves[idx], enemies };
-                              return { ...c, waves };
-                            })
-                          }
-                        />
-                        <button
-                          onClick={() =>
-                            setConfig((c) => {
-                              const waves = [...(c.waves ?? [])];
-                              const enemies = [
-                                ...(waves[idx].enemies ?? []),
-                              ].filter((_, i) => i !== rIdx);
-                              waves[idx] = { ...waves[idx], enemies };
-                              return { ...c, waves };
-                            })
-                          }
-                        >
-                          Remove
-                        </button>
+          <section className={styles.card}>
+            <LevelPreviewComponent
+              title="Level Config"
+              backgroundUrl={previewBackgroundUrl}
+              ships={previewShips}
+              playerShip={playerShip}
+              settings={{
+                fleetSpeed: config.fleetSpeed,
+                rampFactor: config.rampFactor,
+                descendStep: config.descendStep,
+                maxConcurrentDivers: config.maxConcurrentDivers,
+                maxConcurrentShots: config.maxConcurrentShots,
+                attackTickMs: config.attackTickMs,
+                diveChancePerTick: config.diveChancePerTick,
+                divePattern: config.divePattern,
+                turnRate: config.turnRate,
+                fireTickMs: config.fireTickMs,
+                fireChancePerTick: config.fireChancePerTick,
+              }}
+            >
+              <div className={styles.previewFieldSection}>
+                <h4 className={styles.previewFieldTitle}>Difficulty / Fleet Behavior</h4>
+                {knobChanged ? (
+                  <div className={styles.warning}>
+                    Warning: Changing these values affects difficulty and may impact
+                    leaderboard comparability. Consider resetting or segmenting
+                    leaderboards when publishing.
+                  </div>
+                ) : null}
+                <div className={styles.grid2}>
+                  <label className={styles.label}>
+                    Fleet speed
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={0}
+                      step={0.1}
+                      value={config.fleetSpeed ?? 0}
+                      onChange={(e) => updateKnob('fleetSpeed', Number(e.target.value))}
+                    />
+                    {knobErrors.fleetSpeed ? (
+                      <div className={styles.error}>{knobErrors.fleetSpeed}</div>
+                    ) : null}
+                  </label>
+                  <label className={styles.label}>
+                    Ramp factor
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={config.rampFactor ?? 0}
+                      onChange={(e) => updateKnob('rampFactor', Number(e.target.value))}
+                    />
+                    {knobErrors.rampFactor ? (
+                      <div className={styles.error}>{knobErrors.rampFactor}</div>
+                    ) : null}
+                  </label>
+                  <label className={styles.label}>
+                    Descend step
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={config.descendStep ?? 0}
+                      onChange={(e) => updateKnob('descendStep', Number(e.target.value))}
+                    />
+                    {knobErrors.descendStep ? (
+                      <div className={styles.error}>{knobErrors.descendStep}</div>
+                    ) : null}
+                  </label>
+                  <label className={styles.label}>
+                    Max concurrent divers
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={config.maxConcurrentDivers ?? 0}
+                      onChange={(e) =>
+                        updateKnob('maxConcurrentDivers', Number(e.target.value))
+                      }
+                    />
+                    {knobErrors.maxConcurrentDivers ? (
+                      <div className={styles.error}>
+                        {knobErrors.maxConcurrentDivers}
                       </div>
-                    ))}
-                    <div className={styles.tableFooter}>
-                      <button
-                        onClick={() =>
-                          setConfig((c) => {
-                            const waves = [...(c.waves ?? [])];
-                            const enemies = [
-                              ...(waves[idx].enemies ?? []),
-                              { enemyId: '', count: 0 },
-                            ];
-                            waves[idx] = { ...waves[idx], enemies };
-                            return { ...c, waves };
-                          })
-                        }
-                      >
-                        Add enemy
-                      </button>
-                    </div>
-                  </div>
+                    ) : null}
+                  </label>
+                  <label className={styles.label}>
+                    Max concurrent shots
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={config.maxConcurrentShots ?? 0}
+                      onChange={(e) =>
+                        updateKnob('maxConcurrentShots', Number(e.target.value))
+                      }
+                    />
+                    {knobErrors.maxConcurrentShots ? (
+                      <div className={styles.error}>
+                        {knobErrors.maxConcurrentShots}
+                      </div>
+                    ) : null}
+                  </label>
                 </div>
-              );
-            })}
+              </div>
+
+              <div className={styles.previewFieldSection}>
+                <h4 className={styles.previewFieldTitle}>Dive / Attack</h4>
+                {diveKnobChanged ? (
+                  <div className={styles.warning}>
+                    Warning: Changing dive/attack tuning affects difficulty and
+                    leaderboard comparability.
+                  </div>
+                ) : null}
+                <div className={styles.grid2}>
+                  <label className={styles.label}>
+                    attackTickMs
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={config.attackTickMs ?? 1}
+                      onChange={(e) => updateKnob('attackTickMs', Number(e.target.value))}
+                    />
+                    {knobErrors.attackTickMs ? (
+                      <div className={styles.error}>{knobErrors.attackTickMs}</div>
+                    ) : null}
+                  </label>
+                  <label className={styles.label}>
+                    diveChancePerTick
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={config.diveChancePerTick ?? 0}
+                      onChange={(e) =>
+                        updateKnob('diveChancePerTick', Number(e.target.value))
+                      }
+                    />
+                    {knobErrors.diveChancePerTick ? (
+                      <div className={styles.error}>
+                        {knobErrors.diveChancePerTick}
+                      </div>
+                    ) : null}
+                  </label>
+                  <label className={styles.label}>
+                    Pattern
+                    <select
+                      className={styles.select}
+                      value={config.divePattern ?? 'straight'}
+                      onChange={(e) =>
+                        updateKnob('divePattern', e.target.value as any)
+                      }
+                    >
+                      <option value="straight">Straight</option>
+                      <option value="sine">Sine</option>
+                      <option value="track">Track</option>
+                    </select>
+                    {knobErrors.divePattern ? (
+                      <div className={styles.error}>{knobErrors.divePattern}</div>
+                    ) : null}
+                  </label>
+                  {trackingEnabled ? (
+                    <label className={styles.label}>
+                      turnRate
+                      <input
+                        className={styles.input}
+                        type="number"
+                        min={0}
+                        max={10}
+                        step={0.1}
+                        value={config.turnRate ?? 0}
+                        onChange={(e) => updateKnob('turnRate', Number(e.target.value))}
+                      />
+                      <div className={styles.helper}>
+                        Capped to prevent perfect tracking.
+                      </div>
+                      {knobErrors.turnRate ? (
+                        <div className={styles.error}>{knobErrors.turnRate}</div>
+                      ) : null}
+                    </label>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className={styles.previewFieldSection}>
+                <h4 className={styles.previewFieldTitle}>Shooting</h4>
+                {shootKnobChanged ? (
+                  <div className={styles.warning}>
+                    Warning: Changing shooting tuning affects difficulty and
+                    leaderboard comparability.
+                  </div>
+                ) : null}
+                <div className={styles.grid2}>
+                  <label className={styles.label}>
+                    fireTickMs
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={config.fireTickMs ?? 1}
+                      onChange={(e) => updateKnob('fireTickMs', Number(e.target.value))}
+                    />
+                    {knobErrors.fireTickMs ? (
+                      <div className={styles.error}>{knobErrors.fireTickMs}</div>
+                    ) : null}
+                  </label>
+                  <label className={styles.label}>
+                    fireChancePerTick
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={config.fireChancePerTick ?? 0}
+                      onChange={(e) =>
+                        updateKnob('fireChancePerTick', Number(e.target.value))
+                      }
+                    />
+                    {knobErrors.fireChancePerTick ? (
+                      <div className={styles.error}>
+                        {knobErrors.fireChancePerTick}
+                      </div>
+                    ) : null}
+                  </label>
+                  <label className={styles.label}>
+                    Max concurrent shots
+                    <input
+                      className={styles.input}
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={config.maxConcurrentShots ?? 0}
+                      onChange={(e) =>
+                        updateKnob('maxConcurrentShots', Number(e.target.value))
+                      }
+                    />
+                    {knobErrors.maxConcurrentShots ? (
+                      <div className={styles.error}>
+                        {knobErrors.maxConcurrentShots}
+                      </div>
+                    ) : null}
+                  </label>
+                </div>
+                <div className={styles.helper}>
+                  <strong>Shooting Rule:</strong> Column Shooter (locked). Only the
+                  bottom-most living enemy in each column may fire. This is a core
+                  fairness rule and not editable in v1.
+                </div>
+              </div>
+            </LevelPreviewComponent>
           </section>
 
-          <section className={styles.card}>
-            <h2>Formation Layout</h2>
-            {loading ? (
-              <div>Loading…</div>
-            ) : (
-              <>
-                <label className={styles.label}>
-                  Choose published layout
-                  <select
-                    className={styles.select}
-                    value={config.layoutId ?? ''}
-                    onChange={(e) =>
-                      setConfig((c) => ({
-                        ...c,
-                        layoutId: e.target.value || undefined,
-                      }))
-                    }
-                  >
-                    <option value="">— Select layout —</option>
-                    {layouts.map((l) => (
-                      <option key={l.layoutId} value={l.layoutId}>
-                        {l.layoutId} ({l.rows}x{l.cols})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {selectedLayout && (
-                  <div className={styles.helper}>
-                    <div>
-                      <strong>Grid:</strong> {selectedLayout.rows} rows ×{' '}
-                      {selectedLayout.cols} cols
-                    </div>
-                    <div>
-                      <strong>Spacing:</strong> {selectedLayout.spacingX ?? '—'}{' '}
-                      / {selectedLayout.spacingY ?? '—'}
-                    </div>
-                  </div>
-                )}
-                {layoutError && (
-                  <div className={styles.error}>{layoutError}</div>
-                )}
-              </>
-            )}
-          </section>
-
-          <section className={styles.card}>
-            <h2>Background</h2>
-            {loading ? (
-              <div>Loading…</div>
-            ) : (
-              <>
-                <label className={styles.label}>
-                  Choose published background
-                  <select
-                    className={styles.select}
-                    value={config.backgroundAssetId ?? ''}
-                    onChange={(e) =>
-                      setConfig((c) => ({
-                        ...c,
-                        backgroundAssetId: e.target.value || undefined,
-                        backgroundVersionId: e.target.value
-                          ? backgrounds.find(
-                              (b) => b.assetId === e.target.value,
-                            )?.publishedVersionId
-                          : undefined,
-                      }))
-                    }
-                  >
-                    <option value="">— None —</option>
-                    {backgrounds.map((bg) => (
-                      <option key={bg.assetId} value={bg.assetId}>
-                        {bgLabel(bg)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className={styles.checkboxRow}>
-                  <input
-                    type="checkbox"
-                    checked={!!config.pinnedToVersion}
-                    onChange={(e) =>
-                      setConfig((c) => ({
-                        ...c,
-                        pinnedToVersion: e.target.checked,
-                        backgroundVersionId: e.target.checked
-                          ? c.backgroundVersionId ||
-                            selectedBg?.publishedVersionId ||
-                            undefined
-                          : undefined,
-                      }))
-                    }
-                    disabled={!config.backgroundAssetId}
-                  />
-                  <span>Pin to current published version</span>
-                </label>
-
-                {config.pinnedToVersion && selectedBg && (
-                  <div className={styles.helper}>
-                    Pinned version: <code>{pinnedVersionId}</code>
-                  </div>
-                )}
-
-                {selectedBg && (
-                  <div className={styles.preview}>
-                    <div className={styles.previewMeta}>
-                      <strong>{selectedBg.title}</strong>
-                      <span>
-                        {selectedBg.width}×{selectedBg.height}
-                      </span>
-                    </div>
-                    <img src={selectedBg.publishedUrl} alt={selectedBg.title} />
-                  </div>
-                )}
-              </>
-            )}
-          </section>
         </div>
       </main>
     </div>

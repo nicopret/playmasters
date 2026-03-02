@@ -216,6 +216,29 @@ export default function CoreAssetsEditor({
     }));
   };
 
+  const persistDefinition = async (definition: CoreAssetDefinition) => {
+    const persistRes = await fetch(`/api/games/${gameId}/assets/definition`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        definition,
+      }),
+    });
+    const persistJson = await persistRes.json().catch(() => ({}));
+    if (!persistRes.ok) {
+      if (Array.isArray(persistJson.issues)) {
+        setIssues(persistJson.issues);
+      }
+      throw new Error(persistJson.error ?? 'Failed to persist definition');
+    }
+
+    setIssues([]);
+    setSavedAt(new Date().toLocaleTimeString());
+    setError(null);
+  };
+
   const uploadSlot = async (
     definitionId: string,
     slotId: string,
@@ -247,17 +270,27 @@ export default function CoreAssetsEditor({
         uploadedAt: string;
       };
 
+      const currentDefinition = draft.definitions.find(
+        (definition) => definition.id === definitionId,
+      );
+      if (!currentDefinition) {
+        throw new Error(`Missing definition: ${definitionId}`);
+      }
+
+      const nextDefinition: CoreAssetDefinition = {
+        ...currentDefinition,
+        slots: currentDefinition.slots.map((slot) =>
+          slot.slotId === slotId ? { ...slot, file: uploadedFile } : slot,
+        ),
+      };
+
+      await persistDefinition(nextDefinition);
+
       setDraft((current) => ({
         ...current,
-        definitions: current.definitions.map((definition) => {
-          if (definition.id !== definitionId) return definition;
-          return {
-            ...definition,
-            slots: definition.slots.map((slot) =>
-              slot.slotId === slotId ? { ...slot, file: uploadedFile } : slot,
-            ),
-          };
-        }),
+        definitions: current.definitions.map((definition) =>
+          definition.id === definitionId ? nextDefinition : definition,
+        ),
       }));
     } finally {
       setUploadingById((current) => {
@@ -362,7 +395,12 @@ export default function CoreAssetsEditor({
                   )}
                   uploadingSlotId={uploadingById[definition.id] ?? null}
                   onDefinitionChange={setDefinition}
-                  onAssetUpdated={setDefinition}
+                  onAssetUpdated={(next) => {
+                    setDefinition(next);
+                    void persistDefinition(next).catch((err) => {
+                      setError((err as Error).message);
+                    });
+                  }}
                   onUploadSlot={(slotId, media, file) =>
                     uploadSlot(definition.id, slotId, media, file)
                   }
