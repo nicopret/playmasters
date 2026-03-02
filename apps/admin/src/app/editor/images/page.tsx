@@ -15,7 +15,8 @@ type AssetRow = {
 const statusLabel = (asset: AssetRow) => {
   const hasDraft = Boolean(asset.currentDraftVersionId);
   const hasPub = Boolean(asset.currentPublishedVersionId);
-  if (hasDraft && hasPub) return { label: 'Draft + Published', className: styles.badgeBoth };
+  if (hasDraft && hasPub)
+    return { label: 'Draft + Published', className: styles.badgeBoth };
   if (hasPub) return { label: 'Published', className: styles.badgePublished };
   if (hasDraft) return { label: 'Draft', className: styles.badgeDraft };
   return { label: 'Unknown', className: styles.badge };
@@ -46,18 +47,22 @@ export default function EditorImagesListPage() {
         const json = await res.json();
         if (alive) {
           setAssets(json.assets ?? []);
-          const ids: string[] = (json.assets ?? []).map((a: AssetRow) => a.assetId);
+          const ids: string[] = (json.assets ?? []).map(
+            (a: AssetRow) => a.assetId,
+          );
           const usageEntries = await Promise.all(
             ids.map(async (id: string) => {
               try {
-                const u = await fetch(`/api/assets/${id}/usage`, { cache: 'no-store' });
+                const u = await fetch(`/api/assets/${id}/usage`, {
+                  cache: 'no-store',
+                });
                 if (!u.ok) return [id, 0] as const;
                 const j = await u.json();
                 return [id, j.count ?? 0] as const;
               } catch {
                 return [id, 0] as const;
               }
-            })
+            }),
           );
           if (alive) setUsageCounts(Object.fromEntries(usageEntries));
         }
@@ -92,7 +97,9 @@ export default function EditorImagesListPage() {
       <div className={styles.header}>
         <div className={styles.kicker}>Image Editor</div>
         <h1 className={styles.title}>Assets</h1>
-        <p className={styles.subtitle}>Browse uploaded assets and open details.</p>
+        <p className={styles.subtitle}>
+          Browse uploaded assets and open details.
+        </p>
       </div>
 
       <div className={styles.toolbar}>
@@ -122,22 +129,24 @@ export default function EditorImagesListPage() {
           <div>
             <span className={styles.kicker}>Status</span>
             <div className={styles.filters}>
-              {(['any', 'draft', 'published', 'both'] as StatusFilter[]).map((s) => (
-                <button
-                  key={s}
-                  className={`${styles.chip} ${statusFilter === s ? styles.chipActive : ''}`}
-                  onClick={() => setStatusFilter(s)}
-                  type="button"
-                >
-                  {s === 'any'
-                    ? 'All'
-                    : s === 'draft'
-                      ? 'Draft only'
-                      : s === 'published'
-                        ? 'Published only'
-                        : 'Draft + Published'}
-                </button>
-              ))}
+              {(['any', 'draft', 'published', 'both'] as StatusFilter[]).map(
+                (s) => (
+                  <button
+                    key={s}
+                    className={`${styles.chip} ${statusFilter === s ? styles.chipActive : ''}`}
+                    onClick={() => setStatusFilter(s)}
+                    type="button"
+                  >
+                    {s === 'any'
+                      ? 'All'
+                      : s === 'draft'
+                        ? 'Draft only'
+                        : s === 'published'
+                          ? 'Published only'
+                          : 'Draft + Published'}
+                  </button>
+                ),
+              )}
             </div>
           </div>
         </div>
@@ -169,12 +178,16 @@ export default function EditorImagesListPage() {
               return (
                 <tr
                   key={asset.assetId}
-                  onClick={() => (window.location.href = `/editor/images/${asset.assetId}`)}
+                  onClick={() =>
+                    (window.location.href = `/editor/images/${asset.assetId}`)
+                  }
                 >
                   <td>{asset.title}</td>
                   <td>{asset.type}</td>
                   <td>
-                    <span className={`${styles.badge} ${status.className}`}>{status.label}</span>
+                    <span className={`${styles.badge} ${status.className}`}>
+                      {status.label}
+                    </span>
                   </td>
                   <td>{new Date(asset.updatedAt).toLocaleString()}</td>
                   <td>{usageCounts[asset.assetId] ?? 0}</td>

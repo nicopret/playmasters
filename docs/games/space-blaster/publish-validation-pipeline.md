@@ -6,11 +6,11 @@ Space Blaster is a data-driven competitive arcade game. Publishing configuration
 
 This document defines:
 
-* The full publish validation pipeline
-* Validation ordering and gating rules
-* Error and warning structure returned to Admin
-* When bundle hashing occurs
-* What artifacts are created on successful publish
+- The full publish validation pipeline
+- Validation ordering and gating rules
+- Error and warning structure returned to Admin
+- When bundle hashing occurs
+- What artifacts are created on successful publish
 
 This specification governs all configuration publishes in Dev, Staging, and Production.
 
@@ -43,10 +43,10 @@ Ensures each domain artifact conforms to its JSON schema or TypeScript interface
 
 Examples:
 
-* Required fields exist
-* Types match expected types
-* No unknown fields (if strict mode enabled)
-* Enum values are valid
+- Required fields exist
+- Types match expected types
+- No unknown fields (if strict mode enabled)
+- Enum values are valid
 
 Failure type: **publish-blocking**
 
@@ -58,10 +58,10 @@ Ensures logical consistency inside each artifact.
 
 Examples:
 
-* Level has ≥ 1 wave
-* Wave enemy counts ≥ 0
-* Formation capacity not exceeded
-* Boss configuration complete if enabled
+- Level has ≥ 1 wave
+- Wave enemy counts ≥ 0
+- Formation capacity not exceeded
+- Boss configuration complete if enabled
 
 Failure type: **publish-blocking**
 
@@ -73,10 +73,10 @@ Ensures all ID references resolve.
 
 Examples:
 
-* LevelConfig.layoutId → FormationLayouts
-* Wave enemyId → EnemyCatalog
-* Hero.defaultAmmoId → AmmoCatalog
-* ScoreConfig.enemyId keys → EnemyCatalog
+- LevelConfig.layoutId → FormationLayouts
+- Wave enemyId → EnemyCatalog
+- Hero.defaultAmmoId → AmmoCatalog
+- ScoreConfig.enemyId keys → EnemyCatalog
 
 Failure type: **publish-blocking**
 
@@ -97,9 +97,9 @@ Catalog defaults
 
 After resolution:
 
-* All required fields must remain present
-* No illegal overrides allowed
-* Final resolved object must match runtime contract
+- All required fields must remain present
+- No illegal overrides allowed
+- Final resolved object must match runtime contract
 
 Failure type: **publish-blocking**
 
@@ -115,16 +115,16 @@ Two levels:
 
 Fail publish if:
 
-* Required spriteKey missing
-* Required audio key malformed
-* Enemy used in a level lacks required spriteKey
+- Required spriteKey missing
+- Required audio key malformed
+- Enemy used in a level lacks required spriteKey
 
 ### Warning-level (optional)
 
 Warn but do not block if:
 
-* Non-critical music key missing
-* Cosmetic UI key missing
+- Non-critical music key missing
+- Cosmetic UI key missing
 
 ---
 
@@ -132,9 +132,9 @@ Warn but do not block if:
 
 Ensure no config mutation rules are violated:
 
-* No dynamic-only fields required at runtime
-* No environment-mixed references
-* No runtime-dependent conditional overrides
+- No dynamic-only fields required at runtime
+- No environment-mixed references
+- No runtime-dependent conditional overrides
 
 This stage ensures the bundle is safe to freeze per run.
 
@@ -150,11 +150,10 @@ If all validation passes:
 2. Canonicalize field order
 3. Compute stable hash (e.g., SHA-256)
 4. Store:
-
-   * bundleId
-   * configHash
-   * publishedAt timestamp
-   * artifact references
+   - bundleId
+   - configHash
+   - publishedAt timestamp
+   - artifact references
 
 The bundle is immutable once stored.
 
@@ -164,18 +163,17 @@ The bundle is immutable once stored.
 
 Final stage:
 
-* Update environment-specific version pointer:
-
-  * `space-blaster/dev/current`
-  * `space-blaster/staging/current`
-  * `space-blaster/prod/current`
+- Update environment-specific version pointer:
+  - `space-blaster/dev/current`
+  - `space-blaster/staging/current`
+  - `space-blaster/prod/current`
 
 Pointer update must be atomic.
 
 If pointer update fails:
 
-* Publish is considered incomplete
-* Pointer remains unchanged
+- Publish is considered incomplete
+- Pointer remains unchanged
 
 ---
 
@@ -200,14 +198,14 @@ Each error includes:
 
 ### error
 
-* Publish-blocking
-* Must be resolved before proceeding
+- Publish-blocking
+- Must be resolved before proceeding
 
 ### warning
 
-* Publish allowed
-* Logged and surfaced to Admin
-* May require review before production promotion
+- Publish allowed
+- Logged and surfaced to Admin
+- May require review before production promotion
 
 ---
 
@@ -215,20 +213,20 @@ Each error includes:
 
 When publish fails:
 
-* Display grouped errors by stage
-* Highlight blocking errors
-* Show JSON path or UI mapping for each issue
-* Do not compute or display configHash
+- Display grouped errors by stage
+- Highlight blocking errors
+- Show JSON path or UI mapping for each issue
+- Do not compute or display configHash
 
 When publish succeeds:
 
-* Display:
+- Display:
+  - bundleId
+  - configHash
+  - publish timestamp
+  - environment
 
-  * bundleId
-  * configHash
-  * publish timestamp
-  * environment
-* Provide rollback option
+- Provide rollback option
 
 ---
 
@@ -236,12 +234,12 @@ When publish succeeds:
 
 Each publish attempt must record:
 
-* Environment
-* Actor (Admin user id)
-* Validation result
-* List of blocking errors (if any)
-* bundleId + configHash (on success)
-* Pointer update result
+- Environment
+- Actor (Admin user id)
+- Validation result
+- List of blocking errors (if any)
+- bundleId + configHash (on success)
+- Pointer update result
 
 Rollback events must be logged similarly.
 
@@ -251,9 +249,9 @@ Rollback events must be logged similarly.
 
 Validation must:
 
-* Complete within acceptable Admin response time (<2–3s recommended)
-* Avoid network fetches during validation (use in-memory artifacts)
-* Be deterministic
+- Complete within acceptable Admin response time (<2–3s recommended)
+- Avoid network fetches during validation (use in-memory artifacts)
+- Be deterministic
 
 Bundle hashing must use canonical representation to avoid hash drift.
 
@@ -263,10 +261,10 @@ Bundle hashing must use canonical representation to avoid hash drift.
 
 If any publish-blocking validation fails:
 
-* No bundle is created
-* No pointer is updated
-* No configHash is generated
-* No partial artifacts are committed
+- No bundle is created
+- No pointer is updated
+- No configHash is generated
+- No partial artifacts are committed
 
 Publish is atomic: success or no change.
 

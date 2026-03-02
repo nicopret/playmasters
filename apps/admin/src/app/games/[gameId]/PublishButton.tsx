@@ -48,4 +48,3 @@ export default function PublishButton({ gameId }: { gameId: string }) {
     </div>
   );
 }
-

@@ -161,7 +161,9 @@
 }
 
 .playerHit {
-  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.95), 0 0 18px rgba(248, 113, 113, 0.8);
+  box-shadow:
+    0 0 0 2px rgba(248, 113, 113, 0.95),
+    0 0 18px rgba(248, 113, 113, 0.8);
 }
 
 .enemyShot {

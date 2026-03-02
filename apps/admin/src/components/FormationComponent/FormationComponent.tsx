@@ -1,6 +1,12 @@
 'use client';
 
-import { useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react';
+import {
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type MouseEvent,
+} from 'react';
 import styles from './FormationComponent.module.css';
 
 const GRID_COLUMNS = 10;
@@ -43,11 +49,10 @@ type DragPayload =
   | { kind: 'catalog'; enemyId: string }
   | { kind: 'placement'; placementId: string };
 
-const shortLabel = (enemyName: string): string => enemyName.slice(0, 1).toUpperCase();
+const shortLabel = (enemyName: string): string =>
+  enemyName.slice(0, 1).toUpperCase();
 
-const normalizeCellSize = (
-  size: EnemyCellSize | undefined,
-): EnemyCellSize => {
+const normalizeCellSize = (size: EnemyCellSize | undefined): EnemyCellSize => {
   if (!size) return { width: 1, height: 1 };
   const width: 1 | 2 = size.width === 2 ? 2 : 1;
   const height: 1 | 2 = size.height === 2 ? 2 : 1;
@@ -81,9 +86,7 @@ const canPlace = (
   if (candidate.col + candidate.width > formation.columns) return false;
   if (candidate.row + candidate.height > formation.rows) return false;
   return !formation.placements.some(
-    (existing) =>
-      existing.id !== ignoreId &&
-      overlaps(existing, candidate),
+    (existing) => existing.id !== ignoreId && overlaps(existing, candidate),
   );
 };
 
@@ -127,13 +130,19 @@ export default function FormationComponent({
     [formation],
   );
   const [selectedEnemyId, setSelectedEnemyId] = useState<string | null>(null);
-  const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null);
+  const [hoverCell, setHoverCell] = useState<{
+    col: number;
+    row: number;
+  } | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
 
   const nameByEnemyId = useMemo(
     () =>
       new Map(
-        enemies.map((enemy) => [enemy.enemyId, enemy.displayName ?? enemy.enemyId]),
+        enemies.map((enemy) => [
+          enemy.enemyId,
+          enemy.displayName ?? enemy.enemyId,
+        ]),
       ),
     [enemies],
   );
@@ -273,7 +282,9 @@ export default function FormationComponent({
                 key={enemy.enemyId}
                 type="button"
                 className={`${styles.catalogButton} ${
-                  selectedEnemyId === enemy.enemyId ? styles.catalogButtonActive : ''
+                  selectedEnemyId === enemy.enemyId
+                    ? styles.catalogButtonActive
+                    : ''
                 }`}
                 title={enemy.displayName ?? enemy.enemyId}
                 draggable
@@ -381,12 +392,16 @@ export default function FormationComponent({
               {enemyIcons?.[placement.enemyId] ? (
                 <img
                   src={enemyIcons[placement.enemyId]}
-                  alt={nameByEnemyId.get(placement.enemyId) ?? placement.enemyId}
+                  alt={
+                    nameByEnemyId.get(placement.enemyId) ?? placement.enemyId
+                  }
                   className={styles.placementIcon}
                 />
               ) : (
                 <span className={styles.placementFallback}>
-                  {shortLabel(nameByEnemyId.get(placement.enemyId) ?? placement.enemyId)}
+                  {shortLabel(
+                    nameByEnemyId.get(placement.enemyId) ?? placement.enemyId,
+                  )}
                 </span>
               )}
             </div>

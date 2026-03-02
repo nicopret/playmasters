@@ -2,18 +2,20 @@ import * as React from 'react';
 import styles from './Input.module.css';
 import { cn } from '../../utils/cn';
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps
+  extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   hint?: string;
   error?: string;
   rightSlot?: React.ReactNode;
 }
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, hint, error, rightSlot, id, className, ...props },
-  ref
-) {
-  const internalId = React.useId();
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  function Input(
+    { label, hint, error, rightSlot, id, className, ...props },
+    ref,
+  ) {
+    const internalId = React.useId();
     const inputId = id ?? `pm-input-${internalId}`;
 
     const describedBy: string[] = [];
@@ -37,7 +39,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
               styles.input,
               !!rightSlot && styles.withRightSlot,
               error && styles.inputError,
-              className
+              className,
             )}
             aria-invalid={Boolean(error) || undefined}
             aria-describedby={describedBy.join(' ') || undefined}
@@ -61,7 +63,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
         ) : null}
       </div>
     );
-  }
+  },
 );
 
 Input.displayName = 'Input';

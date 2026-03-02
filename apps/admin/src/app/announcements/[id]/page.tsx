@@ -181,7 +181,10 @@ export default async function EditAnnouncementPage({ params }: Props) {
           </div>
         </form>
 
-        <form action={removeAnnouncement.bind(null, id)} className={styles.actions}>
+        <form
+          action={removeAnnouncement.bind(null, id)}
+          className={styles.actions}
+        >
           <button className={styles.btn} type="submit">
             Delete
           </button>

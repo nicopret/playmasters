@@ -25,8 +25,16 @@ h6 {
   padding: var(--pm-space-lg);
   min-height: 100vh;
   background:
-    radial-gradient(120% 120% at 50% 20%, rgba(58, 169, 224, 0.15), transparent),
-    radial-gradient(120% 120% at 20% 80%, rgba(242, 92, 141, 0.12), transparent),
+    radial-gradient(
+      120% 120% at 50% 20%,
+      rgba(58, 169, 224, 0.15),
+      transparent
+    ),
+    radial-gradient(
+      120% 120% at 20% 80%,
+      rgba(242, 92, 141, 0.12),
+      transparent
+    ),
     var(--pm-color-background);
   color: var(--pm-color-text-secondary);
   box-sizing: border-box;

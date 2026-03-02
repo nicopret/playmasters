@@ -25,7 +25,7 @@ export const runtime = 'nodejs';
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
   if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin)
@@ -36,20 +36,28 @@ export async function POST(
   const form = await req.formData();
   const file = form.get('file') as File | null;
   if (!file) return bad('file_required');
-  if (!['image/png', 'image/webp', 'image/jpeg', 'image/jpg'].includes(file.type))
+  if (
+    !['image/png', 'image/webp', 'image/jpeg', 'image/jpg'].includes(file.type)
+  )
     return bad('unsupported_type');
 
-  const changeNotes = (form.get('changeNotes') as string | null)?.trim() || undefined;
-  const derivedFromVersionId = (form.get('derivedFromVersionId') as string | null)?.trim() || undefined;
+  const changeNotes =
+    (form.get('changeNotes') as string | null)?.trim() || undefined;
+  const derivedFromVersionId =
+    (form.get('derivedFromVersionId') as string | null)?.trim() || undefined;
 
   const asset = await getAsset(id);
   if (!asset) return bad('not_found', 404);
-  if (!ALLOWED_ASSET_TYPES.includes(asset.type)) return bad('invalid_asset_type', 400);
+  if (!ALLOWED_ASSET_TYPES.includes(asset.type))
+    return bad('invalid_asset_type', 400);
 
   if (asset.type === 'sprite' && file.type !== 'image/png') {
     return bad('sprite_requires_png');
   }
-  if (asset.type === 'background' && !['image/png', 'image/webp', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+  if (
+    asset.type === 'background' &&
+    !['image/png', 'image/webp', 'image/jpeg', 'image/jpg'].includes(file.type)
+  ) {
     return bad('background_invalid_format');
   }
 
@@ -72,7 +80,7 @@ export async function POST(
         Body: buffer,
         ContentType: file.type,
         ContentLength: buffer.byteLength,
-      })
+      }),
     );
 
     const now = new Date().toISOString();
@@ -88,15 +96,20 @@ export async function POST(
             Put: {
               TableName: IMAGE_VERSIONS_TABLE,
               Item: versionItem,
-              ConditionExpression: 'attribute_not_exists(#pk) AND attribute_not_exists(#sk)',
-              ExpressionAttributeNames: { '#pk': VERSION_PK_ATTR, '#sk': VERSION_SK_ATTR },
+              ConditionExpression:
+                'attribute_not_exists(#pk) AND attribute_not_exists(#sk)',
+              ExpressionAttributeNames: {
+                '#pk': VERSION_PK_ATTR,
+                '#sk': VERSION_SK_ATTR,
+              },
             },
           },
           {
             Update: {
               TableName: IMAGE_TABLE,
               Key: { [ASSET_PK_ATTR]: `ASSET#${id}` },
-              UpdateExpression: 'SET currentDraftVersionId = :draft, updatedAt = :updatedAt',
+              UpdateExpression:
+                'SET currentDraftVersionId = :draft, updatedAt = :updatedAt',
               ExpressionAttributeValues: {
                 ':draft': version.versionId,
                 ':updatedAt': now,
@@ -104,7 +117,7 @@ export async function POST(
             },
           },
         ],
-      })
+      }),
     );
 
     await logAudit({
@@ -120,5 +133,8 @@ export async function POST(
     return bad('version_create_failed', 500);
   }
 
-  return NextResponse.json({ asset: { ...asset, currentDraftVersionId: version.versionId }, version });
+  return NextResponse.json({
+    asset: { ...asset, currentDraftVersionId: version.versionId },
+    version,
+  });
 }

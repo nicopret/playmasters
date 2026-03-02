@@ -115,17 +115,23 @@ export default function LevelPreviewComponent({
   const [fleetOffsetX, setFleetOffsetX] = useState(0);
   const [fleetOffsetY, setFleetOffsetY] = useState(0);
   const [divers, setDivers] = useState<Diver[]>([]);
-  const [defeatedFormationKeys, setDefeatedFormationKeys] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [defeatedFormationKeys, setDefeatedFormationKeys] = useState<
+    Set<string>
+  >(() => new Set());
   const [shipHpByKey, setShipHpByKey] = useState<Record<string, number>>({});
   const [shots, setShots] = useState<Shot[]>([]);
   const [playerShots, setPlayerShots] = useState<Shot[]>([]);
   const [explosions, setExplosions] = useState<Explosion[]>([]);
-  const [playerX, setPlayerX] = useState(PLAYFIELD_WIDTH / 2 - DEFAULT_HITBOX / 2);
+  const [playerX, setPlayerX] = useState(
+    PLAYFIELD_WIDTH / 2 - DEFAULT_HITBOX / 2,
+  );
   const [playerHitUntil, setPlayerHitUntil] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const pressedKeysRef = useRef<{ left: boolean; right: boolean; fire: boolean }>({
+  const pressedKeysRef = useRef<{
+    left: boolean;
+    right: boolean;
+    fire: boolean;
+  }>({
     left: false,
     right: false,
     fire: false,
@@ -136,10 +142,30 @@ export default function LevelPreviewComponent({
   const playerXRef = useRef(PLAYFIELD_WIDTH / 2 - DEFAULT_HITBOX / 2);
   const rngSeedRef = useRef(1);
   const indexedFormationRef = useRef<
-    { key: string; left: number; top: number; width: number; height: number; iconUrl?: string; label: string; column: number; index: number }[]
+    {
+      key: string;
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+      iconUrl?: string;
+      label: string;
+      column: number;
+      index: number;
+    }[]
   >([]);
   const activeFormationSpritesRef = useRef<
-    { key: string; left: number; top: number; width: number; height: number; iconUrl?: string; label: string; column: number; canShoot: boolean }[]
+    {
+      key: string;
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+      iconUrl?: string;
+      label: string;
+      column: number;
+      canShoot: boolean;
+    }[]
   >([]);
   const diversRef = useRef<Diver[]>([]);
   const playerShotsRef = useRef<Shot[]>([]);
@@ -240,24 +266,47 @@ export default function LevelPreviewComponent({
     playTone(180, 0.12, 'square', 0.14, 120);
   };
 
-  const formationSprites = useMemo<{ key: string; left: number; top: number; width: number; height: number; hp: number; iconUrl?: string; label: string; column: number; canShoot: boolean }[]>(() => {
+  const formationSprites = useMemo<
+    {
+      key: string;
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+      hp: number;
+      iconUrl?: string;
+      label: string;
+      column: number;
+      canShoot: boolean;
+    }[]
+  >(() => {
     return formationShips.map((ship, index) => {
       const row = ship.gridRow ?? Math.floor(index / GRID_COLUMNS);
-      const col = ship.gridCol ?? (index % GRID_COLUMNS);
+      const col = ship.gridCol ?? index % GRID_COLUMNS;
       const spanW = clamp(Math.floor(ship.gridWidthCells ?? 1), 1, 2);
       const spanH = clamp(Math.floor(ship.gridHeightCells ?? 1), 1, 2);
-      const xCenter = GRID_LEFT + col * GRID_COLUMN_WIDTH + (spanW * GRID_COLUMN_WIDTH) / 2;
-      const yCenter = FORMATION_TOP + row * GRID_ROW_HEIGHT + (spanH * GRID_ROW_HEIGHT) / 2;
+      const xCenter =
+        GRID_LEFT + col * GRID_COLUMN_WIDTH + (spanW * GRID_COLUMN_WIDTH) / 2;
+      const yCenter =
+        FORMATION_TOP + row * GRID_ROW_HEIGHT + (spanH * GRID_ROW_HEIGHT) / 2;
       const minWidth = spanW * GRID_COLUMN_WIDTH - 8;
       const minHeight = spanH * GRID_ROW_HEIGHT - 8;
-      const width = clamp(Math.max(ship.hitboxWidth || DEFAULT_HITBOX, minWidth), 8, 140);
+      const width = clamp(
+        Math.max(ship.hitboxWidth || DEFAULT_HITBOX, minWidth),
+        8,
+        140,
+      );
       const height = clamp(
         Math.max(ship.hitboxHeight || DEFAULT_HITBOX, minHeight),
         8,
         140,
       );
       const left = clamp(xCenter - width / 2, 0, PLAYFIELD_WIDTH - width);
-      const top = clamp(yCenter - height / 2, FORMATION_TOP, PLAYER_ZONE_TOP - height);
+      const top = clamp(
+        yCenter - height / 2,
+        FORMATION_TOP,
+        PLAYER_ZONE_TOP - height,
+      );
       return {
         key: `${ship.enemyId}-${index}`,
         left,
@@ -281,15 +330,21 @@ export default function LevelPreviewComponent({
 
   const activeFormationSprites = useMemo(
     () =>
-      formationSprites.filter((ship) => !hiddenFormationKeys.has(ship.key)).map((ship) => ({
-        ...ship,
-        left: clamp(ship.left + fleetOffsetX, 0, PLAYFIELD_WIDTH - ship.width),
-        top: clamp(
-          ship.top + fleetOffsetY,
-          FORMATION_TOP,
-          PLAYER_ZONE_TOP - ship.height,
-        ),
-      })),
+      formationSprites
+        .filter((ship) => !hiddenFormationKeys.has(ship.key))
+        .map((ship) => ({
+          ...ship,
+          left: clamp(
+            ship.left + fleetOffsetX,
+            0,
+            PLAYFIELD_WIDTH - ship.width,
+          ),
+          top: clamp(
+            ship.top + fleetOffsetY,
+            FORMATION_TOP,
+            PLAYER_ZONE_TOP - ship.height,
+          ),
+        })),
     [formationSprites, hiddenFormationKeys, fleetOffsetX, fleetOffsetY],
   );
 
@@ -333,14 +388,20 @@ export default function LevelPreviewComponent({
     const yCenter = PLAYER_ZONE_TOP + (PLAYFIELD_HEIGHT - PLAYER_ZONE_TOP) / 2;
     return {
       left: clamp(xCenter - width / 2, 0, PLAYFIELD_WIDTH - width),
-      top: clamp(yCenter - height / 2, PLAYER_ZONE_TOP, PLAYFIELD_HEIGHT - height),
+      top: clamp(
+        yCenter - height / 2,
+        PLAYER_ZONE_TOP,
+        PLAYFIELD_HEIGHT - height,
+      ),
       width,
       height,
     };
   }, [playerShip.hitboxHeight, playerShip.hitboxWidth, playerX]);
 
   useEffect(() => {
-    const defaultX = PLAYFIELD_WIDTH / 2 - clamp(playerShip.hitboxWidth || DEFAULT_HITBOX, 8, 96) / 2;
+    const defaultX =
+      PLAYFIELD_WIDTH / 2 -
+      clamp(playerShip.hitboxWidth || DEFAULT_HITBOX, 8, 96) / 2;
     setPlayerX(defaultX);
     playerXRef.current = defaultX;
   }, [playerShip.hitboxWidth]);
@@ -456,7 +517,8 @@ export default function LevelPreviewComponent({
       const dtMs = Math.max(0, now - last);
       lastFrameTimeRef.current = now;
       const dtSec = dtMs / 1000;
-      const speedBase = Math.max(0, settings.fleetSpeed ?? 0) * FLEET_SPEED_SCALE;
+      const speedBase =
+        Math.max(0, settings.fleetSpeed ?? 0) * FLEET_SPEED_SCALE;
       const ramp = Math.max(0, settings.rampFactor ?? 0);
       const fleetBoost = 1 + ramp * Math.min(1.5, fleetTimeRef.current / 60000);
       const fleetSpeed = speedBase * fleetBoost;
@@ -464,7 +526,9 @@ export default function LevelPreviewComponent({
 
       setPlayerX((prev) => {
         const width = clamp(playerShip.hitboxWidth || DEFAULT_HITBOX, 8, 96);
-        const moveDir = Number(pressedKeysRef.current.right) - Number(pressedKeysRef.current.left);
+        const moveDir =
+          Number(pressedKeysRef.current.right) -
+          Number(pressedKeysRef.current.left);
         const next = clamp(
           prev + moveDir * PLAYER_SPEED_PX_PER_SEC * dtSec,
           0,
@@ -477,31 +541,35 @@ export default function LevelPreviewComponent({
       setFleetOffsetX((prevX) => {
         if (!formationSprites.length || fleetSpeed <= 0) return prevX;
         let nextX = prevX + fleetDirectionRef.current * fleetSpeed * dtSec;
-        const leftBound = Math.min(...formationSprites.map((ship) => ship.left + nextX));
+        const leftBound = Math.min(
+          ...formationSprites.map((ship) => ship.left + nextX),
+        );
         const rightBound = Math.max(
           ...formationSprites.map((ship) => ship.left + ship.width + nextX),
         );
         if (leftBound <= 0 || rightBound >= PLAYFIELD_WIDTH) {
           nextX = prevX;
           fleetDirectionRef.current = fleetDirectionRef.current === 1 ? -1 : 1;
-          setFleetOffsetY((prevY) =>
-            {
-              const nextY = clamp(
+          setFleetOffsetY((prevY) => {
+            const nextY = clamp(
               prevY + Math.max(0, settings.descendStep ?? 0),
               0,
               PLAYER_ZONE_TOP - FORMATION_TOP - DEFAULT_HITBOX,
-              );
-              fleetOffsetYRef.current = nextY;
-              return nextY;
-            },
-          );
+            );
+            fleetOffsetYRef.current = nextY;
+            return nextY;
+          });
         }
         fleetOffsetXRef.current = nextX;
         return nextX;
       });
 
       setDivers((prevDivers) => {
-        const playerWidth = clamp(playerShip.hitboxWidth || DEFAULT_HITBOX, 8, 96);
+        const playerWidth = clamp(
+          playerShip.hitboxWidth || DEFAULT_HITBOX,
+          8,
+          96,
+        );
         const playerCenter = playerXRef.current + playerWidth / 2;
         const turnRate = Math.max(0, settings.turnRate ?? 0) * TURN_RATE_SCALE;
         const pattern = settings.divePattern ?? 'straight';
@@ -514,7 +582,8 @@ export default function LevelPreviewComponent({
               x = diver.homeX + Math.sin(ageMs / 280) * DIVE_SWAY;
             } else if (pattern === 'track') {
               const delta = playerCenter - (x + diver.width / 2);
-              const step = Math.sign(delta) * Math.min(Math.abs(delta), turnRate * dtSec);
+              const step =
+                Math.sign(delta) * Math.min(Math.abs(delta), turnRate * dtSec);
               x += step;
             }
             return {
@@ -529,12 +598,25 @@ export default function LevelPreviewComponent({
 
       setShots((prevShots) => {
         const next = prevShots
-          .map((shot) => ({ ...shot, y: shot.y + SHOT_SPEED_PX_PER_SEC * dtSec }))
+          .map((shot) => ({
+            ...shot,
+            y: shot.y + SHOT_SPEED_PX_PER_SEC * dtSec,
+          }))
           .filter((shot) => shot.y <= PLAYFIELD_HEIGHT + 20);
-        const playerWidth = clamp(playerShip.hitboxWidth || DEFAULT_HITBOX, 8, 96);
-        const playerHeight = clamp(playerShip.hitboxHeight || DEFAULT_HITBOX, 8, 96);
+        const playerWidth = clamp(
+          playerShip.hitboxWidth || DEFAULT_HITBOX,
+          8,
+          96,
+        );
+        const playerHeight = clamp(
+          playerShip.hitboxHeight || DEFAULT_HITBOX,
+          8,
+          96,
+        );
         const playerTop =
-          PLAYER_ZONE_TOP + (PLAYFIELD_HEIGHT - PLAYER_ZONE_TOP) / 2 - playerHeight / 2;
+          PLAYER_ZONE_TOP +
+          (PLAYFIELD_HEIGHT - PLAYER_ZONE_TOP) / 2 -
+          playerHeight / 2;
         const playerBottom = playerTop + playerHeight;
         const playerLeft = playerXRef.current;
         const playerRight = playerLeft + playerWidth;
@@ -575,7 +657,8 @@ export default function LevelPreviewComponent({
             const busy = new Set(prevDivers.map((d) => d.sourceKey));
             const available = indexedFormationRef.current.filter(
               (ship) =>
-                !busy.has(ship.key) && !defeatedFormationKeysRef.current.has(ship.key),
+                !busy.has(ship.key) &&
+                !defeatedFormationKeysRef.current.has(ship.key),
             );
             if (!available.length) return prevDivers;
             const pick = available[Math.floor(rand() * available.length)];
@@ -618,7 +701,8 @@ export default function LevelPreviewComponent({
         const fireChance = clamp(settings.fireChancePerTick ?? 0, 0, 1);
         if (maxShots > 0 && fireChance > 0) {
           setShots((prevShots) => {
-            if (prevShots.length >= maxShots || rand() > fireChance) return prevShots;
+            if (prevShots.length >= maxShots || rand() > fireChance)
+              return prevShots;
             const sources = activeFormationSpritesRef.current.filter(
               (ship) => ship.canShoot !== false,
             );
@@ -647,13 +731,26 @@ export default function LevelPreviewComponent({
         }
       }
 
-      if (pressedKeysRef.current.fire && playerFireAccumRef.current >= PLAYER_FIRE_INTERVAL_MS) {
+      if (
+        pressedKeysRef.current.fire &&
+        playerFireAccumRef.current >= PLAYER_FIRE_INTERVAL_MS
+      ) {
         playerFireAccumRef.current %= PLAYER_FIRE_INTERVAL_MS;
         shotSeqRef.current += 1;
-        const playerWidth = clamp(playerShip.hitboxWidth || DEFAULT_HITBOX, 8, 96);
-        const playerHeight = clamp(playerShip.hitboxHeight || DEFAULT_HITBOX, 8, 96);
+        const playerWidth = clamp(
+          playerShip.hitboxWidth || DEFAULT_HITBOX,
+          8,
+          96,
+        );
+        const playerHeight = clamp(
+          playerShip.hitboxHeight || DEFAULT_HITBOX,
+          8,
+          96,
+        );
         const playerTop =
-          PLAYER_ZONE_TOP + (PLAYFIELD_HEIGHT - PLAYER_ZONE_TOP) / 2 - playerHeight / 2;
+          PLAYER_ZONE_TOP +
+          (PLAYFIELD_HEIGHT - PLAYER_ZONE_TOP) / 2 -
+          playerHeight / 2;
         const nextShot: Shot = {
           id: `player-shot-${shotSeqRef.current}`,
           x: playerXRef.current + playerWidth / 2,
@@ -667,7 +764,10 @@ export default function LevelPreviewComponent({
 
       const nowTs = Date.now();
       const movedShots = playerShotsRef.current
-        .map((shot) => ({ ...shot, y: shot.y - PLAYER_SHOT_SPEED_PX_PER_SEC * dtSec }))
+        .map((shot) => ({
+          ...shot,
+          y: shot.y - PLAYER_SHOT_SPEED_PX_PER_SEC * dtSec,
+        }))
         .filter((shot) => shot.y >= -20);
 
       const nextDefeated = new Set<string>(defeatedFormationKeysRef.current);
@@ -736,15 +836,21 @@ export default function LevelPreviewComponent({
         setDefeatedFormationKeys(nextDefeated);
       }
       if (hitDiverIds.size > 0) {
-        setDivers((prevDivers) => prevDivers.filter((diver) => !hitDiverIds.has(diver.id)));
+        setDivers((prevDivers) =>
+          prevDivers.filter((diver) => !hitDiverIds.has(diver.id)),
+        );
       }
 
-      const nextPlayerShots = movedShots.filter((shot) => !hitShots.has(shot.id));
+      const nextPlayerShots = movedShots.filter(
+        (shot) => !hitShots.has(shot.id),
+      );
       playerShotsRef.current = nextPlayerShots;
       setPlayerShots(nextPlayerShots);
       setExplosions((prev) => {
         const active = prev.filter((explosion) => explosion.until > nowTs);
-        return spawnedExplosions.length > 0 ? [...active, ...spawnedExplosions] : active;
+        return spawnedExplosions.length > 0
+          ? [...active, ...spawnedExplosions]
+          : active;
       });
 
       rafIdRef.current = requestAnimationFrame(tick);
@@ -817,7 +923,9 @@ export default function LevelPreviewComponent({
             </div>
 
             {formationSprites.length === 0 ? (
-              <div className={styles.emptyState}>Add ships to preview formation</div>
+              <div className={styles.emptyState}>
+                Add ships to preview formation
+              </div>
             ) : null}
             {activeFormationSprites.map((ship) => (
               <div
@@ -832,9 +940,15 @@ export default function LevelPreviewComponent({
                 }}
               >
                 {ship.iconUrl ? (
-                  <img src={ship.iconUrl} alt={ship.label} className={styles.shipIcon} />
+                  <img
+                    src={ship.iconUrl}
+                    alt={ship.label}
+                    className={styles.shipIcon}
+                  />
                 ) : (
-                  <span className={styles.shipFallback}>{shortLabel(ship.label)}</span>
+                  <span className={styles.shipFallback}>
+                    {shortLabel(ship.label)}
+                  </span>
                 )}
               </div>
             ))}
@@ -851,9 +965,15 @@ export default function LevelPreviewComponent({
                 }}
               >
                 {diver.iconUrl ? (
-                  <img src={diver.iconUrl} alt={diver.label} className={styles.shipIcon} />
+                  <img
+                    src={diver.iconUrl}
+                    alt={diver.label}
+                    className={styles.shipIcon}
+                  />
                 ) : (
-                  <span className={styles.shipFallback}>{shortLabel(diver.label)}</span>
+                  <span className={styles.shipFallback}>
+                    {shortLabel(diver.label)}
+                  </span>
                 )}
               </div>
             ))}
@@ -898,7 +1018,9 @@ export default function LevelPreviewComponent({
                   className={styles.shipIcon}
                 />
               ) : (
-                <span className={styles.shipFallback}>{shortLabel(playerShip.label)}</span>
+                <span className={styles.shipFallback}>
+                  {shortLabel(playerShip.label)}
+                </span>
               )}
             </div>
             <div className={styles.simHint}>

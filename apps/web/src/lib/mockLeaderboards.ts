@@ -28,7 +28,13 @@ const scoresByGame: Record<string, number[]> = {
   'astro-defender': [75210, 73950, 72110, 70040, 68880, 67110, 66050],
 };
 
-const dates = ['2026-01-20', '2026-01-19', '2026-01-18', '2026-01-17', '2026-01-16'];
+const dates = [
+  '2026-01-20',
+  '2026-01-19',
+  '2026-01-18',
+  '2026-01-17',
+  '2026-01-16',
+];
 
 const buildEntries = (slug: string): LeaderboardEntry[] => {
   const scores = scoresByGame[slug];

@@ -43,7 +43,9 @@ const ProfilePage = () => {
             </div>
             <div className={styles.info}>
               <div className={styles.name}>{displayName}</div>
-              {user.email ? <div className={styles.email}>{user.email}</div> : null}
+              {user.email ? (
+                <div className={styles.email}>{user.email}</div>
+              ) : null}
               <Button variant="secondary" size="sm" onClick={() => signOut()}>
                 Sign out
               </Button>

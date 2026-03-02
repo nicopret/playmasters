@@ -7,7 +7,9 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import dashStyles from '../../../../../components/AdminDashboard/AdminDashboard.module.css';
 import AssetComponent from '../../../../../components/AssetComponent/AssetComponent';
-import FormationComponent, { type FormationGrid } from '../../../../../components/FormationComponent/FormationComponent';
+import FormationComponent, {
+  type FormationGrid,
+} from '../../../../../components/FormationComponent/FormationComponent';
 import LevelPreviewComponent from '../../../../../components/LevelPreviewComponent/LevelPreviewComponent';
 import styles from './page.module.css';
 import type {
@@ -93,7 +95,9 @@ const normalizeFormationGrid = (value: unknown): FormationGrid => {
     placements?: unknown;
   };
   const columns =
-    typeof raw.columns === 'number' && Number.isFinite(raw.columns) && raw.columns > 0
+    typeof raw.columns === 'number' &&
+    Number.isFinite(raw.columns) &&
+    raw.columns > 0
       ? Math.floor(raw.columns)
       : FORMATION_COLUMNS;
   const rows =
@@ -106,7 +110,9 @@ const normalizeFormationGrid = (value: unknown): FormationGrid => {
           if (!entry || typeof entry !== 'object') return null;
           const rawPlacement = entry as Record<string, unknown>;
           const enemyId =
-            typeof rawPlacement.enemyId === 'string' ? rawPlacement.enemyId.trim() : '';
+            typeof rawPlacement.enemyId === 'string'
+              ? rawPlacement.enemyId.trim()
+              : '';
           if (!enemyId) return null;
           const col = Number(rawPlacement.col);
           const row = Number(rawPlacement.row);
@@ -143,16 +149,29 @@ const getEnemyCellSize = (
   hpById: Record<string, number>,
 ): { width: 1 | 2; height: 1 | 2 } => {
   const lower = enemyId.toLowerCase();
-  if (lower === 'grunt' || lower === 'fast' || lower.endsWith('_grunt') || lower.endsWith('_fast')) {
+  if (
+    lower === 'grunt' ||
+    lower === 'fast' ||
+    lower.endsWith('_grunt') ||
+    lower.endsWith('_fast')
+  ) {
     return { width: 1, height: 1 };
   }
   if (lower.includes('boss')) return { width: 2, height: 2 };
   const hitbox = hitboxes[enemyId];
   const hp = hpById[enemyId] ?? 1;
-  if ((hitbox?.hitboxWidth ?? 0) >= 56 || (hitbox?.hitboxHeight ?? 0) >= 56 || hp >= 12) {
+  if (
+    (hitbox?.hitboxWidth ?? 0) >= 56 ||
+    (hitbox?.hitboxHeight ?? 0) >= 56 ||
+    hp >= 12
+  ) {
     return { width: 2, height: 2 };
   }
-  if ((hitbox?.hitboxWidth ?? 0) >= 40 || (hitbox?.hitboxHeight ?? 0) >= 40 || hp >= 4) {
+  if (
+    (hitbox?.hitboxWidth ?? 0) >= 40 ||
+    (hitbox?.hitboxHeight ?? 0) >= 40 ||
+    hp >= 4
+  ) {
     return { width: 2, height: 1 };
   }
   return { width: 1, height: 1 };
@@ -277,9 +296,9 @@ export default function LevelConfigPage() {
   }
   const [enemies, setEnemies] = useState<EnemyOption[]>([]);
   const [enemyIcons, setEnemyIcons] = useState<Record<string, string>>({});
-  const [enemyHitboxes, setEnemyHitboxes] = useState<Record<string, EnemyHitbox>>(
-    {},
-  );
+  const [enemyHitboxes, setEnemyHitboxes] = useState<
+    Record<string, EnemyHitbox>
+  >({});
   const [enemyHpById, setEnemyHpById] = useState<Record<string, number>>({});
   const [playerShip, setPlayerShip] = useState<PreviewPlayerShip>({
     label: 'Player Ship',
@@ -287,7 +306,9 @@ export default function LevelConfigPage() {
     hitboxHeight: 28,
   });
   const [backgroundDefinition, setBackgroundDefinition] =
-    useState<CoreAssetDefinition>(() => createDefaultBackgroundDefinition(levelId));
+    useState<CoreAssetDefinition>(() =>
+      createDefaultBackgroundDefinition(levelId),
+    );
   const [uploadingBackgroundSlotId, setUploadingBackgroundSlotId] = useState<
     string | null
   >(null);
@@ -324,7 +345,9 @@ export default function LevelConfigPage() {
   > | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
-  const knobPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const knobPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const knobPersistRequestIdRef = useRef(0);
 
   useEffect(() => {
@@ -333,17 +356,17 @@ export default function LevelConfigPage() {
       try {
         const [cfgRes, enemyRes, backgroundAssetRes, assetsRes] =
           await Promise.all([
-          fetch(`/api/games/${gameId}/levels/${levelId}`),
-          fetch(`/api/catalog/enemies?gameId=${encodeURIComponent(gameId)}`),
-          fetch(`/api/games/${gameId}/levels/${levelId}/background-asset`),
-          fetch(`/api/games/${gameId}/assets`, { cache: 'no-store' }),
-        ]);
+            fetch(`/api/games/${gameId}/levels/${levelId}`),
+            fetch(`/api/catalog/enemies?gameId=${encodeURIComponent(gameId)}`),
+            fetch(`/api/games/${gameId}/levels/${levelId}/background-asset`),
+            fetch(`/api/games/${gameId}/assets`, { cache: 'no-store' }),
+          ]);
         if (!cfgRes.ok) throw new Error('Failed to load level');
         if (!enemyRes.ok) throw new Error('Failed to load enemies');
         if (!backgroundAssetRes.ok) {
           throw new Error('Failed to load level background asset');
         }
-        if (!assetsRes.ok) throw new Error('Failed to load game assets')
+        if (!assetsRes.ok) throw new Error('Failed to load game assets');
         const cfgJson = await cfgRes.json();
         const enemyJson = await enemyRes.json();
         const backgroundAssetJson = await backgroundAssetRes.json();
@@ -355,7 +378,8 @@ export default function LevelConfigPage() {
             min = 1,
             max = 128,
           ): number => {
-            if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+            if (typeof value !== 'number' || !Number.isFinite(value))
+              return fallback;
             return Math.min(max, Math.max(min, value));
           };
 
@@ -381,7 +405,9 @@ export default function LevelConfigPage() {
           setConfig({
             ...cfgData,
             waves: Array.isArray(cfgData.waves) ? cfgData.waves : [],
-            formationGrid: normalizeFormationGrid((cfgData as any).formationGrid),
+            formationGrid: normalizeFormationGrid(
+              (cfgData as any).formationGrid,
+            ),
             fleetSpeed: cfgData.fleetSpeed ?? 0,
             rampFactor: cfgData.rampFactor ?? 0,
             descendStep: cfgData.descendStep ?? 0,
@@ -481,7 +507,12 @@ export default function LevelConfigPage() {
                 28,
               ),
             };
-            nextEnemyHp[enemyId] = readPositiveNumber(definition.variables?.hp, 1, 1, 999);
+            nextEnemyHp[enemyId] = readPositiveNumber(
+              definition.variables?.hp,
+              1,
+              1,
+              999,
+            );
             const spriteSlot = definition.slots.find(
               (slot) => slot.slotId === 'spriteKey' && slot.media === 'image',
             );
@@ -498,7 +529,11 @@ export default function LevelConfigPage() {
           });
           catalogEnemyOptions.forEach((enemy) => {
             if (nextEnemyHp[enemy.enemyId]) return;
-            if (typeof enemy.hp === 'number' && Number.isFinite(enemy.hp) && enemy.hp > 0) {
+            if (
+              typeof enemy.hp === 'number' &&
+              Number.isFinite(enemy.hp) &&
+              enemy.hp > 0
+            ) {
               nextEnemyHp[enemy.enemyId] = Math.floor(enemy.hp);
             }
           });
@@ -531,13 +566,18 @@ export default function LevelConfigPage() {
   const enemyCellSizes = useMemo(() => {
     const map: Record<string, { width: 1 | 2; height: 1 | 2 }> = {};
     enemies.forEach((enemy) => {
-      map[enemy.enemyId] = getEnemyCellSize(enemy.enemyId, enemyHitboxes, enemyHpById);
+      map[enemy.enemyId] = getEnemyCellSize(
+        enemy.enemyId,
+        enemyHitboxes,
+        enemyHpById,
+      );
     });
     return map;
   }, [enemies, enemyHitboxes, enemyHpById]);
 
   useEffect(() => {
-    const hasFormationShips = (config.formationGrid?.placements ?? []).length > 0;
+    const hasFormationShips =
+      (config.formationGrid?.placements ?? []).length > 0;
     if (hasFormationShips || (config.waves ?? []).length === 0) return;
     setConfig((current) => {
       if ((current.formationGrid?.placements ?? []).length > 0) return current;
@@ -550,7 +590,12 @@ export default function LevelConfigPage() {
         ),
       };
     });
-  }, [config.formationGrid?.placements, config.waves, enemyHitboxes, enemyHpById]);
+  }, [
+    config.formationGrid?.placements,
+    config.waves,
+    enemyHitboxes,
+    enemyHpById,
+  ]);
 
   const previewShips = useMemo(() => {
     const placements = config.formationGrid?.placements ?? [];
@@ -558,8 +603,8 @@ export default function LevelConfigPage() {
       return placements.map((placement) => ({
         enemyId: placement.enemyId,
         label:
-          enemies.find((enemy) => enemy.enemyId === placement.enemyId)?.displayName ??
-          placement.enemyId,
+          enemies.find((enemy) => enemy.enemyId === placement.enemyId)
+            ?.displayName ?? placement.enemyId,
         iconUrl: enemyIcons[placement.enemyId],
         hitboxWidth: enemyHitboxes[placement.enemyId]?.hitboxWidth ?? 28,
         hitboxHeight: enemyHitboxes[placement.enemyId]?.hitboxHeight ?? 28,
@@ -576,7 +621,9 @@ export default function LevelConfigPage() {
     const expandedEnemyIds: string[] = [];
     (config.waves ?? []).forEach((wave) => {
       (wave.enemies ?? []).forEach((enemy) => {
-        const count = Number.isFinite(enemy.count) ? Math.max(0, enemy.count) : 0;
+        const count = Number.isFinite(enemy.count)
+          ? Math.max(0, enemy.count)
+          : 0;
         for (let idx = 0; idx < count; idx += 1) {
           expandedEnemyIds.push(enemy.enemyId);
         }
@@ -585,13 +632,24 @@ export default function LevelConfigPage() {
     return expandedEnemyIds.map((enemyId) => ({
       enemyId,
       label:
-        enemies.find((enemy) => enemy.enemyId === enemyId)?.displayName ?? enemyId,
+        enemies.find((enemy) => enemy.enemyId === enemyId)?.displayName ??
+        enemyId,
       iconUrl: enemyIcons[enemyId],
       hitboxWidth: enemyHitboxes[enemyId]?.hitboxWidth ?? 28,
       hitboxHeight: enemyHitboxes[enemyId]?.hitboxHeight ?? 28,
-      hp: enemyHpById[enemyId] ?? enemies.find((enemy) => enemy.enemyId === enemyId)?.hp ?? 1,
+      hp:
+        enemyHpById[enemyId] ??
+        enemies.find((enemy) => enemy.enemyId === enemyId)?.hp ??
+        1,
     }));
-  }, [config.formationGrid?.placements, config.waves, enemies, enemyIcons, enemyHitboxes, enemyHpById]);
+  }, [
+    config.formationGrid?.placements,
+    config.waves,
+    enemies,
+    enemyIcons,
+    enemyHitboxes,
+    enemyHpById,
+  ]);
 
   const knobErrors: Partial<Record<keyof LevelConfig, string>> = {};
   if ((config.fleetSpeed ?? 0) < 0) knobErrors.fleetSpeed = 'Must be >= 0';
@@ -653,7 +711,9 @@ export default function LevelConfigPage() {
       (k) => (config as any)[k] !== (originalKnobs as any)[k],
     );
 
-  const persistBackgroundDefinition = async (definition: CoreAssetDefinition) => {
+  const persistBackgroundDefinition = async (
+    definition: CoreAssetDefinition,
+  ) => {
     const res = await fetch(
       `/api/games/${gameId}/levels/${levelId}/background-asset`,
       {
@@ -923,12 +983,14 @@ export default function LevelConfigPage() {
               }}
             >
               <div className={styles.previewFieldSection}>
-                <h4 className={styles.previewFieldTitle}>Difficulty / Fleet Behavior</h4>
+                <h4 className={styles.previewFieldTitle}>
+                  Difficulty / Fleet Behavior
+                </h4>
                 {knobChanged ? (
                   <div className={styles.warning}>
-                    Warning: Changing these values affects difficulty and may impact
-                    leaderboard comparability. Consider resetting or segmenting
-                    leaderboards when publishing.
+                    Warning: Changing these values affects difficulty and may
+                    impact leaderboard comparability. Consider resetting or
+                    segmenting leaderboards when publishing.
                   </div>
                 ) : null}
                 <div className={styles.grid2}>
@@ -940,10 +1002,14 @@ export default function LevelConfigPage() {
                       min={0}
                       step={0.1}
                       value={config.fleetSpeed ?? 0}
-                      onChange={(e) => updateKnob('fleetSpeed', Number(e.target.value))}
+                      onChange={(e) =>
+                        updateKnob('fleetSpeed', Number(e.target.value))
+                      }
                     />
                     {knobErrors.fleetSpeed ? (
-                      <div className={styles.error}>{knobErrors.fleetSpeed}</div>
+                      <div className={styles.error}>
+                        {knobErrors.fleetSpeed}
+                      </div>
                     ) : null}
                   </label>
                   <label className={styles.label}>
@@ -955,10 +1021,14 @@ export default function LevelConfigPage() {
                       max={1}
                       step={0.05}
                       value={config.rampFactor ?? 0}
-                      onChange={(e) => updateKnob('rampFactor', Number(e.target.value))}
+                      onChange={(e) =>
+                        updateKnob('rampFactor', Number(e.target.value))
+                      }
                     />
                     {knobErrors.rampFactor ? (
-                      <div className={styles.error}>{knobErrors.rampFactor}</div>
+                      <div className={styles.error}>
+                        {knobErrors.rampFactor}
+                      </div>
                     ) : null}
                   </label>
                   <label className={styles.label}>
@@ -969,10 +1039,14 @@ export default function LevelConfigPage() {
                       min={0}
                       step={1}
                       value={config.descendStep ?? 0}
-                      onChange={(e) => updateKnob('descendStep', Number(e.target.value))}
+                      onChange={(e) =>
+                        updateKnob('descendStep', Number(e.target.value))
+                      }
                     />
                     {knobErrors.descendStep ? (
-                      <div className={styles.error}>{knobErrors.descendStep}</div>
+                      <div className={styles.error}>
+                        {knobErrors.descendStep}
+                      </div>
                     ) : null}
                   </label>
                   <label className={styles.label}>
@@ -984,7 +1058,10 @@ export default function LevelConfigPage() {
                       step={1}
                       value={config.maxConcurrentDivers ?? 0}
                       onChange={(e) =>
-                        updateKnob('maxConcurrentDivers', Number(e.target.value))
+                        updateKnob(
+                          'maxConcurrentDivers',
+                          Number(e.target.value),
+                        )
                       }
                     />
                     {knobErrors.maxConcurrentDivers ? (
@@ -1031,10 +1108,14 @@ export default function LevelConfigPage() {
                       min={1}
                       step={1}
                       value={config.attackTickMs ?? 1}
-                      onChange={(e) => updateKnob('attackTickMs', Number(e.target.value))}
+                      onChange={(e) =>
+                        updateKnob('attackTickMs', Number(e.target.value))
+                      }
                     />
                     {knobErrors.attackTickMs ? (
-                      <div className={styles.error}>{knobErrors.attackTickMs}</div>
+                      <div className={styles.error}>
+                        {knobErrors.attackTickMs}
+                      </div>
                     ) : null}
                   </label>
                   <label className={styles.label}>
@@ -1070,7 +1151,9 @@ export default function LevelConfigPage() {
                       <option value="track">Track</option>
                     </select>
                     {knobErrors.divePattern ? (
-                      <div className={styles.error}>{knobErrors.divePattern}</div>
+                      <div className={styles.error}>
+                        {knobErrors.divePattern}
+                      </div>
                     ) : null}
                   </label>
                   {trackingEnabled ? (
@@ -1083,13 +1166,17 @@ export default function LevelConfigPage() {
                         max={10}
                         step={0.1}
                         value={config.turnRate ?? 0}
-                        onChange={(e) => updateKnob('turnRate', Number(e.target.value))}
+                        onChange={(e) =>
+                          updateKnob('turnRate', Number(e.target.value))
+                        }
                       />
                       <div className={styles.helper}>
                         Capped to prevent perfect tracking.
                       </div>
                       {knobErrors.turnRate ? (
-                        <div className={styles.error}>{knobErrors.turnRate}</div>
+                        <div className={styles.error}>
+                          {knobErrors.turnRate}
+                        </div>
                       ) : null}
                     </label>
                   ) : null}
@@ -1113,10 +1200,14 @@ export default function LevelConfigPage() {
                       min={1}
                       step={1}
                       value={config.fireTickMs ?? 1}
-                      onChange={(e) => updateKnob('fireTickMs', Number(e.target.value))}
+                      onChange={(e) =>
+                        updateKnob('fireTickMs', Number(e.target.value))
+                      }
                     />
                     {knobErrors.fireTickMs ? (
-                      <div className={styles.error}>{knobErrors.fireTickMs}</div>
+                      <div className={styles.error}>
+                        {knobErrors.fireTickMs}
+                      </div>
                     ) : null}
                   </label>
                   <label className={styles.label}>
@@ -1158,14 +1249,13 @@ export default function LevelConfigPage() {
                   </label>
                 </div>
                 <div className={styles.helper}>
-                  <strong>Shooting Rule:</strong> Column Shooter (locked). Only the
-                  bottom-most living enemy in each column may fire. This is a core
-                  fairness rule and not editable in v1.
+                  <strong>Shooting Rule:</strong> Column Shooter (locked). Only
+                  the bottom-most living enemy in each column may fire. This is
+                  a core fairness rule and not editable in v1.
                 </div>
               </div>
             </LevelPreviewComponent>
           </section>
-
         </div>
       </main>
     </div>

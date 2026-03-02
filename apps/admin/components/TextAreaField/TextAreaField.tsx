@@ -10,7 +10,12 @@ export type TextAreaFieldProps = {
   required?: boolean;
 };
 
-const TextAreaField: React.FC<TextAreaFieldProps> = ({ title, name, value, required }) => {
+const TextAreaField: React.FC<TextAreaFieldProps> = ({
+  title,
+  name,
+  value,
+  required,
+}) => {
   return (
     <label className={styles.wrapper}>
       <span className={styles.label}>{title}</span>

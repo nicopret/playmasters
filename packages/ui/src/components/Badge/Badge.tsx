@@ -10,19 +10,26 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   size?: BadgeSize;
 }
 
-export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(function Badge(
-  { variant = 'default', size = 'md', className, children, ...props },
-  ref
-) {
-  return (
-    <span
-      ref={ref}
-      className={cn(styles.badge, styles[variant], styles[`size-${size}`], className)}
-      {...props}
-    >
-      {children}
-    </span>
-  );
-});
+export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
+  function Badge(
+    { variant = 'default', size = 'md', className, children, ...props },
+    ref,
+  ) {
+    return (
+      <span
+        ref={ref}
+        className={cn(
+          styles.badge,
+          styles[variant],
+          styles[`size-${size}`],
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </span>
+    );
+  },
+);
 
 Badge.displayName = 'Badge';

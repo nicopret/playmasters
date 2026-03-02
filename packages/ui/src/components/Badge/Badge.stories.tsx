@@ -37,8 +37,14 @@ export const Sizes: Story = {
 
 export const InlineText: Story = {
   render: () => (
-    <p style={{ fontSize: 'var(--pm-font-size-md)', color: 'var(--pm-color-text-secondary)' }}>
-      Multiplayer now live <Badge variant="success">online</Badge> and ranked queues
+    <p
+      style={{
+        fontSize: 'var(--pm-font-size-md)',
+        color: 'var(--pm-color-text-secondary)',
+      }}
+    >
+      Multiplayer now live <Badge variant="success">online</Badge> and ranked
+      queues
       <Badge variant="info" size="sm" style={{ marginLeft: 8 }}>
         beta
       </Badge>

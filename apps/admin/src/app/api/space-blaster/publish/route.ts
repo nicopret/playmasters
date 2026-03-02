@@ -115,14 +115,21 @@ function toRuntimeWaves(
           spawnDelayMs: 0,
         };
       })
-      .filter((entry): entry is { enemyId: string; count: number; spawnDelayMs: number } => !!entry),
+      .filter(
+        (
+          entry,
+        ): entry is { enemyId: string; count: number; spawnDelayMs: number } =>
+          !!entry,
+      ),
   );
 }
 
 function toRuntimeWavesFromFormation(
-  formationGrid: {
-    placements?: Array<{ enemyId?: string }>;
-  } | undefined,
+  formationGrid:
+    | {
+        placements?: Array<{ enemyId?: string }>;
+      }
+    | undefined,
   sampleEnemyIds: Set<string>,
 ) {
   const counts = new Map<string, number>();
@@ -159,11 +166,13 @@ function toRuntimeFormationGrid(
 ) {
   if (!formationGrid) return undefined;
   const columns =
-    typeof formationGrid.columns === 'number' && Number.isFinite(formationGrid.columns)
+    typeof formationGrid.columns === 'number' &&
+    Number.isFinite(formationGrid.columns)
       ? Math.max(1, Math.floor(formationGrid.columns))
       : 10;
   const rows =
-    typeof formationGrid.rows === 'number' && Number.isFinite(formationGrid.rows)
+    typeof formationGrid.rows === 'number' &&
+    Number.isFinite(formationGrid.rows)
       ? Math.max(1, Math.floor(formationGrid.rows))
       : 5;
   const placements = (formationGrid.placements ?? [])
@@ -180,7 +189,8 @@ function toRuntimeFormationGrid(
           ? 2
           : 1;
       const height =
-        Number.isFinite(Number(placement.height)) && Number(placement.height) >= 2
+        Number.isFinite(Number(placement.height)) &&
+        Number(placement.height) >= 2
           ? 2
           : 1;
       return {
@@ -196,7 +206,9 @@ function toRuntimeFormationGrid(
       };
     })
     .filter(
-      (placement): placement is {
+      (
+        placement,
+      ): placement is {
         id: string;
         enemyId: string;
         col: number;
@@ -231,7 +243,10 @@ function readOptionalBoolean(value: unknown): boolean | undefined {
 }
 
 function coreEnemyDefinitionIdForCatalogEnemy(enemyId: string): string {
-  const token = enemyId.replace(/^enemy[._]/, '').trim().toLowerCase();
+  const token = enemyId
+    .replace(/^enemy[._]/, '')
+    .trim()
+    .toLowerCase();
   if (!token) return 'enemy.grunt';
   if (token === 'striker') return 'enemy.fast';
   return `enemy.${token}`;
@@ -251,7 +266,10 @@ function toRuntimeShootingPercent(level: {
       ? Math.max(0, Math.min(1, level.fireChancePerTick))
       : 0;
   const eventsPerSecond = 1000 / tickMs;
-  const probabilityPerSecond = Math.max(0, Math.min(1, eventsPerSecond * chance));
+  const probabilityPerSecond = Math.max(
+    0,
+    Math.min(1, eventsPerSecond * chance),
+  );
   return Math.round(probabilityPerSecond * 100);
 }
 
@@ -296,7 +314,8 @@ function mapAdminLevelToRuntimeLevel(
       ? Math.max(0, level.descendStep)
       : undefined;
   const attackTickMs =
-    typeof level.attackTickMs === 'number' && Number.isFinite(level.attackTickMs)
+    typeof level.attackTickMs === 'number' &&
+    Number.isFinite(level.attackTickMs)
       ? Math.max(1, level.attackTickMs)
       : undefined;
   const diveChancePerTick =
@@ -345,7 +364,12 @@ function mapAdminLevelToRuntimeLevel(
             ...(diveChancePerTick !== undefined ? { diveChancePerTick } : {}),
             ...(typeof level.maxConcurrentDivers === 'number' &&
             Number.isFinite(level.maxConcurrentDivers)
-              ? { maxConcurrentDivers: Math.max(0, Math.floor(level.maxConcurrentDivers)) }
+              ? {
+                  maxConcurrentDivers: Math.max(
+                    0,
+                    Math.floor(level.maxConcurrentDivers),
+                  ),
+                }
               : {}),
           },
         }
@@ -422,8 +446,7 @@ async function buildBundle(assetBaseUrl: string) {
 
     enemyCatalog.entries = (enemyCatalog.entries ?? []).map(
       (entry: Record<string, unknown>) => {
-        const enemyId =
-          typeof entry.enemyId === 'string' ? entry.enemyId : '';
+        const enemyId = typeof entry.enemyId === 'string' ? entry.enemyId : '';
         const definitionId = coreEnemyDefinitionIdForCatalogEnemy(enemyId);
         const definition = definitionById.get(definitionId);
         const spriteUrl = toAssetUrl(
@@ -449,35 +472,39 @@ async function buildBundle(assetBaseUrl: string) {
     adminLevels.length > 0
       ? await Promise.all(
           [...adminLevels]
-          .sort((left, right) => {
-            const leftKey = toLevelSortKey(left.levelId);
-            const rightKey = toLevelSortKey(right.levelId);
-            if (leftKey[0] !== rightKey[0]) return leftKey[0] - rightKey[0];
-            if (typeof leftKey[1] === 'number' && typeof rightKey[1] === 'number') {
-              if (leftKey[1] !== rightKey[1]) return leftKey[1] - rightKey[1];
-              return left.levelId.localeCompare(right.levelId);
-            }
-            return String(leftKey[1]).localeCompare(String(rightKey[1]));
-          })
-          .map(async (level) => {
-            const definitionId = `${level.levelId}.background`;
-            const levelBackground = await getCoreAssetDefinition({
-              gameId,
-              definitionId,
-            }).catch(() => null);
-            const backgroundUrl = toAssetUrl(
-              levelBackground?.slots.find((slot) => slot.slotId === 'image.main')
-                ?.file,
-              assetBaseUrl,
-            );
+            .sort((left, right) => {
+              const leftKey = toLevelSortKey(left.levelId);
+              const rightKey = toLevelSortKey(right.levelId);
+              if (leftKey[0] !== rightKey[0]) return leftKey[0] - rightKey[0];
+              if (
+                typeof leftKey[1] === 'number' &&
+                typeof rightKey[1] === 'number'
+              ) {
+                if (leftKey[1] !== rightKey[1]) return leftKey[1] - rightKey[1];
+                return left.levelId.localeCompare(right.levelId);
+              }
+              return String(leftKey[1]).localeCompare(String(rightKey[1]));
+            })
+            .map(async (level) => {
+              const definitionId = `${level.levelId}.background`;
+              const levelBackground = await getCoreAssetDefinition({
+                gameId,
+                definitionId,
+              }).catch(() => null);
+              const backgroundUrl = toAssetUrl(
+                levelBackground?.slots.find(
+                  (slot) => slot.slotId === 'image.main',
+                )?.file,
+                assetBaseUrl,
+              );
 
-            return mapAdminLevelToRuntimeLevel(
-              level,
-              sampleLevelConfigs,
-              sampleEnemyIds,
-              backgroundUrl,
-            );
-          }),
+              return mapAdminLevelToRuntimeLevel(
+                level,
+                sampleLevelConfigs,
+                sampleEnemyIds,
+                backgroundUrl,
+              );
+            }),
         )
       : sampleLevelConfigs;
 

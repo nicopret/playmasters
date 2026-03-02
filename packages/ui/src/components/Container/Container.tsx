@@ -9,19 +9,21 @@ export interface ContainerProps extends React.HTMLAttributes<HTMLElement> {
   as?: React.ElementType;
 }
 
-export const Container = React.forwardRef<HTMLElement, ContainerProps>(function Container(
-  { size = 'lg', as: Component = 'div', className, children, ...props },
-  ref
-) {
-  return (
-    <Component
-      ref={ref as React.Ref<HTMLElement>}
-      className={cn(styles.container, styles[`size-${size}`], className)}
-      {...props}
-    >
-      {children}
-    </Component>
-  );
-});
+export const Container = React.forwardRef<HTMLElement, ContainerProps>(
+  function Container(
+    { size = 'lg', as: Component = 'div', className, children, ...props },
+    ref,
+  ) {
+    return (
+      <Component
+        ref={ref as React.Ref<HTMLElement>}
+        className={cn(styles.container, styles[`size-${size}`], className)}
+        {...props}
+      >
+        {children}
+      </Component>
+    );
+  },
+);
 
 Container.displayName = 'Container';

@@ -4,7 +4,10 @@ import react from '@vitejs/plugin-react';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 const config: StorybookConfig = {
-  stories: ['../src/components/**/*.stories.@(ts|tsx)', '../src/**/*.stories.mdx'],
+  stories: [
+    '../src/components/**/*.stories.@(ts|tsx)',
+    '../src/**/*.stories.mdx',
+  ],
   addons: ['@storybook/addon-essentials'],
   framework: {
     name: '@storybook/react-vite',

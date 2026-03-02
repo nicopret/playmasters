@@ -6,7 +6,8 @@ const baseItems = [
     id: '1',
     title: 'Arcade Royale',
     body: 'Squad up for the neon showdown. Matches every 10 minutes.',
-    imageUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80',
+    imageUrl:
+      'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80',
     ctaLabel: 'Join lobby',
     ctaHref: '#',
   },
@@ -14,7 +15,8 @@ const baseItems = [
     id: '2',
     title: 'Synthwave Nights',
     body: 'Endless runner event with weekly leaderboards.',
-    imageUrl: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=800&q=80',
+    imageUrl:
+      'https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=800&q=80',
     ctaLabel: 'Practice',
     ctaHref: '#',
   },
@@ -22,7 +24,8 @@ const baseItems = [
     id: '3',
     title: 'Co-op Heist',
     body: 'Pair up to crack the vault and escape unseen.',
-    imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+    imageUrl:
+      'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
     ctaLabel: 'Assemble crew',
     ctaHref: '#',
   },

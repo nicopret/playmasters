@@ -12,7 +12,8 @@ import { s3Client } from '../../../../lib/s3';
 import dashStyles from '../../../components/AdminDashboard/AdminDashboard.module.css';
 import styles from './page.module.css';
 
-const BUCKET = process.env.ANNOUNCEMENT_IMAGE_BUCKET || 'playmasters-announcement-images';
+const BUCKET =
+  process.env.ANNOUNCEMENT_IMAGE_BUCKET || 'playmasters-announcement-images';
 
 export default function NewAnnouncementPage() {
   async function create(formData: FormData) {
@@ -29,7 +30,7 @@ export default function NewAnnouncementPage() {
           Key: key,
           Body: buffer,
           ContentType: file.type || 'application/octet-stream',
-        })
+        }),
       );
       imageKey = key;
     }

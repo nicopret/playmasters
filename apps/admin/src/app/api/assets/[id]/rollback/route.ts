@@ -9,7 +9,7 @@ export const runtime = 'nodejs';
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
   if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin)
@@ -33,7 +33,8 @@ export async function POST(
     return NextResponse.json({ asset });
   } catch (err) {
     const code = (err as Error).message;
-    if (code === 'asset_not_found' || code === 'version_not_found') return bad('not_found', 404);
+    if (code === 'asset_not_found' || code === 'version_not_found')
+      return bad('not_found', 404);
     if (code === 'version_not_published') return bad('not_published', 400);
     console.error('rollback_error', err);
     return bad('rollback_failed', 500);

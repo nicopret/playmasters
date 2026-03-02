@@ -4,7 +4,10 @@
   border-radius: var(--pm-radius-lg);
   box-shadow: var(--pm-shadow-card);
   color: var(--pm-color-text-secondary);
-  transition: box-shadow 160ms ease, border-color 160ms ease, transform 120ms ease;
+  transition:
+    box-shadow 160ms ease,
+    border-color 160ms ease,
+    transform 120ms ease;
 }
 
 .card:focus-visible {

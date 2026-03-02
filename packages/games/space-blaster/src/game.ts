@@ -93,8 +93,11 @@ const IS_DEV_RUNTIME = (() => {
   };
   const isDev = globalWithProcess.process?.env?.NODE_ENV !== 'production';
   const debugOverlayEnabled =
-    (globalWithProcess.process?.env as { ENABLE_POOL_DEBUG_OVERLAY?: string } | undefined)
-      ?.ENABLE_POOL_DEBUG_OVERLAY === '1';
+    (
+      globalWithProcess.process?.env as
+        | { ENABLE_POOL_DEBUG_OVERLAY?: string }
+        | undefined
+    )?.ENABLE_POOL_DEBUG_OVERLAY === '1';
   return isDev && debugOverlayEnabled;
 })();
 
@@ -222,7 +225,8 @@ class SpaceBlasterScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor('#0f111a');
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    const levelConfig = (this.deps.levelConfigs[0] ?? {}) as ResolvedLevelConfigV1 & {
+    const levelConfig = (this.deps.levelConfigs[0] ??
+      {}) as ResolvedLevelConfigV1 & {
       backgroundUrl?: string;
     };
 

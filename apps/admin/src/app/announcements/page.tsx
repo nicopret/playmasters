@@ -19,7 +19,9 @@ function buildKpis(activeCount: number) {
     {
       title: 'Announcements Clicks',
       value: '1,000',
-      data: [18, 22, 26, 30, 34, 28, 26, 32, 36, 30, 28, 24, 22, 26, 28, 30, 32, 34],
+      data: [
+        18, 22, 26, 30, 34, 28, 26, 32, 36, 30, 28, 24, 22, 26, 28, 30, 32, 34,
+      ],
       fontColor: '#ffffff',
       titleBgColor: '#0b6b2b',
       valueBgColor: '#5bb77a',
@@ -28,7 +30,9 @@ function buildKpis(activeCount: number) {
     {
       title: 'Daily Play Hours',
       value: '150,000',
-      data: [40, 44, 46, 48, 50, 46, 44, 42, 40, 38, 36, 38, 40, 42, 44, 46, 48, 50],
+      data: [
+        40, 44, 46, 48, 50, 46, 44, 42, 40, 38, 36, 38, 40, 42, 44, 46, 48, 50,
+      ],
       fontColor: '#ffffff',
       titleBgColor: '#d4a100',
       valueBgColor: '#fde694',
@@ -37,7 +41,9 @@ function buildKpis(activeCount: number) {
     {
       title: 'Registered Players',
       value: '50,000',
-      data: [18, 22, 24, 26, 28, 26, 24, 22, 20, 18, 22, 26, 30, 34, 32, 28, 24, 22],
+      data: [
+        18, 22, 24, 26, 28, 26, 24, 22, 20, 18, 22, 26, 30, 34, 32, 28, 24, 22,
+      ],
       fontColor: '#ffffff',
       titleBgColor: '#b91c1c',
       valueBgColor: '#f4b4b4',

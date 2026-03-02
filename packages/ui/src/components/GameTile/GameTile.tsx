@@ -53,7 +53,12 @@ export const GameTile: React.FC<GameTileProps> = ({
   };
 
   return (
-    <Card className={cn(styles.tile, className)} variant="surface" padding="md" {...props}>
+    <Card
+      className={cn(styles.tile, className)}
+      variant="surface"
+      padding="md"
+      {...props}
+    >
       <div className={styles.imageWrapper}>
         {status === 'coming-soon' ? (
           <div className={styles.statusBadge}>
@@ -83,7 +88,11 @@ export const GameTile: React.FC<GameTileProps> = ({
         ) : null}
 
         <div className={styles.footer}>
-          <a className={styles.playLink} href={href} aria-label={`${title} details`}>
+          <a
+            className={styles.playLink}
+            href={href}
+            aria-label={`${title} details`}
+          >
             Details
           </a>
           {actionButton()}

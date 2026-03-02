@@ -57,11 +57,15 @@ export default function LevelsIndexPage() {
       if (!res.ok) throw new Error('Failed to load levels');
       const json = await res.json();
       const nextLevels: LevelSummary[] = Array.isArray(json.levels)
-        ? json.levels.map((level: { levelId?: unknown; updatedAt?: unknown }) => ({
-            levelId: String(level.levelId ?? ''),
-            updatedAt:
-              typeof level.updatedAt === 'string' ? level.updatedAt : undefined,
-          }))
+        ? json.levels.map(
+            (level: { levelId?: unknown; updatedAt?: unknown }) => ({
+              levelId: String(level.levelId ?? ''),
+              updatedAt:
+                typeof level.updatedAt === 'string'
+                  ? level.updatedAt
+                  : undefined,
+            }),
+          )
         : [];
       nextLevels.sort((left, right) =>
         String(left.levelId).localeCompare(String(right.levelId)),
@@ -137,7 +141,9 @@ export default function LevelsIndexPage() {
         const json = await res.json().catch(() => ({}));
         throw new Error(json.error ?? 'Failed to delete level');
       }
-      setLevels((current) => current.filter((level) => level.levelId !== levelId));
+      setLevels((current) =>
+        current.filter((level) => level.levelId !== levelId),
+      );
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -183,7 +189,9 @@ export default function LevelsIndexPage() {
         </header>
 
         <section className={styles.contentSection}>
-          <p className={styles.meta}>Create and manage levels for {gameName}.</p>
+          <p className={styles.meta}>
+            Create and manage levels for {gameName}.
+          </p>
           <div className={styles.createRow}>
             <input
               className={styles.input}
@@ -206,7 +214,9 @@ export default function LevelsIndexPage() {
           {loading ? (
             <div>Loading levels...</div>
           ) : levels.length === 0 ? (
-            <div className={styles.empty}>No levels found. Create your first level above.</div>
+            <div className={styles.empty}>
+              No levels found. Create your first level above.
+            </div>
           ) : (
             <div className={styles.card}>
               <div className={styles.table}>

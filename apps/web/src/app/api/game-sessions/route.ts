@@ -20,5 +20,8 @@ export async function POST(request: Request) {
   }
 
   const { token, expiresAt } = createSessionToken(session.user.id, body.gameId);
-  return NextResponse.json({ token, expiresAt: new Date(expiresAt).toISOString() });
+  return NextResponse.json({
+    token,
+    expiresAt: new Date(expiresAt).toISOString(),
+  });
 }

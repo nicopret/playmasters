@@ -1,9 +1,9 @@
 Below is a **drop-in `README.md`** you can paste into the root of your GitHub repo. It includes:
 
-* Project description
-* An architectural diagram block
-* Current monorepo structure
-* How to run the components that exist right now (web, realtime, storybook, libs)
+- Project description
+- An architectural diagram block
+- Current monorepo structure
+- How to run the components that exist right now (web, realtime, storybook, libs)
 
 > I can’t create the GitHub repository for you directly from here, but this README is “repo-ready”.
 
@@ -15,6 +15,7 @@ Below is a **drop-in `README.md`** you can paste into the root of your GitHub re
 Playmasters is a modern retro arcade platform where players compete for high scores in browser-based games with real-time leaderboards.
 
 The platform is designed for:
+
 - ⚡ Server-rendered web experience (Next.js)
 - 🌐 Real-time leaderboards (WebSockets + in-memory state)
 - 🔐 Google authentication
@@ -45,21 +46,22 @@ flowchart TB
   WEB -->|Imports| SDK[packages/game-sdk]
   SDK --> TYPES[packages/types]
   RT --> TYPES
+```
 ````
 
 ### Runtime model (today)
 
-* **apps/web** serves the SSR landing page and game pages.
-* **apps/realtime** runs a long-lived WebSocket service:
+- **apps/web** serves the SSR landing page and game pages.
+- **apps/realtime** runs a long-lived WebSocket service:
+  - keeps leaderboards in memory
+  - broadcasts leaderboard updates to connected clients
+  - persists snapshots/scores to DynamoDB (when configured)
+  - restores snapshots from DynamoDB on startup
 
-  * keeps leaderboards in memory
-  * broadcasts leaderboard updates to connected clients
-  * persists snapshots/scores to DynamoDB (when configured)
-  * restores snapshots from DynamoDB on startup
-* **packages/brand** provides global design tokens and fonts
-* **packages/ui** provides reusable UI components (CSS Modules)
-* **packages/game-sdk** is the client SDK for session + WS + score submission
-* **packages/types** defines shared event payloads and API types
+- **packages/brand** provides global design tokens and fonts
+- **packages/ui** provides reusable UI components (CSS Modules)
+- **packages/game-sdk** is the client SDK for session + WS + score submission
+- **packages/types** defines shared event payloads and API types
 
 ---
 
@@ -82,9 +84,9 @@ packages/
 
 ## Prerequisites
 
-* Node.js 20+
-* pnpm
-* (Optional for persistence) AWS credentials + DynamoDB tables
+- Node.js 20+
+- pnpm
+- (Optional for persistence) AWS credentials + DynamoDB tables
 
 Install dependencies:
 
@@ -114,8 +116,8 @@ The realtime service runs as a long-lived node process (port configured in `apps
 
 > If you’re running both services locally, open two terminals:
 >
-> * Terminal A: `nx dev web`
-> * Terminal B: `nx serve realtime`
+> - Terminal A: `nx dev web`
+> - Terminal B: `nx serve realtime`
 
 ---
 
@@ -129,7 +131,7 @@ nx storybook ui
 
 Storybook runs at:
 
-* `http://localhost:4400`
+- `http://localhost:4400`
 
 Build static Storybook output:
 
@@ -139,7 +141,7 @@ nx build-storybook ui
 
 Output directory:
 
-* `dist/storybook/ui`
+- `dist/storybook/ui`
 
 ---
 
@@ -161,8 +163,8 @@ nx build realtime
 
 These wrappers reuse the hosted web UI; they don't bundle duplicate frontend code.
 
-* Desktop (Tauri): `nx run desktop:dev` (loads `PLAYMASTERS_WEB_URL`, defaults to `http://localhost:3000`) and `nx run desktop:build` for installers.
-* Mobile (Capacitor): `nx run mobile:sync` then `nx run mobile:ios` / `nx run mobile:android` to open Xcode/Android Studio. The WebView points at `PLAYMASTERS_WEB_URL`.
+- Desktop (Tauri): `nx run desktop:dev` (loads `PLAYMASTERS_WEB_URL`, defaults to `http://localhost:3000`) and `nx run desktop:build` for installers.
+- Mobile (Capacitor): `nx run mobile:sync` then `nx run mobile:ios` / `nx run mobile:android` to open Xcode/Android Studio. The WebView points at `PLAYMASTERS_WEB_URL`.
 
 Required env hints (set in `.env` or shell):
 
@@ -196,24 +198,24 @@ nx affected -t build
 
 If Google auth is enabled, configure the usual Auth.js / NextAuth env vars:
 
-* `GOOGLE_CLIENT_ID`
-* `GOOGLE_CLIENT_SECRET`
-* `NEXTAUTH_SECRET`
-* `NEXTAUTH_URL`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL`
 
 ### Realtime (apps/realtime)
 
 If DynamoDB persistence is enabled, configure:
 
-* `AWS_REGION`
-* `AWS_ACCESS_KEY_ID`
-* `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
 
 And (if you’re using explicit table names):
 
-* `DDB_TABLE_SCORES`
-* `DDB_TABLE_LEADERBOARD_SNAPSHOTS`
-* `DDB_TABLE_ANNOUNCEMENTS`
+- `DDB_TABLE_SCORES`
+- `DDB_TABLE_LEADERBOARD_SNAPSHOTS`
+- `DDB_TABLE_ANNOUNCEMENTS`
 
 > Exact variable names may differ depending on the current implementation inside `apps/realtime`. Use `.env.local` for the web app and `.env` for the realtime app (or standardize as you prefer).
 
@@ -223,13 +225,12 @@ And (if you’re using explicit table names):
 
 Playmasters intentionally avoids a traditional SQL database initially.
 
-* Games list is **code-defined** (deployment-driven content).
-* Leaderboards are **in-memory** for low latency.
-* DynamoDB is used for **durable persistence** of:
-
-  * score history (optional)
-  * leaderboard snapshots (restore on boot)
-  * announcements (SSR-friendly and durable)
+- Games list is **code-defined** (deployment-driven content).
+- Leaderboards are **in-memory** for low latency.
+- DynamoDB is used for **durable persistence** of:
+  - score history (optional)
+  - leaderboard snapshots (restore on boot)
+  - announcements (SSR-friendly and durable)
 
 ---
 

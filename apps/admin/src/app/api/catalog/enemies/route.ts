@@ -38,22 +38,26 @@ export async function GET(req: Request) {
         },
       }),
     );
-    const enemies: EnemyRecord[] = (res.Items ?? []).flatMap((item) => {
+    const enemies: EnemyRecord[] = (res.Items ?? [])
+      .flatMap((item) => {
         const definition = item.definition as CoreAssetDefinition | undefined;
         const definitionId =
           typeof item[SK_ATTR] === 'string' ? (item[SK_ATTR] as string) : '';
         if (!definition || !definitionId.startsWith('enemy.')) return [];
         const enemyId = definitionId.replace(/^enemy\./, '');
-        return [{
-          enemyId,
-          displayName: definition.displayName ?? enemyId,
-          spriteKey: definition.slots.find((slot) => slot.slotId === 'spriteKey')
-            ?.file?.objectKey,
-          hp:
-            typeof definition.variables?.hp === 'number'
-              ? definition.variables.hp
-              : undefined,
-        }];
+        return [
+          {
+            enemyId,
+            displayName: definition.displayName ?? enemyId,
+            spriteKey: definition.slots.find(
+              (slot) => slot.slotId === 'spriteKey',
+            )?.file?.objectKey,
+            hp:
+              typeof definition.variables?.hp === 'number'
+                ? definition.variables.hp
+                : undefined,
+          },
+        ];
       })
       .sort((left, right) => left.enemyId.localeCompare(right.enemyId));
     return NextResponse.json({ enemies });

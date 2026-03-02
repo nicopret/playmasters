@@ -1,11 +1,17 @@
-import { DeleteCommand, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  DeleteCommand,
+  GetCommand,
+  PutCommand,
+  QueryCommand,
+} from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from './ddb';
 import { LevelConfig } from '@playmasters/types';
 import { getAsset, getVersion } from './imageAssets';
 import { removeUsage, upsertUsage } from './assetUsage';
 import { getCoreAssetDefinition } from '../src/lib/coreAssets';
 
-const LEVEL_TABLE = process.env.DDB_TABLE_LEVEL_CONFIG ?? 'PlaymastersLevelConfig';
+const LEVEL_TABLE =
+  process.env.DDB_TABLE_LEVEL_CONFIG ?? 'PlaymastersLevelConfig';
 const LEVEL_PK_ATTR = process.env.DDB_PK_NAME_LEVEL_CONFIG || 'PK';
 const LEVEL_SK_ATTR = process.env.DDB_SK_NAME_LEVEL_CONFIG || 'SK';
 const GAME_ASSETS_TABLE =
@@ -139,10 +145,12 @@ export async function listLevelConfigs(gameId: string): Promise<LevelConfig[]> {
         typeof item[GAME_ASSETS_SK_ATTR] === 'string'
           ? (item[GAME_ASSETS_SK_ATTR] as string)
           : '';
-      const derivedLevelId = sk.startsWith('level.') && sk.endsWith('.config')
-        ? sk.slice('level.'.length, -'.config'.length)
-        : '';
-      const cfg = levelConfig ?? ({ gameId, levelId: derivedLevelId } as LevelConfig);
+      const derivedLevelId =
+        sk.startsWith('level.') && sk.endsWith('.config')
+          ? sk.slice('level.'.length, -'.config'.length)
+          : '';
+      const cfg =
+        levelConfig ?? ({ gameId, levelId: derivedLevelId } as LevelConfig);
       if (!cfg.gameId) cfg.gameId = gameId;
       if (!cfg.levelId) cfg.levelId = derivedLevelId;
       return cfg;

@@ -68,7 +68,8 @@ export function validateLevelDraft(
     });
   }
 
-  const hasFormationPlacements = (draft.formationGrid?.placements ?? []).length > 0;
+  const hasFormationPlacements =
+    (draft.formationGrid?.placements ?? []).length > 0;
   const waves = draft.waves ?? [];
   if (!hasFormationPlacements && waves.length === 0) {
     add({

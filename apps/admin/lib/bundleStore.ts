@@ -5,7 +5,8 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from './ddb';
 
-const BUNDLE_TABLE = process.env.DDB_TABLE_SB_BUNDLES ?? 'PlaymastersSpaceBlasterBundles';
+const BUNDLE_TABLE =
+  process.env.DDB_TABLE_SB_BUNDLES ?? 'PlaymastersSpaceBlasterBundles';
 const PK_ATTR = process.env.DDB_PK_NAME_SB_BUNDLES || 'PK';
 const SK_ATTR = process.env.DDB_SK_NAME_SB_BUNDLES || 'SK';
 const FALLBACK_TABLE =
@@ -104,9 +105,14 @@ export async function getCurrentBundle(
       }),
     );
     if (!fallbackVersion.Item) {
-      return memoryBundleByVersion.get(versionMapKey(env, currentVersion)) ?? null;
+      return (
+        memoryBundleByVersion.get(versionMapKey(env, currentVersion)) ?? null
+      );
     }
-    return (fallbackVersion.Item.bundleVersion as PublishedBundle | undefined) ?? null;
+    return (
+      (fallbackVersion.Item.bundleVersion as PublishedBundle | undefined) ??
+      null
+    );
   }
   if (!version.Item) return null;
   const { [PK_ATTR]: _pk, [SK_ATTR]: _sk, ...rest } = version.Item;
@@ -297,7 +303,8 @@ export async function getBundleVersion(
         Key: fallbackVersionKey(env, versionId),
       }),
     );
-    if (!fallback.Item) return memoryBundleByVersion.get(versionMapKey(env, versionId)) ?? null;
+    if (!fallback.Item)
+      return memoryBundleByVersion.get(versionMapKey(env, versionId)) ?? null;
     return (fallback.Item.bundleVersion as PublishedBundle | undefined) ?? null;
   }
   if (!res.Item) return null;

@@ -10,7 +10,12 @@ export type InputFieldProps = {
   required?: boolean;
 };
 
-const InputField: React.FC<InputFieldProps> = ({ title, name, value, required }) => {
+const InputField: React.FC<InputFieldProps> = ({
+  title,
+  name,
+  value,
+  required,
+}) => {
   return (
     <label className={styles.wrapper}>
       <span className={styles.label}>{title}</span>

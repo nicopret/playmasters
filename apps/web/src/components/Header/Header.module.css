@@ -8,7 +8,11 @@
       color-mix(in srgb, var(--pm-color-electric-blue) 15%, transparent),
       color-mix(in srgb, var(--pm-color-arcade-yellow) 10%, transparent)
     ),
-    color-mix(in srgb, var(--pm-color-background) 92%, var(--pm-color-surface) 8%);
+    color-mix(
+      in srgb,
+      var(--pm-color-background) 92%,
+      var(--pm-color-surface) 8%
+    );
   backdrop-filter: blur(8px);
   border-bottom: 1px solid
     color-mix(in srgb, var(--pm-color-text-primary) 12%, transparent);
@@ -61,13 +65,19 @@
   font-weight: var(--pm-font-weight-medium);
   padding: var(--pm-space-2xs) var(--pm-space-xs);
   border-radius: var(--pm-radius-md);
-  transition: color 120ms ease, background 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
 }
 
 .navLink:hover,
 .navLink:focus-visible {
   color: var(--pm-color-text-primary);
-  background: color-mix(in srgb, var(--pm-color-electric-blue) 14%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--pm-color-electric-blue) 14%,
+    transparent
+  );
   outline: none;
   box-shadow: var(--pm-shadow-focus-ring);
 }
@@ -81,8 +91,13 @@
   display: flex;
   align-items: center;
   gap: var(--pm-space-sm);
-  background: color-mix(in srgb, var(--pm-color-surface) 92%, var(--pm-color-background) 8%);
-  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 12%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--pm-color-surface) 92%,
+    var(--pm-color-background) 8%
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--pm-color-text-primary) 12%, transparent);
 }
 
 .userMeta {
@@ -97,7 +112,11 @@
   height: 40px;
   border-radius: var(--pm-radius-pill);
   overflow: hidden;
-  background: color-mix(in srgb, var(--pm-color-electric-blue) 18%, var(--pm-color-background) 82%);
+  background: color-mix(
+    in srgb,
+    var(--pm-color-electric-blue) 18%,
+    var(--pm-color-background) 82%
+  );
   display: grid;
   place-items: center;
   color: var(--pm-color-midnight-black);

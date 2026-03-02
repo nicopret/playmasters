@@ -31,7 +31,10 @@
   color: var(--pm-color-text-primary);
   font-family: var(--pm-font-body);
   font-size: var(--pm-font-size-md);
-  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
 }
 
 .input::placeholder {

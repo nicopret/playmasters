@@ -4,18 +4,18 @@
 
 Space Blaster is a competitive arcade game operating in a live environment with data-driven configuration. To maintain:
 
-* Competitive integrity
-* Operational safety
-* Reproducibility of issues
-* Governance and accountability
+- Competitive integrity
+- Operational safety
+- Reproducibility of issues
+- Governance and accountability
 
 The system must maintain a complete audit trail of:
 
-* Configuration publishes
-* Validation failures
-* Version pointer updates
-* Rollbacks
-* Score submissions
+- Configuration publishes
+- Validation failures
+- Version pointer updates
+- Rollbacks
+- Score submissions
 
 This document defines mandatory logging and traceability requirements.
 
@@ -161,17 +161,17 @@ Each score submission must log:
 
 This ensures:
 
-* Score can be traced to exact config version
-* Leaderboard anomalies can be investigated
+- Score can be traced to exact config version
+- Leaderboard anomalies can be investigated
 
 ---
 
 # 4. Immutability & Retention Rules
 
-* Published bundles must be immutable
-* Audit logs must be append-only
-* Audit logs must not be edited in place
-* Retention period must meet platform governance policy
+- Published bundles must be immutable
+- Audit logs must be append-only
+- Audit logs must not be edited in place
+- Retention period must meet platform governance policy
 
 Rollback does not delete bundles or logs.
 
@@ -195,9 +195,9 @@ If the system cannot answer these, the audit model is incomplete.
 
 Recommended: include a correlationId in:
 
-* Publish attempts
-* Validation results
-* Pointer updates
+- Publish attempts
+- Validation results
+- Pointer updates
 
 This allows tracing a publish attempt across logs.
 
@@ -215,10 +215,10 @@ Example:
 
 Admin UI should display:
 
-* Publish history (with timestamps and actors)
-* Bundle history (bundleId + configHash)
-* Rollback history
-* Validation error logs
+- Publish history (with timestamps and actors)
+- Bundle history (bundleId + configHash)
+- Rollback history
+- Validation error logs
 
 Production publish and rollback actions should require explicit confirmation.
 
@@ -228,18 +228,18 @@ Production publish and rollback actions should require explicit confirmation.
 
 The game runtime must:
 
-* Store configHash in RunContext
-* Include configHash in score submission
-* Log submission failures with configHash
-* Not log sensitive PII in gameplay telemetry
+- Store configHash in RunContext
+- Include configHash in score submission
+- Log submission failures with configHash
+- Not log sensitive PII in gameplay telemetry
 
 ---
 
 # 9. Security & Integrity Considerations
 
-* Only authorized actors may publish to production
-* Rollback must require equivalent or higher permission
-* Audit logs must be tamper-resistant
-* configHash must not be modifiable by client runtime
+- Only authorized actors may publish to production
+- Rollback must require equivalent or higher permission
+- Audit logs must be tamper-resistant
+- configHash must not be modifiable by client runtime
 
 ---

@@ -5,8 +5,13 @@
 }
 
 .card {
-  background: color-mix(in srgb, var(--pm-color-surface) 90%, var(--pm-color-background) 10%);
-  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--pm-color-surface) 90%,
+    var(--pm-color-background) 10%
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
   border-radius: var(--pm-radius-lg);
   padding: var(--pm-space-xl);
   box-shadow: var(--pm-shadow-card);
@@ -25,7 +30,11 @@
   height: 64px;
   border-radius: var(--pm-radius-pill);
   overflow: hidden;
-  background: color-mix(in srgb, var(--pm-color-electric-blue) 16%, var(--pm-color-background) 84%);
+  background: color-mix(
+    in srgb,
+    var(--pm-color-electric-blue) 16%,
+    var(--pm-color-background) 84%
+  );
   display: grid;
   place-items: center;
   color: var(--pm-color-midnight-black);

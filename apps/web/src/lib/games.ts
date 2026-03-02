@@ -16,7 +16,8 @@ const games: Game[] = [
     id: 'game-space-blaster',
     slug: 'space-blaster',
     title: 'Space Blaster',
-    description: 'Phaser-powered survival shooter with falling enemies and live scoring.',
+    description:
+      'Phaser-powered survival shooter with falling enemies and live scoring.',
     tags: ['Shooter', 'Arcade'],
     status: 'available',
     maxScore: 150000,

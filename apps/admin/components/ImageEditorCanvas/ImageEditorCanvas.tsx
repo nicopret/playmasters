@@ -39,7 +39,10 @@ export function ImageEditorCanvas({
     pan: { x: 0, y: 0 },
     showGrid,
   });
-  const editor = useMemo(() => (viewRef.current ? initEditor(viewRef.current) : null), [viewRef.current]);
+  const editor = useMemo(
+    () => (viewRef.current ? initEditor(viewRef.current) : null),
+    [viewRef.current],
+  );
 
   // keep zoom/grid in state
   useEffect(() => {
@@ -74,8 +77,12 @@ export function ImageEditorCanvas({
     if (!editor || !editor.source) return;
     const rect = viewRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const x = Math.floor((ev.clientX - rect.left - viewState.pan.x) / viewState.zoom);
-    const y = Math.floor((ev.clientY - rect.top - viewState.pan.y) / viewState.zoom);
+    const x = Math.floor(
+      (ev.clientX - rect.left - viewState.pan.x) / viewState.zoom,
+    );
+    const y = Math.floor(
+      (ev.clientY - rect.top - viewState.pan.y) / viewState.zoom,
+    );
     applyToolAtPoint(editor, tool, { x, y }, color, onPickColor);
     onChange?.(editor.source);
     drawView(editor, viewState);
@@ -83,7 +90,11 @@ export function ImageEditorCanvas({
 
   return (
     <div className={styles.wrap}>
-      <canvas ref={viewRef} className={styles.viewCanvas} onPointerDown={handlePointer} />
+      <canvas
+        ref={viewRef}
+        className={styles.viewCanvas}
+        onPointerDown={handlePointer}
+      />
     </div>
   );
 }

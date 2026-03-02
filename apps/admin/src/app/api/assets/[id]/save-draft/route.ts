@@ -25,7 +25,7 @@ export const runtime = 'nodejs';
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
   if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin)
@@ -33,12 +33,16 @@ export async function POST(
   if (!ASSETS_DRAFT_BUCKET) return bad('draft_bucket_not_configured', 500);
 
   const { id } = await params;
-  const json = (await req.json().catch(() => null)) as { pngBase64?: string; changeNotes?: string };
+  const json = (await req.json().catch(() => null)) as {
+    pngBase64?: string;
+    changeNotes?: string;
+  };
   if (!json?.pngBase64) return bad('png_required');
 
   const asset = await getAsset(id);
   if (!asset) return bad('not_found', 404);
-  if (!ALLOWED_ASSET_TYPES.includes(asset.type)) return bad('invalid_asset_type', 400);
+  if (!ALLOWED_ASSET_TYPES.includes(asset.type))
+    return bad('invalid_asset_type', 400);
 
   // decode base64
   let buffer: Buffer;
@@ -64,7 +68,7 @@ export async function POST(
         Body: buffer,
         ContentType: 'image/png',
         ContentLength: buffer.byteLength,
-      })
+      }),
     );
 
     const now = new Date().toISOString();
@@ -80,15 +84,20 @@ export async function POST(
             Put: {
               TableName: IMAGE_VERSIONS_TABLE,
               Item: versionItem,
-              ConditionExpression: 'attribute_not_exists(#pk) AND attribute_not_exists(#sk)',
-              ExpressionAttributeNames: { '#pk': VERSION_PK_ATTR, '#sk': VERSION_SK_ATTR },
+              ConditionExpression:
+                'attribute_not_exists(#pk) AND attribute_not_exists(#sk)',
+              ExpressionAttributeNames: {
+                '#pk': VERSION_PK_ATTR,
+                '#sk': VERSION_SK_ATTR,
+              },
             },
           },
           {
             Update: {
               TableName: IMAGE_TABLE,
               Key: { [ASSET_PK_ATTR]: `ASSET#${id}` },
-              UpdateExpression: 'SET currentDraftVersionId = :draft, updatedAt = :updatedAt',
+              UpdateExpression:
+                'SET currentDraftVersionId = :draft, updatedAt = :updatedAt',
               ExpressionAttributeValues: {
                 ':draft': version.versionId,
                 ':updatedAt': now,
@@ -96,7 +105,7 @@ export async function POST(
             },
           },
         ],
-      })
+      }),
     );
 
     await logAudit({

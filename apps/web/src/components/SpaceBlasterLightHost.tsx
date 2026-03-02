@@ -82,9 +82,17 @@ export default function SpaceBlasterLightHost({ bundle }: Props) {
           hp: Math.max(1, Math.floor(enemy?.hp ?? 1)),
           canShoot: enemy?.canShoot === true,
           gridCol: clamp(Math.floor(Number(placement.col ?? idx % 10)), 0, 9),
-          gridRow: clamp(Math.floor(Number(placement.row ?? Math.floor(idx / 10))), 0, 4),
+          gridRow: clamp(
+            Math.floor(Number(placement.row ?? Math.floor(idx / 10))),
+            0,
+            4,
+          ),
           gridWidthCells: clamp(Math.floor(Number(placement.width ?? 1)), 1, 2),
-          gridHeightCells: clamp(Math.floor(Number(placement.height ?? 1)), 1, 2),
+          gridHeightCells: clamp(
+            Math.floor(Number(placement.height ?? 1)),
+            1,
+            2,
+          ),
         };
       });
     }
@@ -125,7 +133,11 @@ export default function SpaceBlasterLightHost({ bundle }: Props) {
       }
     });
     return expanded;
-  }, [bundle.enemyCatalog?.entries, level.formationGrid?.placements, level.waves]);
+  }, [
+    bundle.enemyCatalog?.entries,
+    level.formationGrid?.placements,
+    level.waves,
+  ]);
 
   const playerShip = useMemo(() => {
     const hero = bundle.heroCatalog?.entries?.[0];
@@ -133,7 +145,11 @@ export default function SpaceBlasterLightHost({ bundle }: Props) {
       label: 'Player Ship',
       iconUrl: hero?.spriteUrl ?? hero?.spriteKey,
       hitboxWidth: clamp(Math.floor(Number(hero?.hitbox?.width ?? 28)), 8, 96),
-      hitboxHeight: clamp(Math.floor(Number(hero?.hitbox?.height ?? 28)), 8, 96),
+      hitboxHeight: clamp(
+        Math.floor(Number(hero?.hitbox?.height ?? 28)),
+        8,
+        96,
+      ),
     };
   }, [bundle.heroCatalog?.entries]);
 
@@ -141,19 +157,38 @@ export default function SpaceBlasterLightHost({ bundle }: Props) {
     const fireTickMs = 1000;
     const shootingPercent = clamp(Number(level.shooting ?? 0), 0, 100);
     const fireChancePerTick = clamp(
-      (shootingPercent / 100) / (1000 / fireTickMs),
+      shootingPercent / 100 / (1000 / fireTickMs),
       0,
       1,
     );
     return {
       fleetSpeed: Math.max(0, Number(level.speed ?? 0) / FLEET_SPEED_SCALE),
-      rampFactor: Math.max(0, Number(level.fleetSpeedRamp?.maxMultiplier ?? 1) - 1),
+      rampFactor: Math.max(
+        0,
+        Number(level.fleetSpeedRamp?.maxMultiplier ?? 1) - 1,
+      ),
       descendStep: Math.max(0, Number(level.descendStep ?? 0)),
-      maxConcurrentDivers: Math.max(0, Math.floor(Number(level.diveScheduler?.maxConcurrentDivers ?? 0))),
-      maxConcurrentShots: Math.max(0, Math.floor(Number(level.maxConcurrentShots ?? 6))),
-      attackTickMs: Math.max(1, Number(level.diveScheduler?.attackTickMs ?? 1000)),
-      diveChancePerTick: clamp(Number(level.diveScheduler?.diveChancePerTick ?? 0), 0, 1),
-      divePattern: (level.diveMotion?.divePattern ?? 'straight') as 'straight' | 'sine' | 'track',
+      maxConcurrentDivers: Math.max(
+        0,
+        Math.floor(Number(level.diveScheduler?.maxConcurrentDivers ?? 0)),
+      ),
+      maxConcurrentShots: Math.max(
+        0,
+        Math.floor(Number(level.maxConcurrentShots ?? 6)),
+      ),
+      attackTickMs: Math.max(
+        1,
+        Number(level.diveScheduler?.attackTickMs ?? 1000),
+      ),
+      diveChancePerTick: clamp(
+        Number(level.diveScheduler?.diveChancePerTick ?? 0),
+        0,
+        1,
+      ),
+      divePattern: (level.diveMotion?.divePattern ?? 'straight') as
+        | 'straight'
+        | 'sine'
+        | 'track',
       turnRate: Math.max(0, Number(level.diveMotion?.turnRate ?? 0)),
       fireTickMs,
       fireChancePerTick,

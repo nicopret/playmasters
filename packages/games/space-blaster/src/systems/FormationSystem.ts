@@ -166,8 +166,8 @@ export class FormationSystem {
         ? Math.max(0, (level as { descendStep?: number }).descendStep ?? 0)
         : layout.spacing.y;
 
-    const formationGrid =
-      (level as {
+    const formationGrid = (
+      level as {
         formationGrid?: {
           columns?: number;
           rows?: number;
@@ -180,7 +180,8 @@ export class FormationSystem {
             height?: number;
           }>;
         };
-      }).formationGrid;
+      }
+    ).formationGrid;
     const normalizedGridPlacements =
       formationGrid?.placements
         ?.map((placement, index) => {
@@ -213,7 +214,9 @@ export class FormationSystem {
           };
         })
         .filter(
-          (placement): placement is {
+          (
+            placement,
+          ): placement is {
             id: string;
             enemyId: string;
             col: number;

@@ -310,7 +310,8 @@ export default function AssetComponent({
                         }
                         onBlur={() => {
                           const nextValue = textDrafts[variable.key] ?? '';
-                          const currentValue = typeof raw === 'string' ? raw : '';
+                          const currentValue =
+                            typeof raw === 'string' ? raw : '';
                           if (nextValue !== currentValue) {
                             setVariable(variable.key, nextValue);
                           }

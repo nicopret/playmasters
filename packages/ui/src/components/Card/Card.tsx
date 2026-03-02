@@ -12,12 +12,17 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(function Card(
   { variant = 'surface', padding = 'md', className, ...props },
-  ref
+  ref,
 ) {
   return (
     <div
       ref={ref}
-      className={cn(styles.card, styles[variant], styles[`padding-${padding}`], className)}
+      className={cn(
+        styles.card,
+        styles[variant],
+        styles[`padding-${padding}`],
+        className,
+      )}
       {...props}
     />
   );

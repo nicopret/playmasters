@@ -10,7 +10,12 @@ export type ImageUploadProps = {
   onChange?: (file?: File) => void;
 };
 
-const ImageUpload: React.FC<ImageUploadProps> = ({ title, value, name = 'imageFile', onChange }) => {
+const ImageUpload: React.FC<ImageUploadProps> = ({
+  title,
+  value,
+  name = 'imageFile',
+  onChange,
+}) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [preview, setPreview] = useState<string | undefined>(value);
   const [isActive, setIsActive] = useState(false);

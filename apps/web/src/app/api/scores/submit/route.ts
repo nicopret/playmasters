@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '../../../../auth';
-import { consumeSessionToken, validateSessionToken } from '../../../../lib/gameSessions';
+import {
+  consumeSessionToken,
+  validateSessionToken,
+} from '../../../../lib/gameSessions';
 import { getGameById } from '../../../../lib/games';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -9,7 +12,9 @@ const userHits = new Map<string, number[]>();
 
 const isRateLimited = (userId: string) => {
   const now = Date.now();
-  const hits = (userHits.get(userId) ?? []).filter((ts) => now - ts < RATE_LIMIT_WINDOW_MS);
+  const hits = (userHits.get(userId) ?? []).filter(
+    (ts) => now - ts < RATE_LIMIT_WINDOW_MS,
+  );
   if (hits.length >= RATE_LIMIT_MAX) {
     userHits.set(userId, hits);
     return true;
@@ -61,14 +66,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'score_too_high' }, { status: 400 });
   }
 
-  const tokenCheck = validateSessionToken(sessionToken, session.user.id, gameId);
+  const tokenCheck = validateSessionToken(
+    sessionToken,
+    session.user.id,
+    gameId,
+  );
   if (!tokenCheck.ok) {
     return NextResponse.json({ error: tokenCheck.error }, { status: 400 });
   }
 
   const realtimeUrl = process.env.REALTIME_HTTP_URL ?? 'http://localhost:4000';
   const ingestSecret = process.env.REALTIME_INGEST_SECRET;
-  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+  };
   if (ingestSecret) headers['x-realtime-secret'] = ingestSecret;
 
   const countryCode =
@@ -95,7 +106,10 @@ export async function POST(request: Request) {
     }
   } catch (err) {
     console.warn('Failed to submit score to realtime', err);
-    return NextResponse.json({ ok: false, error: 'realtime_unavailable' }, { status: 503 });
+    return NextResponse.json(
+      { ok: false, error: 'realtime_unavailable' },
+      { status: 503 },
+    );
   }
 
   consumeSessionToken(sessionToken);

@@ -4,17 +4,17 @@
 
 This document defines:
 
-* The authoritative **resolution order** across config domains
-* How overrides are applied
-* How merge behavior works (replace vs merge)
-* What the runtime ultimately receives in the `ResolvedGameConfig` bundle
+- The authoritative **resolution order** across config domains
+- How overrides are applied
+- How merge behavior works (replace vs merge)
+- What the runtime ultimately receives in the `ResolvedGameConfig` bundle
 
 The goal is to ensure that:
 
-* Resolution is deterministic
-* No ambiguity exists when multiple domains define the same field
-* Designers can reason about overrides safely
-* Runtime receives a self-contained, fully resolved config bundle
+- Resolution is deterministic
+- No ambiguity exists when multiple domains define the same field
+- Designers can reason about overrides safely
+- Runtime receives a self-contained, fully resolved config bundle
 
 This document builds directly on `config-domains.md`.
 
@@ -45,10 +45,10 @@ Catalogs define the canonical base configuration for units and assets.
 
 Examples:
 
-* EnemyCatalog.baseHp
-* HeroCatalog.moveSpeed
-* AmmoCatalog.cooldown
-* EnemyCatalog.canDive
+- EnemyCatalog.baseHp
+- HeroCatalog.moveSpeed
+- AmmoCatalog.cooldown
+- EnemyCatalog.canDive
 
 Catalog values represent the baseline and must be complete.
 
@@ -60,15 +60,15 @@ No partial definitions are allowed at the catalog level.
 
 GameConfig may:
 
-* Override catalog defaults globally
-* Provide default values for levels that don’t specify overrides
-* Define global multipliers or clamps
+- Override catalog defaults globally
+- Provide default values for levels that don’t specify overrides
+- Define global multipliers or clamps
 
 Examples:
 
-* Default player lives
-* Global difficulty multiplier
-* Default combo window duration
+- Default player lives
+- Global difficulty multiplier
+- Default combo window duration
 
 GameConfig overrides apply to all levels unless explicitly overridden by LevelConfig.
 
@@ -78,11 +78,11 @@ GameConfig overrides apply to all levels unless explicitly overridden by LevelCo
 
 LevelConfig may override:
 
-* Enemy stats (hp overrides per level)
-* Formation behavior (speed ramp, descend step)
-* Fire/dive caps
-* Level multiplier rules
-* Wave-specific parameters
+- Enemy stats (hp overrides per level)
+- Formation behavior (speed ramp, descend step)
+- Fire/dive caps
+- Level multiplier rules
+- Wave-specific parameters
 
 LevelConfig overrides take precedence over both Catalog and GameConfig values.
 
@@ -96,18 +96,18 @@ If a difficulty scaling layer exists (e.g. endless scaling or adaptive difficult
 
 Difficulty modifiers may adjust:
 
-* Enemy HP multiplier
-* Dive probability multiplier
-* Fire rate multiplier
-* Score multiplier caps (if allowed)
+- Enemy HP multiplier
+- Dive probability multiplier
+- Fire rate multiplier
+- Score multiplier caps (if allowed)
 
 These modifiers are applied after all static overrides are resolved.
 
 They must:
 
-* Be deterministic
-* Be included in the final ResolvedGameConfig
-* Be frozen per run
+- Be deterministic
+- Be included in the final ResolvedGameConfig
+- Be frozen per run
 
 ---
 
@@ -168,9 +168,9 @@ Final:
 
 Rules:
 
-* Only provided keys override
-* Missing keys retain previous layer value
-* No deep recursive merge unless explicitly defined
+- Only provided keys override
+- Missing keys retain previous layer value
+- No deep recursive merge unless explicitly defined
 
 ---
 
@@ -208,8 +208,8 @@ This avoids ambiguous ordering and index mutation bugs.
 
 Maps keyed by ID (e.g., baseScoreByEnemyId) use:
 
-* Replace if defined at a later layer
-* If partial override is needed, it must provide full map replacement
+- Replace if defined at a later layer
+- If partial override is needed, it must provide full map replacement
 
 No partial key-level merging unless explicitly documented.
 
@@ -219,15 +219,15 @@ No partial key-level merging unless explicitly documented.
 
 A partial override:
 
-* May override only specific scalar fields
-* Must not introduce new unknown fields
-* Must not violate schema constraints
+- May override only specific scalar fields
+- Must not introduce new unknown fields
+- Must not violate schema constraints
 
 If a partial override results in:
 
-* Missing required fields
-* Invalid references
-* Invalid ranges
+- Missing required fields
+- Invalid references
+- Invalid ranges
 
 → Publish must fail during validation.
 
@@ -299,17 +299,17 @@ ResolvedGameConfig = {
   ammoCatalog,
   formationLayouts,
   scoreConfig,
-  configHash
-}
+  configHash,
+};
 ```
 
 Important properties:
 
-* All overrides already applied
-* No domain precedence logic exists in runtime
-* No runtime lookups against other config sources
-* Immutable during run
-* configHash included for submission integrity
+- All overrides already applied
+- No domain precedence logic exists in runtime
+- No runtime lookups against other config sources
+- Immutable during run
+- configHash included for submission integrity
 
 ---
 
@@ -317,27 +317,27 @@ Important properties:
 
 At publish time:
 
-* All references must resolve
-* Overrides must not introduce unknown keys
-* Required fields must remain satisfied after merge
-* Final resolved shape must conform to runtime TypeScript contract
+- All references must resolve
+- Overrides must not introduce unknown keys
+- Required fields must remain satisfied after merge
+- Final resolved shape must conform to runtime TypeScript contract
 
 ---
 
 # 10. Operational Guarantees
 
-* Resolution is deterministic
-* No runtime ambiguity
-* No mid-run override application
-* All publishes produce a new version hash
-* Rollback restores previous fully resolved state
+- Resolution is deterministic
+- No runtime ambiguity
+- No mid-run override application
+- All publishes produce a new version hash
+- Rollback restores previous fully resolved state
 
 ---
 
 # 11. Acceptance Criteria (Issue #52)
 
-* [ ] Precedence order explicitly defined
-* [ ] Merge semantics (replace vs merge) documented
-* [ ] Conflict resolution deterministic
-* [ ] Example resolution included
-* [ ] ResolvedGameConfig contract explicitly defined
+- [ ] Precedence order explicitly defined
+- [ ] Merge semantics (replace vs merge) documented
+- [ ] Conflict resolution deterministic
+- [ ] Example resolution included
+- [ ] ResolvedGameConfig contract explicitly defined

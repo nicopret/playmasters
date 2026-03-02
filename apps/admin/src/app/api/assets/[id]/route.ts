@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
   if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin)
