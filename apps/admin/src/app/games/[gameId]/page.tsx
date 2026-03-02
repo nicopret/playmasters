@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import dashStyles from '../../../components/AdminDashboard/AdminDashboard.module.css';
+import { getGameDisplayName } from '../../../lib/games';
+import PublishButton from './PublishButton';
 import styles from './page.module.css';
 
 type GamePageProps = {
@@ -18,10 +20,7 @@ const navItems = [
 
 export default async function GamePage({ params }: GamePageProps) {
   const { gameId } = await params;
-  const gameTitle = gameId
-    .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+  const gameTitle = getGameDisplayName(gameId);
 
   return (
     <div className={dashStyles.shell}>
@@ -59,8 +58,10 @@ export default async function GamePage({ params }: GamePageProps) {
         <section className={styles.contentSection}>
           <h2 className={styles.gameTitle}>{gameId}</h2>
           <p className={styles.meta}>Game admin entry point.</p>
-          <Link href={`/games/${gameId}/levels/demo`} className={styles.link}>
-            Open demo level
+          <PublishButton gameId={gameId} />
+          <br />
+          <Link href={`/games/${gameId}/levels`} className={styles.link}>
+            Open levels
           </Link>
           <br />
           <Link href={`/games/${gameId}/assets`} className={styles.link}>
@@ -73,6 +74,10 @@ export default async function GamePage({ params }: GamePageProps) {
           <br />
           <Link href={`/games/${gameId}/score-config`} className={styles.link}>
             Open score config
+          </Link>
+          <br />
+          <Link href={`/games/${gameId}/sfx`} className={styles.link}>
+            Open game SFX
           </Link>
         </section>
       </main>

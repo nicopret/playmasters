@@ -1,5 +1,9 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  ScanCommand,
+} from '@aws-sdk/lib-dynamodb';
 import type { LeaderboardState } from '@playmasters/types';
 
 const region = process.env.AWS_REGION;
@@ -28,7 +32,9 @@ const baseClient = snapshotsEnabled
   : null;
 
 export const ddbDocClient = baseClient
-  ? DynamoDBDocumentClient.from(baseClient, { marshallOptions: { removeUndefinedValues: true } })
+  ? DynamoDBDocumentClient.from(baseClient, {
+      marshallOptions: { removeUndefinedValues: true },
+    })
   : null;
 
 const buildPk = (state: LeaderboardState) =>
@@ -53,9 +59,9 @@ export async function putSnapshots(states: LeaderboardState[]) {
             entries: state.entries,
             updatedAt: state.updatedAt,
           },
-        })
-      )
-    )
+        }),
+      ),
+    ),
   );
 }
 
@@ -65,7 +71,7 @@ export async function scanSnapshots(): Promise<LeaderboardState[]> {
   const res = await ddbDocClient.send(
     new ScanCommand({
       TableName: SNAPSHOT_TABLE,
-    })
+    }),
   );
 
   return (res.Items ?? []).map((item) => ({

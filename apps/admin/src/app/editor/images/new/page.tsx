@@ -62,7 +62,9 @@ export default function EditorImagesNewPage() {
       <header className={styles.header}>
         <div className={styles.kicker}>Image Editor</div>
         <h1 className={styles.title}>Upload New Asset</h1>
-        <p className={styles.subtitle}>Upload an image to start a new asset draft.</p>
+        <p className={styles.subtitle}>
+          Upload an image to start a new asset draft.
+        </p>
       </header>
 
       <form className={styles.form} onSubmit={onSubmit}>
@@ -74,12 +76,18 @@ export default function EditorImagesNewPage() {
             accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
-          <div className={styles.helper}>PNG / JPG / WEBP. Max size set by backend config.</div>
+          <div className={styles.helper}>
+            PNG / JPG / WEBP. Max size set by backend config.
+          </div>
         </div>
 
         <div className={styles.field}>
           <label className={styles.label}>Type</label>
-          <select className={styles.select} value={type} onChange={(e) => setType(e.target.value)}>
+          <select
+            className={styles.select}
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+          >
             {TYPES.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}

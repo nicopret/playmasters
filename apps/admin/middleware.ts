@@ -16,7 +16,9 @@ export default auth((req) => {
   }
 
   if (!req.auth.user?.isAdmin) {
-    return NextResponse.redirect(new URL('http://localhost:3000/', nextUrl.origin));
+    return NextResponse.redirect(
+      new URL('http://localhost:3000/', nextUrl.origin),
+    );
   }
 
   return NextResponse.next();

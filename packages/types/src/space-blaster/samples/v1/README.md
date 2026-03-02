@@ -3,6 +3,7 @@
 These are minimal but complete sample configs that **must validate** against the Space Blaster schemas. Use them as a golden set for CI and for quick local validation.
 
 ## Files
+
 - `game-config.v1.json`
 - `level-1.v1.json`
 - `level-2.v1.json`

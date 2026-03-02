@@ -65,12 +65,18 @@ const Header = () => {
                   )}
                 </div>
                 <div className={styles.userText}>
-                  <span className={styles.userName}>{user.name ?? user.email}</span>
+                  <span className={styles.userName}>
+                    {user.name ?? user.email}
+                  </span>
                   <div className={styles.userLinks}>
                     <Link href="/profile" className={styles.navLink}>
                       Profile
                     </Link>
-                    <button type="button" className={styles.signOut} onClick={() => signOut()}>
+                    <button
+                      type="button"
+                      className={styles.signOut}
+                      onClick={() => signOut()}
+                    >
                       Sign out
                     </button>
                   </div>

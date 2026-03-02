@@ -2,12 +2,12 @@
 
 This document defines the **exact Nx workspace layout, tooling choices, and project configuration** for Playmasters based on your decisions:
 
-* Nx monorepo
-* Next.js web app
-* Separate realtime WebSocket service
-* CSS Modules + design tokens
-* DynamoDB + in‑memory leaderboards
-* Games and SDK as shared packages
+- Nx monorepo
+- Next.js web app
+- Separate realtime WebSocket service
+- CSS Modules + design tokens
+- DynamoDB + in‑memory leaderboards
+- Games and SDK as shared packages
 
 ---
 
@@ -15,9 +15,9 @@ This document defines the **exact Nx workspace layout, tooling choices, and proj
 
 ### Required tools
 
-* Node.js 20+
-* pnpm (recommended for workspaces)
-* Nx (latest)
+- Node.js 20+
+- pnpm (recommended for workspaces)
+- Nx (latest)
 
 Install globally (optional):
 
@@ -37,9 +37,9 @@ npx create-nx-workspace@latest playmasters
 
 Choose:
 
-* Workspace type: **Integrated Monorepo**
-* Package manager: **pnpm**
-* Preset: **None** (we’ll add apps manually)
+- Workspace type: **Integrated Monorepo**
+- Package manager: **pnpm**
+- Preset: **None** (we’ll add apps manually)
 
 Then enter:
 
@@ -63,9 +63,9 @@ pnpm add -D @nx/next @nx/node @nx/js
 nx g @nx/next:app web --directory=apps/web --appDir --style=css --no-interactive
 ```
 
-* Uses App Router
-* CSS Modules by default
-* SSR ready
+- Uses App Router
+- CSS Modules by default
+- SSR ready
 
 This creates:
 
@@ -144,22 +144,24 @@ nx g @nx/js:lib types --directory=packages/types --bundler=tsc --importPath=@pla
 
 Used for:
 
-* websocket event payloads
-* score submission payloads
-* leaderboard entries
+- websocket event payloads
+- score submission payloads
+- leaderboard entries
 
 ---
+
 ### Game SDK
+
 ```
 nx g @nx/js:lib game-sdk --directory=packages/games-sdk --bundler=tsc --importPath=@playmasters/game-sdk
 ```
 
 Exports:
 
-* WS client
-* session helpers
-* score submit helpers
-* event emitters
+- WS client
+- session helpers
+- score submit helpers
+- event emitters
 
 ---
 
@@ -264,8 +266,8 @@ playmasters/
 In `apps/web/app/layout.tsx`:
 
 ```ts
-import '@playmasters/brand/tokens.css'
-import '@playmasters/brand/fonts.css'
+import '@playmasters/brand/tokens.css';
+import '@playmasters/brand/fonts.css';
 ```
 
 This establishes global theme variables.
@@ -275,7 +277,7 @@ This establishes global theme variables.
 ### Using UI components
 
 ```ts
-import { Button, Card } from '@playmasters/ui'
+import { Button, Card } from '@playmasters/ui';
 ```
 
 CSS Modules remain local to the component package.
@@ -301,9 +303,9 @@ handlers/
 
 Responsibilities:
 
-* maintain in‑memory state
-* broadcast updates
-* persist snapshots
+- maintain in‑memory state
+- broadcast updates
+- persist snapshots
 
 ---
 
@@ -336,8 +338,8 @@ nx affected -t test
 
 ### Web
 
-* Deploy `apps/web` only
-* Build filter:
+- Deploy `apps/web` only
+- Build filter:
 
 ```
 nx build web
@@ -345,7 +347,7 @@ nx build web
 
 ### Realtime
 
-* Deploy `apps/realtime` as long‑running Node service
+- Deploy `apps/realtime` as long‑running Node service
 
 ```
 nx build realtime
@@ -356,9 +358,9 @@ node dist/apps/realtime/main.js
 
 Later stages:
 
-* Capacitor project lives in `apps/mobile`
-* Tauri project lives in `apps/desktop`
-* Both consume `apps/web` build output
+- Capacitor project lives in `apps/mobile`
+- Tauri project lives in `apps/desktop`
+- Both consume `apps/web` build output
 
 ---
 
@@ -366,23 +368,20 @@ Later stages:
 
 ### Import rules
 
-* Web can import:
+- Web can import:
+  - ui
+  - brand
+  - types
+  - game‑sdk
+  - games/\*
 
-  * ui
-  * brand
-  * types
-  * game‑sdk
-  * games/*
+- Realtime can import:
+  - types
+  - utils
 
-* Realtime can import:
-
-  * types
-  * utils
-
-* Games can import:
-
-  * game‑sdk
-  * types
+- Games can import:
+  - game‑sdk
+  - types
 
 **Never import server code into games or UI.**
 
@@ -390,18 +389,18 @@ Later stages:
 
 ## 12. What this gives you
 
-* Single repo, many targets
-* Shared design tokens everywhere
-* Shared SDK for all games
-* Independent deployment for web + realtime
-* Clean path to mobile + desktop
-* Zero Tailwind, zero framework lock‑in
+- Single repo, many targets
+- Shared design tokens everywhere
+- Shared SDK for all games
+- Independent deployment for web + realtime
+- Clean path to mobile + desktop
+- Zero Tailwind, zero framework lock‑in
 
 ---
 
 This workspace is now ready for:
 
-* DynamoDB integration
-* WebSocket protocol definition
-* Game SDK implementation
-* Landing page UI build
+- DynamoDB integration
+- WebSocket protocol definition
+- Game SDK implementation
+- Landing page UI build

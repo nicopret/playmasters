@@ -42,7 +42,9 @@ export const Nested: Story = {
     <Container size="xl">
       <Card padding="lg">
         <h3 style={{ margin: 0 }}>Nested Layout</h3>
-        <p style={{ marginTop: 8 }}>Inner containers manage readable line length.</p>
+        <p style={{ marginTop: 8 }}>
+          Inner containers manage readable line length.
+        </p>
         <Container size="md">
           <Card padding="md">Inner content constrained to md</Card>
         </Container>

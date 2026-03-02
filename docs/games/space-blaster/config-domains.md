@@ -16,16 +16,16 @@ The runtime config contract follows one non-negotiable rule:
 
 This ensures:
 
-* Competitive fairness
-* Leaderboard comparability
-* Deterministic debugging
-* Operational safety during live publishes
+- Competitive fairness
+- Leaderboard comparability
+- Deterministic debugging
+- Operational safety during live publishes
 
 If a new config version is published while a player is mid-run:
 
-* The active run continues using the original configHash
-* The next run resolves the new version
-* No mid-run config swaps are allowed
+- The active run continues using the original configHash
+- The next run resolves the new version
+- No mid-run config swaps are allowed
 
 ---
 
@@ -40,36 +40,36 @@ The following domains constitute the authoritative configuration model for Space
 **Purpose**
 Global defaults and high-level tuning controls. Includes:
 
-* Default player lives
-* Global timing defaults
-* Default difficulty modifiers
-* Mode flags (if applicable)
-* Baseline level multiplier rules
+- Default player lives
+- Global timing defaults
+- Default difficulty modifiers
+- Mode flags (if applicable)
+- Baseline level multiplier rules
 
 **Ownership**
 
-* Admin: Authoring (Draft → Staged → Published)
-* Runtime: Read-only
-* Runtime never writes
+- Admin: Authoring (Draft → Staged → Published)
+- Runtime: Read-only
+- Runtime never writes
 
 **Publish Lifecycle**
 
-* Draft → Staged → Published
-* Immutable once published
+- Draft → Staged → Published
+- Immutable once published
 
 **Runtime Consumption**
 
-* Embedded in ResolvedGameConfig
-* No external lookups
+- Embedded in ResolvedGameConfig
+- No external lookups
 
 **Hot Reload**
 
-* Not safe mid-run
-* Applies next run only
+- Not safe mid-run
+- Applies next run only
 
 **Leaderboard Impact**
 
-* Medium to High (depending on fields changed)
+- Medium to High (depending on fields changed)
 
 ---
 
@@ -78,36 +78,36 @@ Global defaults and high-level tuning controls. Includes:
 **Purpose**
 Defines level progression structure:
 
-* Waves
-* Formation layout references
-* Enemy composition per wave
-* Dive/shoot caps
-* Speed ramps
-* Level multiplier overrides
+- Waves
+- Formation layout references
+- Enemy composition per wave
+- Dive/shoot caps
+- Speed ramps
+- Level multiplier overrides
 
 **Ownership**
 
-* Admin writes
-* Runtime reads
-* Runtime never writes
+- Admin writes
+- Runtime reads
+- Runtime never writes
 
 **Publish Lifecycle**
 
-* Draft → Staged → Published
-* Immutable once published
+- Draft → Staged → Published
+- Immutable once published
 
 **Runtime Consumption**
 
-* Embedded list in resolved bundle
+- Embedded list in resolved bundle
 
 **Hot Reload**
 
-* Never mid-run
-* Applies next run only
+- Never mid-run
+- Applies next run only
 
 **Leaderboard Impact**
 
-* High (affects difficulty and scoring pacing)
+- High (affects difficulty and scoring pacing)
 
 ---
 
@@ -116,32 +116,32 @@ Defines level progression structure:
 **Purpose**
 Defines player unit properties:
 
-* Movement speed
-* Hitbox
-* Default lives (if not overridden)
-* Ammo binding
-* Visual/audio keys
+- Movement speed
+- Hitbox
+- Default lives (if not overridden)
+- Ammo binding
+- Visual/audio keys
 
 **Ownership**
 
-* Admin writes
-* Runtime reads only
+- Admin writes
+- Runtime reads only
 
 **Publish Lifecycle**
 
-* Immutable once published
+- Immutable once published
 
 **Runtime Consumption**
 
-* Fully embedded in resolved bundle
+- Fully embedded in resolved bundle
 
 **Hot Reload**
 
-* Not allowed mid-run
+- Not allowed mid-run
 
 **Leaderboard Impact**
 
-* High (movement speed, lives, cooldown affect survivability and score ceiling)
+- High (movement speed, lives, cooldown affect survivability and score ceiling)
 
 ---
 
@@ -150,32 +150,32 @@ Defines player unit properties:
 **Purpose**
 Defines enemy archetypes:
 
-* Base HP
-* Base score id
-* CanShoot / CanDive flags
-* Dive parameters
-* Visual/audio keys
+- Base HP
+- Base score id
+- CanShoot / CanDive flags
+- Dive parameters
+- Visual/audio keys
 
 **Ownership**
 
-* Admin writes
-* Runtime reads only
+- Admin writes
+- Runtime reads only
 
 **Publish Lifecycle**
 
-* Immutable once published
+- Immutable once published
 
 **Runtime Consumption**
 
-* Fully embedded in resolved bundle
+- Fully embedded in resolved bundle
 
 **Hot Reload**
 
-* Not allowed mid-run
+- Not allowed mid-run
 
 **Leaderboard Impact**
 
-* High (HP, dive caps, fire frequency directly influence scoring and survivability)
+- High (HP, dive caps, fire frequency directly influence scoring and survivability)
 
 ---
 
@@ -184,31 +184,31 @@ Defines enemy archetypes:
 **Purpose**
 Defines projectile properties:
 
-* Speed
-* Fire cooldown
-* Damage (if applicable)
-* Visual/audio keys
+- Speed
+- Fire cooldown
+- Damage (if applicable)
+- Visual/audio keys
 
 **Ownership**
 
-* Admin writes
-* Runtime reads only
+- Admin writes
+- Runtime reads only
 
 **Publish Lifecycle**
 
-* Immutable once published
+- Immutable once published
 
 **Runtime Consumption**
 
-* Fully embedded in resolved bundle
+- Fully embedded in resolved bundle
 
 **Hot Reload**
 
-* Not allowed mid-run
+- Not allowed mid-run
 
 **Leaderboard Impact**
 
-* High (cooldown and projectile speed affect score rate and survivability)
+- High (cooldown and projectile speed affect score rate and survivability)
 
 ---
 
@@ -217,32 +217,32 @@ Defines projectile properties:
 **Purpose**
 Defines formation grid geometry:
 
-* Rows
-* Columns
-* Spacing
-* Offsets
-* Compaction behavior
+- Rows
+- Columns
+- Spacing
+- Offsets
+- Compaction behavior
 
 **Ownership**
 
-* Admin writes
-* Runtime reads only
+- Admin writes
+- Runtime reads only
 
 **Publish Lifecycle**
 
-* Immutable once published
+- Immutable once published
 
 **Runtime Consumption**
 
-* Embedded in resolved bundle
+- Embedded in resolved bundle
 
 **Hot Reload**
 
-* Not allowed mid-run
+- Not allowed mid-run
 
 **Leaderboard Impact**
 
-* Medium to High (affects difficulty curve and pacing)
+- Medium to High (affects difficulty curve and pacing)
 
 ---
 
@@ -251,33 +251,33 @@ Defines formation grid geometry:
 **Purpose**
 Defines scoring rules:
 
-* Base enemy score mapping
-* Level multiplier logic
-* Combo tiers
-* Tier bonuses
-* Wave clear bonuses
-* Accuracy thresholds
+- Base enemy score mapping
+- Level multiplier logic
+- Combo tiers
+- Tier bonuses
+- Wave clear bonuses
+- Accuracy thresholds
 
 **Ownership**
 
-* Admin writes
-* Runtime reads only
+- Admin writes
+- Runtime reads only
 
 **Publish Lifecycle**
 
-* Immutable once published
+- Immutable once published
 
 **Runtime Consumption**
 
-* Embedded in resolved bundle
+- Embedded in resolved bundle
 
 **Hot Reload**
 
-* Not allowed mid-run
+- Not allowed mid-run
 
 **Leaderboard Impact**
 
-* Critical (direct score inflation/deflation risk)
+- Critical (direct score inflation/deflation risk)
 
 ---
 
@@ -286,34 +286,34 @@ Defines scoring rules:
 **Purpose**
 Metadata generated by the platform:
 
-* versionHash / configHash
-* Publish timestamp
-* Version pointer reference
+- versionHash / configHash
+- Publish timestamp
+- Version pointer reference
 
 **Ownership**
 
-* Platform-generated
-* Admin selects version pointer
-* Runtime reads only
+- Platform-generated
+- Admin selects version pointer
+- Runtime reads only
 
 **Publish Lifecycle**
 
-* New hash generated on publish
-* Older versions remain addressable
+- New hash generated on publish
+- Older versions remain addressable
 
 **Runtime Consumption**
 
-* Included in resolved bundle
-* Stored in RunContext at run start
-* Included in score submission payload
+- Included in resolved bundle
+- Stored in RunContext at run start
+- Included in score submission payload
 
 **Hot Reload**
 
-* Never mid-run
+- Never mid-run
 
 **Leaderboard Impact**
 
-* Used to determine score comparability
+- Used to determine score comparability
 
 ---
 
@@ -340,10 +340,10 @@ All config objects should be treated as immutable data.
 
 The following references must resolve at publish time:
 
-* LevelConfig.layoutId → FormationLayouts.layoutId
-* LevelConfig.enemyIds → EnemyCatalog.enemyId
-* HeroCatalog.defaultAmmoId → AmmoCatalog.ammoId
-* ScoreConfig.baseScore entries → EnemyCatalog.enemyId
+- LevelConfig.layoutId → FormationLayouts.layoutId
+- LevelConfig.enemyIds → EnemyCatalog.enemyId
+- HeroCatalog.defaultAmmoId → AmmoCatalog.ammoId
+- ScoreConfig.baseScore entries → EnemyCatalog.enemyId
 
 Dangling references are publish-blocking validation failures.
 
@@ -355,27 +355,27 @@ The following categories should be flagged operationally for leaderboard segment
 
 ### Critical (Strongly Consider Segmentation)
 
-* Score multipliers
-* Combo tier thresholds
-* Tier bonus values
-* Base enemy scores
-* Level multiplier caps
+- Score multipliers
+- Combo tier thresholds
+- Tier bonus values
+- Base enemy scores
+- Level multiplier caps
 
 ### High Impact (Review Required)
 
-* Player movement speed
-* Fire cooldown
-* Projectile speed
-* Enemy HP
-* Dive probability
-* Max concurrent divers
-* Enemy fire caps
+- Player movement speed
+- Fire cooldown
+- Projectile speed
+- Enemy HP
+- Dive probability
+- Max concurrent divers
+- Enemy fire caps
 
 ### Moderate Impact
 
-* Formation spacing adjustments
-* Speed ramp curves
-* Wave composition changes
+- Formation spacing adjustments
+- Speed ramp curves
+- Wave composition changes
 
 These changes are allowed technically but require balance operations oversight.
 
@@ -394,25 +394,25 @@ ResolvedGameConfig = {
   ammoCatalog,
   formationLayouts,
   scoreConfig,
-  configHash
-}
+  configHash,
+};
 ```
 
 Properties:
 
-* Fully self-contained
-* No runtime config lookups
-* Immutable for run duration
-* configHash stored in RunContext
-* configHash included in score submission payload
+- Fully self-contained
+- No runtime config lookups
+- Immutable for run duration
+- configHash stored in RunContext
+- configHash included in score submission payload
 
 ---
 
 # 7. Operational Guarantees
 
-* Active runs are immune to newly published configs
-* Rollback is pointer-based (no rebuild required)
-* All publishes generate new immutable version hashes
-* Leaderboard integrity is protected via configHash tracking
+- Active runs are immune to newly published configs
+- Rollback is pointer-based (no rebuild required)
+- All publishes generate new immutable version hashes
+- Leaderboard integrity is protected via configHash tracking
 
 ---

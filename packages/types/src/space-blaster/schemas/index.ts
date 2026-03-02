@@ -8,12 +8,12 @@ import ammoCatalogSchema from './ammo-catalog.schema.json';
 import formationLayoutsSchema from './formation-layouts.schema.json';
 
 export const SpaceBlasterSchema = {
-    gameConfig: gameConfigSchema,
-    homeCatalog: homeCatalogSchema,
-    levelConfig: levelConfigSchema, 
-    scoreConfig: scoreConfigSchema,
-    heroCatalog: heroCatalogSchema,
-    enemyCatalog: enemyCatalogSchema,
-    ammoCatalog: ammoCatalogSchema,
-    formationLayouts: formationLayoutsSchema
+  gameConfig: gameConfigSchema,
+  homeCatalog: homeCatalogSchema,
+  levelConfig: levelConfigSchema,
+  scoreConfig: scoreConfigSchema,
+  heroCatalog: heroCatalogSchema,
+  enemyCatalog: enemyCatalogSchema,
+  ammoCatalog: ammoCatalogSchema,
+  formationLayouts: formationLayoutsSchema,
 } as const;

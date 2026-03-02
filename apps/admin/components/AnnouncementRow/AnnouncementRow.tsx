@@ -33,7 +33,11 @@ const AnnouncementRow: React.FC<AnnouncementRowProps> = ({
         <button type="button" className={styles.btn} onClick={() => onEdit(id)}>
           Edit
         </button>
-        <button type="button" className={styles.btn} onClick={() => onDelete(id)}>
+        <button
+          type="button"
+          className={styles.btn}
+          onClick={() => onDelete(id)}
+        >
           Delete
         </button>
       </div>

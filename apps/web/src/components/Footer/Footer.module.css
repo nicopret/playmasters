@@ -1,7 +1,11 @@
 .footer {
   margin-top: var(--pm-space-2xl);
   padding: var(--pm-space-xl) 0;
-  background: color-mix(in srgb, var(--pm-color-surface) 88%, var(--pm-color-background) 12%);
+  background: color-mix(
+    in srgb,
+    var(--pm-color-surface) 88%,
+    var(--pm-color-background) 12%
+  );
   border-top: 1px solid
     color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
 }

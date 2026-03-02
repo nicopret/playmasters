@@ -38,7 +38,11 @@ export function createSessionToken(userId: string, gameId: string) {
   return { token, expiresAt };
 }
 
-export function validateSessionToken(token: string, userId: string, gameId: string) {
+export function validateSessionToken(
+  token: string,
+  userId: string,
+  gameId: string,
+) {
   pruneExpired();
   const session = sessions.get(token);
   if (!session) return { ok: false, error: 'invalid_token' as const };
@@ -46,7 +50,8 @@ export function validateSessionToken(token: string, userId: string, gameId: stri
   if (session.userId !== userId || session.gameId !== gameId) {
     return { ok: false, error: 'token_mismatch' as const };
   }
-  if (session.expiresAt < now()) return { ok: false, error: 'token_expired' as const };
+  if (session.expiresAt < now())
+    return { ok: false, error: 'token_expired' as const };
   return { ok: true, session };
 }
 

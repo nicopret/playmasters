@@ -51,10 +51,31 @@
   font-weight: 600;
 }
 
+.input {
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
 .select {
   padding: 8px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.warning {
+  color: #9a3412;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
 }
 
 .checkboxRow {
@@ -105,4 +126,25 @@
   border: 1px solid #bbf7d0;
   padding: 10px;
   border-radius: 8px;
+}
+
+.previewFieldSection {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.previewFieldTitle {
+  margin: 0;
+  font-size: 16px;
+}
+
+@media (max-width: 860px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
 }

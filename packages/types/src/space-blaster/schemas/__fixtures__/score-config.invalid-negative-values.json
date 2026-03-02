@@ -1,7 +1,5 @@
 {
-  "baseEnemyScores": [
-    { "enemyId": "grunt", "score": -5 }
-  ],
+  "baseEnemyScores": [{ "enemyId": "grunt", "score": -5 }],
   "combo": {
     "enabled": true,
     "tiers": [

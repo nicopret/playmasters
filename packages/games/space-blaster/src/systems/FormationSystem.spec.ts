@@ -200,7 +200,7 @@ describe('FormationSystem', () => {
     expect(afterBounce).toBeDefined();
     expect(afterNextStep).toBeDefined();
     expect(afterBounce?.x).toBeCloseTo(95, 8);
-    expect(afterBounce?.y).toBeCloseTo(24, 8);
+    expect(afterBounce?.y).toBeCloseTo(48, 8);
     expect((afterNextStep?.x ?? 0) < (afterBounce?.x ?? 0)).toBe(true);
   });
 
@@ -559,7 +559,7 @@ describe('FormationSystem', () => {
     system.spawnFormation({ enemyId: 'enemy-a', count: 3 });
     const middle = enemies[1];
     const rightmost = enemies[2];
-    expect(middle.y).toBeCloseTo(12, 8);
+    expect(middle.y).toBeCloseTo(36, 8);
 
     // Detach the right-most enemy so it is excluded from formation bounds.
     system.setEnemyLocalState(rightmost, EnemyLocalState.DIVING);
@@ -567,7 +567,7 @@ describe('FormationSystem', () => {
 
     // Without detached exclusion this step would reverse+descend (same setup as right-bound test).
     expect(middle.x).toBeCloseTo(90, 8);
-    expect(middle.y).toBeCloseTo(12, 8);
+    expect(middle.y).toBeCloseTo(36, 8);
   });
 
   it('picks only from eligible shooter set', () => {

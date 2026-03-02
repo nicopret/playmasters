@@ -16,7 +16,10 @@ type Props = {
   game: Game;
 };
 
-type LeaderboardData = Record<'global' | 'local' | 'personal', LeaderboardEntry[]>;
+type LeaderboardData = Record<
+  'global' | 'local' | 'personal',
+  LeaderboardEntry[]
+>;
 
 const scopeLabels: Record<LeaderboardScope, string> = {
   global: 'Global',
@@ -62,7 +65,9 @@ const Table = ({ entries }: { entries: LeaderboardEntry[] }) => {
 export const LeaderboardPanel = ({ game }: Props) => {
   const { data: session } = useSession();
   const [scope, setScope] = useState<LeaderboardScope>('global');
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+  const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>(
+    'connecting',
+  );
   const [data, setData] = useState<LeaderboardData>({
     global: [],
     local: [],
@@ -72,11 +77,11 @@ export const LeaderboardPanel = ({ game }: Props) => {
 
   const countryCode = useMemo(
     () => process.env.NEXT_PUBLIC_DEFAULT_COUNTRY_CODE ?? 'GB',
-    []
+    [],
   );
   const wsUrl = useMemo(
     () => process.env.NEXT_PUBLIC_REALTIME_WS_URL ?? 'ws://localhost:4000',
-    []
+    [],
   );
 
   const scopes = useMemo<LeaderboardScope[]>(() => {
@@ -109,7 +114,7 @@ export const LeaderboardPanel = ({ game }: Props) => {
           scopes,
           countryCode,
           userId: session?.user?.id,
-        })
+        }),
       );
     };
 
@@ -117,7 +122,10 @@ export const LeaderboardPanel = ({ game }: Props) => {
       if (!alive) return;
       try {
         const message = JSON.parse(event.data) as WsServerMessage;
-        if (message.type === 'leaderboard:state' || message.type === 'leaderboard:update') {
+        if (
+          message.type === 'leaderboard:state' ||
+          message.type === 'leaderboard:update'
+        ) {
           applyState(message.payload);
         }
       } catch (err) {
@@ -161,14 +169,20 @@ export const LeaderboardPanel = ({ game }: Props) => {
             scopes,
             countryCode,
             userId: session?.user?.id,
-          })
+          }),
         );
       }
     };
 
-    window.addEventListener('playmasters:refresh-leaderboard', handler as EventListener);
+    window.addEventListener(
+      'playmasters:refresh-leaderboard',
+      handler as EventListener,
+    );
     return () => {
-      window.removeEventListener('playmasters:refresh-leaderboard', handler as EventListener);
+      window.removeEventListener(
+        'playmasters:refresh-leaderboard',
+        handler as EventListener,
+      );
     };
   }, [game.id, scopes, countryCode, session?.user?.id]);
 
@@ -196,7 +210,11 @@ export const LeaderboardPanel = ({ game }: Props) => {
   };
 
   const statusLabel =
-    status === 'connected' ? 'Live' : status === 'connecting' ? 'Connecting...' : 'Offline';
+    status === 'connected'
+      ? 'Live'
+      : status === 'connecting'
+        ? 'Connecting...'
+        : 'Offline';
 
   return (
     <div className={styles.panel}>
@@ -210,7 +228,11 @@ export const LeaderboardPanel = ({ game }: Props) => {
         </div>
       </div>
 
-      <div className={styles.tabs} role="tablist" aria-label="Leaderboard scopes">
+      <div
+        className={styles.tabs}
+        role="tablist"
+        aria-label="Leaderboard scopes"
+      >
         {(['global', 'local', 'personal'] as LeaderboardScope[]).map((key) => (
           <button
             key={key}

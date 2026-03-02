@@ -110,18 +110,13 @@ describe('resolveSpaceBlasterBundle', () => {
     expect(result.error.details.fieldPath).toBe('levelConfigs[0].layoutId');
   });
 
-  it('returns safe missing enemy error', () => {
+  it('skips missing enemy references in waves', () => {
     const bundle = makeBundle();
     bundle.levelConfigs[0].waves = [{ enemyId: 'missing-enemy', count: 1 }];
     const result = resolveSpaceBlasterBundle(bundle);
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.code).toBe('MISSING_ENEMY');
-    expect(result.error.details.domain).toBe('EnemyCatalog');
-    expect(result.error.details.id).toBe('missing-enemy');
-    expect(result.error.details.fieldPath).toBe(
-      'levelConfigs[0].waves[0].enemyId',
-    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.resolved.levelConfigs[0].waves).toEqual([]);
   });
 
   it('returns safe missing hero error', () => {

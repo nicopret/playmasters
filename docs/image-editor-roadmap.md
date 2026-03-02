@@ -14,11 +14,11 @@ This is written the way internal studio tools are planned: **phased, dependency-
 
 Deliver a **standalone, admin-only Image Editor** that:
 
-* Runs inside `apps/admin`
-* Supports **pixel-level editing** suitable for retro arcade art
-* Integrates **OpenAI image editing via text instructions**
-* Manages assets with **draft → publish → rollback**
-* Becomes the **foundation for backgrounds now and sprites later**
+- Runs inside `apps/admin`
+- Supports **pixel-level editing** suitable for retro arcade art
+- Integrates **OpenAI image editing via text instructions**
+- Manages assets with **draft → publish → rollback**
+- Becomes the **foundation for backgrounds now and sprites later**
 
 This tool is a **platform investment**, not just a feature.
 
@@ -26,12 +26,12 @@ This tool is a **platform investment**, not just a feature.
 
 ## Guiding Constraints (locked)
 
-* Admin-only (separate origin)
-* HTML Canvas–based editor (pixel-accurate)
-* OpenAI calls **server-side only**
-* DynamoDB for metadata, S3 + CDN for binaries
-* No commercial-grade expectations (Photoshop is out of scope)
-* Must feel *fast, safe, predictable*
+- Admin-only (separate origin)
+- HTML Canvas–based editor (pixel-accurate)
+- OpenAI calls **server-side only**
+- DynamoDB for metadata, S3 + CDN for binaries
+- No commercial-grade expectations (Photoshop is out of scope)
+- Must feel _fast, safe, predictable_
 
 ---
 
@@ -60,46 +60,45 @@ Lay down **non-negotiable safety and structure** before UI work.
 
 ### Deliverables
 
-* Admin navigation entry: **“Image Editor”**
-* Routes scaffolded:
+- Admin navigation entry: **“Image Editor”**
+- Routes scaffolded:
+  - `/editor`
+  - `/editor/images`
+  - `/editor/images/new`
+  - `/editor/images/:assetId`
 
-  * `/editor`
-  * `/editor/images`
-  * `/editor/images/new`
-  * `/editor/images/:assetId`
-* RBAC enforcement:
+- RBAC enforcement:
+  - admin-only access
 
-  * admin-only access
-* Environment config:
+- Environment config:
+  - S3 buckets (private drafts / public published)
+  - DynamoDB table(s) for assets & versions
 
-  * S3 buckets (private drafts / public published)
-  * DynamoDB table(s) for assets & versions
-* API skeleton:
-
-  * `/api/assets`
-  * `/api/assets/:id`
-  * `/api/assets/:id/versions`
+- API skeleton:
+  - `/api/assets`
+  - `/api/assets/:id`
+  - `/api/assets/:id/versions`
 
 ### Technical Tasks
 
-* Define DynamoDB schema:
+- Define DynamoDB schema:
+  - ImageAsset
+  - ImageAssetVersion
 
-  * ImageAsset
-  * ImageAssetVersion
-* Define S3 key conventions
-* Implement upload API (no editor yet)
-* Basic asset list UI (title, type, status)
+- Define S3 key conventions
+- Implement upload API (no editor yet)
+- Basic asset list UI (title, type, status)
 
 ### Risks Addressed
 
-* Prevents asset sprawl
-* Prevents unsafe key handling
-* Locks lifecycle model early
+- Prevents asset sprawl
+- Prevents unsafe key handling
+- Locks lifecycle model early
 
 ✅ **Exit criteria**
 
-* Admin can upload an image and see it listed as a Draft
-* No editor yet, but lifecycle works
+- Admin can upload an image and see it listed as a Draft
+- No editor yet, but lifecycle works
 
 ---
 
@@ -111,46 +110,45 @@ Make assets **manageable, auditable, and reversible**.
 
 ### Deliverables
 
-* Asset list view:
+- Asset list view:
+  - filter by type (background, sprite, splash)
+  - draft vs published indicator
 
-  * filter by type (background, sprite, splash)
-  * draft vs published indicator
-* Asset detail page:
+- Asset detail page:
+  - preview image
+  - metadata (title, tags, dimensions)
+  - version list
 
-  * preview image
-  * metadata (title, tags, dimensions)
-  * version list
-* Versioning:
+- Versioning:
+  - create new draft from published
+  - archive old versions
 
-  * create new draft from published
-  * archive old versions
-* Publish workflow:
+- Publish workflow:
+  - promote Draft → Published
+  - auto-CDN promotion
 
-  * promote Draft → Published
-  * auto-CDN promotion
-* Rollback:
-
-  * repoint published version
+- Rollback:
+  - repoint published version
 
 ### Technical Tasks
 
-* Dynamo pointers:
+- Dynamo pointers:
+  - `currentDraftVersionId`
+  - `currentPublishedVersionId`
 
-  * `currentDraftVersionId`
-  * `currentPublishedVersionId`
-* CDN cache-busting via versioned URLs
-* Audit logging (who, when, what)
+- CDN cache-busting via versioned URLs
+- Audit logging (who, when, what)
 
 ### Risks Addressed
 
-* Broken assets going live
-* No rollback path
-* No history of changes
+- Broken assets going live
+- No rollback path
+- No history of changes
 
 ✅ **Exit criteria**
 
-* Assets can be published and rolled back without redeploy
-* Public URLs stable and cache-safe
+- Assets can be published and rolled back without redeploy
+- Public URLs stable and cache-safe
 
 ---
 
@@ -162,40 +160,40 @@ Deliver a **true pixel-level editor** suitable for retro graphics.
 
 ### Deliverables
 
-* Canvas editor UI:
+- Canvas editor UI:
+  - nearest-neighbor scaling
+  - zoom controls
+  - pixel grid overlay
 
-  * nearest-neighbor scaling
-  * zoom controls
-  * pixel grid overlay
-* Core tools:
+- Core tools:
+  - pencil (1px + N px)
+  - eraser
+  - fill/bucket
+  - color picker
 
-  * pencil (1px + N px)
-  * eraser
-  * fill/bucket
-  * color picker
-* Color handling:
+- Color handling:
+  - manual color selection
+  - optional small palette strip
 
-  * manual color selection
-  * optional small palette strip
-* Save edits as new Draft version
+- Save edits as new Draft version
 
 ### Technical Tasks
 
-* HTML Canvas + ImageData engine
-* Tool abstraction (each tool mutates pixels)
-* Viewport scaling separate from native resolution
-* Undo stack (snapshot-based initially)
+- HTML Canvas + ImageData engine
+- Tool abstraction (each tool mutates pixels)
+- Viewport scaling separate from native resolution
+- Undo stack (snapshot-based initially)
 
 ### Risks Addressed
 
-* Blurry output (explicitly avoided)
-* Non-deterministic edits
-* Overengineering too early
+- Blurry output (explicitly avoided)
+- Non-deterministic edits
+- Overengineering too early
 
 ✅ **Exit criteria**
 
-* You can manually draw/edit a background at pixel level
-* Exported image matches exact pixels edited
+- You can manually draw/edit a background at pixel level
+- Exported image matches exact pixels edited
 
 ---
 
@@ -207,33 +205,32 @@ Enable **controlled edits and AI compatibility**.
 
 ### Deliverables
 
-* Rectangular selection tool
-* Visual selection overlay
-* Mask generation:
+- Rectangular selection tool
+- Visual selection overlay
+- Mask generation:
+  - selected area → white
+  - rest → transparent
 
-  * selected area → white
-  * rest → transparent
-* Undo/redo improvements:
-
-  * snapshot throttling
-  * clear history per version
+- Undo/redo improvements:
+  - snapshot throttling
+  - clear history per version
 
 ### Technical Tasks
 
-* Selection state management
-* Mask canvas generation
-* Export mask as PNG
-* UX cues for “active selection”
+- Selection state management
+- Mask canvas generation
+- Export mask as PNG
+- UX cues for “active selection”
 
 ### Risks Addressed
 
-* AI edits affecting unintended areas
-* Irreversible destructive edits
+- AI edits affecting unintended areas
+- Irreversible destructive edits
 
 ✅ **Exit criteria**
 
-* Selection can be used for both manual edits and AI edits
-* Undo is reliable and predictable
+- Selection can be used for both manual edits and AI edits
+- Undo is reliable and predictable
 
 ---
 
@@ -245,38 +242,37 @@ Add **AI-assisted editing via natural language**, safely.
 
 ### Deliverables
 
-* AI prompt panel:
+- AI prompt panel:
+  - text input
+  - scope selector (whole image / selection)
+  - style presets (Pixel Art / Minimal / Modern)
 
-  * text input
-  * scope selector (whole image / selection)
-  * style presets (Pixel Art / Minimal / Modern)
-* Backend route:
+- Backend route:
+  - `POST /api/image-edit`
 
-  * `POST /api/image-edit`
-* AI preview flow:
-
-  * show result
-  * accept → new draft
-  * discard → no changes
+- AI preview flow:
+  - show result
+  - accept → new draft
+  - discard → no changes
 
 ### Technical Tasks
 
-* Server-side OpenAI integration (Images API)
-* Prompt templating for pixel-art safety
-* Rate limiting & error handling
-* Image validation post-AI
+- Server-side OpenAI integration (Images API)
+- Prompt templating for pixel-art safety
+- Rate limiting & error handling
+- Image validation post-AI
 
 ### Risks Addressed
 
-* API key exposure
-* AI destroying pixel art style
-* User confusion over destructive changes
+- API key exposure
+- AI destroying pixel art style
+- User confusion over destructive changes
 
 ✅ **Exit criteria**
 
-* AI edits work end-to-end
-* Original image never overwritten
-* All AI results are drafts only
+- AI edits work end-to-end
+- Original image never overwritten
+- All AI results are drafts only
 
 ---
 
@@ -288,37 +284,36 @@ Make edited images **usable everywhere** in the platform.
 
 ### Deliverables
 
-* Asset type enforcement:
+- Asset type enforcement:
+  - background
+  - sprite (future)
+  - splash
+  - UI
 
-  * background
-  * sprite (future)
-  * splash
-  * UI
-* Background catalog integration:
+- Background catalog integration:
+  - published backgrounds selectable in level config
 
-  * published backgrounds selectable in level config
-* Usage indicators:
+- Usage indicators:
+  - “used by X levels”
 
-  * “used by X levels”
-* Safety:
-
-  * prevent deleting published assets in use
+- Safety:
+  - prevent deleting published assets in use
 
 ### Technical Tasks
 
-* Catalog read APIs
-* Reference counting or soft usage tracking
-* Validation on publish
+- Catalog read APIs
+- Reference counting or soft usage tracking
+- Validation on publish
 
 ### Risks Addressed
 
-* Breaking live levels
-* Orphaned assets
+- Breaking live levels
+- Orphaned assets
 
 ✅ **Exit criteria**
 
-* Backgrounds edited here show up in games without redeploy
-* Rollback fixes visual regressions instantly
+- Backgrounds edited here show up in games without redeploy
+- Rollback fixes visual regressions instantly
 
 ---
 
@@ -330,27 +325,27 @@ Make the editor **pleasant and reliable**, not just functional.
 
 ### Deliverables
 
-* Keyboard shortcuts (draw, undo, zoom)
-* Loading/progress indicators
-* Better error messages
-* Autosave safety (optional)
-* Performance tuning for larger images
+- Keyboard shortcuts (draw, undo, zoom)
+- Loading/progress indicators
+- Better error messages
+- Autosave safety (optional)
+- Performance tuning for larger images
 
 ### Technical Tasks
 
-* Debounce saves
-* Improve memory handling
-* UX feedback loops
+- Debounce saves
+- Improve memory handling
+- UX feedback loops
 
 ### Risks Addressed
 
-* Frustrating daily use
-* Editor abandonment by designers
+- Frustrating daily use
+- Editor abandonment by designers
 
 ✅ **Exit criteria**
 
-* Editor feels stable enough for daily use
-* No data loss in normal workflows
+- Editor feels stable enough for daily use
+- No data loss in normal workflows
 
 ---
 
@@ -362,10 +357,10 @@ Prepare for **sprite-specific workflows**.
 
 Possible additions:
 
-* Sprite-sheet slicing
-* Hitbox overlay editor
-* Animation frame preview
-* Palette import/export (e.g., NES palettes)
+- Sprite-sheet slicing
+- Hitbox overlay editor
+- Animation frame preview
+- Palette import/export (e.g., NES palettes)
 
 This phase should only begin **after Space Blaster is content-complete**.
 
@@ -375,9 +370,9 @@ This phase should only begin **after Space Blaster is content-complete**.
 
 Critical dependencies:
 
-* S3 + Dynamo lifecycle → must be correct early
-* Pixel editor correctness → cannot be “fixed later”
-* AI integration depends on masking
+- S3 + Dynamo lifecycle → must be correct early
+- Pixel editor correctness → cannot be “fixed later”
+- AI integration depends on masking
 
 Critical path:
 
@@ -391,9 +386,9 @@ Versioning → Canvas → Selection → AI → Publish
 
 This roadmap assumes:
 
-* 1 strong full-stack engineer
-* Occasional design feedback
-* No parallel feature explosions
+- 1 strong full-stack engineer
+- Occasional design feedback
+- No parallel feature explosions
 
 Trying to parallelize early phases **increases risk**, not speed.
 
@@ -405,10 +400,10 @@ At completion of Phase 5:
 
 You will have:
 
-* A reusable internal image tool
-* Faster iteration for every game
-* Reduced dependency on external art tools
-* A competitive LiveOps capability most indie platforms never reach
+- A reusable internal image tool
+- Faster iteration for every game
+- Reduced dependency on external art tools
+- A competitive LiveOps capability most indie platforms never reach
 
 This is a **force multiplier**, not a side feature.
 
@@ -424,8 +419,8 @@ Before coding:
 
 If you want, next I can:
 
-* Convert this into **Nx task milestones**
-* Produce a **Codex prompt for Phase 0 + 1**
-* Design the **canvas tool architecture in code** (how tools mutate ImageData)
+- Convert this into **Nx task milestones**
+- Produce a **Codex prompt for Phase 0 + 1**
+- Design the **canvas tool architecture in code** (how tools mutate ImageData)
 
 Just tell me where you want to go next.

@@ -37,6 +37,7 @@ export type FormationEnemyManager = {
 };
 
 type FormationSlotAssignment = SlotLocalOffset & {
+  enemyId: string;
   enemy: FormationEnemy;
   localState: EnemyLocalState;
 };
@@ -68,6 +69,9 @@ const DEFAULT_STALL_AGGRESSION_CONFIG: StallAggressionConfig = {
 };
 
 const DEFAULT_SPEED_SMOOTHING_PER_SECOND = 7;
+const FORMATION_SPAWN_TOP_PADDING = 36;
+const PREVIEW_GRID_WIDTH = 700;
+const PREVIEW_GRID_HEIGHT = 320;
 
 export class FormationSystem {
   private readonly ctx: RunContext;
@@ -157,27 +161,141 @@ export class FormationSystem {
         level.stallAggression?.speedMultiplier ??
         DEFAULT_STALL_AGGRESSION_CONFIG.speedMultiplier,
     };
-    // The current runtime schema has no explicit descendStep, so use layout spacing.
-    this.descendStep = layout.spacing.y;
+    this.descendStep =
+      typeof (level as { descendStep?: number }).descendStep === 'number'
+        ? Math.max(0, (level as { descendStep?: number }).descendStep ?? 0)
+        : layout.spacing.y;
 
+    const formationGrid = (
+      level as {
+        formationGrid?: {
+          columns?: number;
+          rows?: number;
+          placements?: Array<{
+            id?: string;
+            enemyId?: string;
+            col?: number;
+            row?: number;
+            width?: number;
+            height?: number;
+          }>;
+        };
+      }
+    ).formationGrid;
+    const normalizedGridPlacements =
+      formationGrid?.placements
+        ?.map((placement, index) => {
+          if (!placement || typeof placement !== 'object') return null;
+          const enemyId = `${placement.enemyId ?? ''}`.trim();
+          if (!enemyId) return null;
+          const col = Number(placement.col);
+          const row = Number(placement.row);
+          if (!Number.isFinite(col) || !Number.isFinite(row)) return null;
+          const width =
+            Number.isFinite(Number(placement.width)) &&
+            Number(placement.width) >= 2
+              ? 2
+              : 1;
+          const height =
+            Number.isFinite(Number(placement.height)) &&
+            Number(placement.height) >= 2
+              ? 2
+              : 1;
+          return {
+            id:
+              typeof placement.id === 'string' && placement.id.trim()
+                ? placement.id.trim()
+                : `placement-${index}`,
+            enemyId,
+            col: Math.max(0, Math.floor(col)),
+            row: Math.max(0, Math.floor(row)),
+            width,
+            height,
+          };
+        })
+        .filter(
+          (
+            placement,
+          ): placement is {
+            id: string;
+            enemyId: string;
+            col: number;
+            row: number;
+            width: number;
+            height: number;
+          } => !!placement,
+        ) ?? [];
+    const useGridPlacementMode = normalizedGridPlacements.length > 0;
     const requestedCount =
       typeof wave.count === 'number' && wave.count > 0 ? wave.count : 1;
     this.enraged = false;
     this.stallAggressionActive = false;
     this.enrageElapsedMs = 0;
     this.forceWaveCompleteRequested = false;
-    const offsets = computeSlotLocalOffsets(layout, requestedCount);
+    const offsets: Array<SlotLocalOffset & { enemyId: string }> =
+      useGridPlacementMode
+        ? normalizedGridPlacements
+            .slice()
+            .sort((left, right) =>
+              left.row === right.row
+                ? left.col - right.col
+                : left.row - right.row,
+            )
+            .map((placement) => {
+              const gridColumns = Math.max(
+                1,
+                Math.floor(formationGrid?.columns ?? layout.columns),
+              );
+              const gridRows = Math.max(
+                1,
+                Math.floor(formationGrid?.rows ?? layout.rows),
+              );
+              // Keep runtime formation geometry aligned with the lightweight preview.
+              const cellWidth = PREVIEW_GRID_WIDTH / gridColumns;
+              const cellHeight = PREVIEW_GRID_HEIGHT / gridRows;
+              const xCenterOffset = ((gridColumns - 1) * cellWidth) / 2;
+              const yCenterOffset = ((gridRows - 1) * cellHeight) / 2;
+              const localX =
+                placement.col * cellWidth -
+                xCenterOffset +
+                ((placement.width - 1) * cellWidth) / 2 +
+                (layout.offset?.x ?? 0);
+              const localY =
+                placement.row * cellHeight -
+                yCenterOffset +
+                ((placement.height - 1) * cellHeight) / 2 +
+                (layout.offset?.y ?? 0);
+              return {
+                slotId: placement.id,
+                row: placement.row,
+                column: placement.col,
+                localX,
+                localY,
+                enemyId: placement.enemyId,
+              };
+            })
+        : computeSlotLocalOffsets(layout, requestedCount).map((offset) => ({
+            ...offset,
+            enemyId: wave.enemyId,
+          }));
     this.initialEnemyCount = offsets.length;
     const bounds = this.getPlayBounds();
+    const minLocalY =
+      offsets.length > 0
+        ? offsets.reduce(
+            (minValue, slot) => Math.min(minValue, slot.localY),
+            offsets[0].localY,
+          )
+        : 0;
 
     this.state = {
       originX: (bounds.minX + bounds.maxX) / 2,
-      originY: bounds.minY + layout.spacing.y,
+      originY: bounds.minY + FORMATION_SPAWN_TOP_PADDING - minLocalY,
       direction: 1,
     };
 
     for (const slot of offsets) {
-      const enemy = this.enemyManager.spawnEnemy(wave.enemyId, 0, 0);
+      const enemy = this.enemyManager.spawnEnemy(slot.enemyId, 0, 0);
       this.slots.push({
         ...slot,
         enemy,

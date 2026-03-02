@@ -1,0 +1,66 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.saveButton {
+  background: #111827;
+  color: #ffffff;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.saveButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.groupSection {
+  display: grid;
+  gap: 10px;
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: 20px;
+}
+
+.grid {
+  display: grid;
+  gap: 14px;
+}
+
+.state {
+  color: #374151;
+}
+
+.error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.success {
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.issueList {
+  margin: 0;
+  padding-left: 18px;
+  color: #7f1d1d;
+}

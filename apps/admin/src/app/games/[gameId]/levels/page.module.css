@@ -1,0 +1,142 @@
+.contentSection {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.meta {
+  margin: 0;
+  color: #374151;
+}
+
+.createRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.input {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton {
+  background: #111827;
+  color: #ffffff;
+}
+
+.secondaryButton {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.dangerButton {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.dangerButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tableHeader,
+.tableRow {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.2fr) minmax(180px, 1fr) minmax(
+      170px,
+      0.9fr
+    );
+  gap: 12px;
+  align-items: center;
+}
+
+.tableHeader {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.tableRow {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+}
+
+.levelLink {
+  background: transparent;
+  border: 0;
+  text-align: left;
+  color: #1d4ed8;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.actionsCell {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.empty {
+  color: #475569;
+}
+
+.error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.backLink {
+  color: #1d4ed8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.backLink:hover,
+.backLink:focus-visible,
+.levelLink:hover,
+.levelLink:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+@media (max-width: 860px) {
+  .createRow {
+    grid-template-columns: 1fr;
+  }
+
+  .tableHeader,
+  .tableRow {
+    grid-template-columns: 1fr;
+  }
+}

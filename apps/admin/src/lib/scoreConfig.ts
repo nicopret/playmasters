@@ -62,15 +62,30 @@ const scoreKey = (id: string) => ({
   [SK_ATTR]: `SCORECONFIG#${id}`,
 });
 
+const isMissingTableError = (err: unknown): boolean => {
+  const name = (err as { name?: string }).name;
+  const type = (err as { __type?: string }).__type;
+  return (
+    name === 'ResourceNotFoundException' ||
+    type === 'com.amazonaws.dynamodb.v20120810#ResourceNotFoundException'
+  );
+};
+
 export async function getScoreConfigDraft(
   id = 'default',
 ): Promise<ScoreConfigDraft | null> {
-  const res = await ddbDocClient.send(
-    new GetCommand({
-      TableName: SCORE_TABLE,
-      Key: scoreKey(id),
-    }),
-  );
+  let res;
+  try {
+    res = await ddbDocClient.send(
+      new GetCommand({
+        TableName: SCORE_TABLE,
+        Key: scoreKey(id),
+      }),
+    );
+  } catch (err) {
+    if (isMissingTableError(err)) return null;
+    throw err;
+  }
   if (!res.Item) return null;
   const { [PK_ATTR]: _pk, [SK_ATTR]: _sk, ...rest } = res.Item;
   void _pk;

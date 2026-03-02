@@ -6,11 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     url: process.env.PLAYMASTERS_WEB_URL || 'http://localhost:3000',
-    cleartext: true
+    cleartext: true,
   },
   android: {
-    allowMixedContent: true
-  }
+    allowMixedContent: true,
+  },
 };
 
 export default config;

@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import React from 'react';
 import styles from './PieChartPanel.module.css';
@@ -81,7 +81,10 @@ const PieChartPanel: React.FC<PieChartPanelProps> = ({
         {title}
       </div>
       <div className={styles.body}>
-        <div className={styles.pieArea} style={{ backgroundColor: pieAreaBgColor }}>
+        <div
+          className={styles.pieArea}
+          style={{ backgroundColor: pieAreaBgColor }}
+        >
           <svg viewBox="0 0 200 200" className={styles.pie}>
             {slices.map((slice, idx) => (
               <g key={`${slice.key}-${idx}`}>
@@ -102,20 +105,26 @@ const PieChartPanel: React.FC<PieChartPanelProps> = ({
                 </text>
               </g>
             ))}
-              <circle
-                cx={center}
-                cy={center}
-                r={radius}
-                fill="none"
-                stroke="#111"
-                strokeWidth={2}
-              />
+            <circle
+              cx={center}
+              cy={center}
+              r={radius}
+              fill="none"
+              stroke="#111"
+              strokeWidth={2}
+            />
           </svg>
         </div>
-        <div className={styles.legend} style={{ backgroundColor: legendBgColor }}>
+        <div
+          className={styles.legend}
+          style={{ backgroundColor: legendBgColor }}
+        >
           {data.map((item, idx) => (
             <div key={item.label} className={styles.legendRow}>
-              <span className={styles.legendSwatch} style={{ backgroundColor: PALETTE[idx % PALETTE.length] }} />
+              <span
+                className={styles.legendSwatch}
+                style={{ backgroundColor: PALETTE[idx % PALETTE.length] }}
+              />
               <span className={styles.legendText}>
                 {item.label} - {item.value.toLocaleString()}
               </span>

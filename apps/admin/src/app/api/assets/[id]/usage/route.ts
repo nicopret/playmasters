@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '../../../../../auth';
-import { countAssetUsage, listAssetUsage } from '../../../../../../lib/assetUsage';
+import {
+  countAssetUsage,
+  listAssetUsage,
+} from '../../../../../../lib/assetUsage';
 
 export const runtime = 'nodejs';
 const bad = (message: string, status = 400) =>
@@ -8,7 +11,7 @@ const bad = (message: string, status = 400) =>
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth();
   if (process.env.NODE_ENV !== 'development' && !session?.user?.isAdmin)
@@ -16,7 +19,10 @@ export async function GET(
 
   const { id } = await params;
   try {
-    const [count, usage] = await Promise.all([countAssetUsage(id), listAssetUsage(id)]);
+    const [count, usage] = await Promise.all([
+      countAssetUsage(id),
+      listAssetUsage(id),
+    ]);
     return NextResponse.json({ count, usage });
   } catch (err) {
     console.error('asset_usage_error', err);

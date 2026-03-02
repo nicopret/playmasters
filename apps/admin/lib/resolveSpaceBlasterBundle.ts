@@ -151,20 +151,9 @@ export function resolveSpaceBlasterBundle(
       };
       const enemy = enemyById.get(wave.enemyId);
       if (!enemy) {
-        return {
-          ok: false,
-          error: {
-            code: 'MISSING_ENEMY',
-            message: `Missing enemy '${wave.enemyId}' referenced by level wave.`,
-            details: {
-              domain: 'EnemyCatalog',
-              id: wave.enemyId,
-              fieldPath: `${fieldPrefix}.waves[${waveIndex}].enemyId`,
-              levelIndex,
-              waveIndex,
-            },
-          },
-        };
+        // Runtime-tolerant behavior: ignore unknown wave enemies instead of
+        // rejecting the entire bundle.
+        continue;
       }
       resolvedWaves.push({
         ...wave,

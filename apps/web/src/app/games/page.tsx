@@ -13,7 +13,9 @@ const GamesPage = () => {
       <Container>
         <div className={styles.header}>
           <h1 className={styles.title}>Games</h1>
-          <p className={styles.subtitle}>Choose a game and climb the leaderboards.</p>
+          <p className={styles.subtitle}>
+            Choose a game and climb the leaderboards.
+          </p>
         </div>
         <div className={styles.grid}>
           {games.map((game) => (

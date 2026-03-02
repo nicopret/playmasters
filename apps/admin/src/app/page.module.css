@@ -52,17 +52,29 @@
   justify-content: space-between;
   padding: var(--pm-space-lg);
   border-radius: var(--pm-radius-lg);
-  background: color-mix(in srgb, var(--pm-color-surface) 90%, var(--pm-color-background) 10%);
-  border: 1px solid color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--pm-color-surface) 90%,
+    var(--pm-color-background) 10%
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--pm-color-text-primary) 10%, transparent);
   color: var(--pm-color-text-primary);
   text-decoration: none;
-  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .navCard:hover,
 .navCard:focus-visible {
   transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--pm-color-electric-blue) 20%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--pm-color-electric-blue) 20%,
+    transparent
+  );
   box-shadow: var(--pm-shadow-card);
   outline: none;
 }

@@ -29,7 +29,7 @@ export const Carousel: React.FC<CarouselProps> = ({
 }) => {
   const limitedItems = React.useMemo(
     () => items.slice(0, Math.min(maxItems, 5)),
-    [items, maxItems]
+    [items, maxItems],
   );
 
   const [currentIndex, setCurrentIndex] = React.useState(0);
@@ -78,10 +78,17 @@ export const Carousel: React.FC<CarouselProps> = ({
       >
         <div className={styles.text}>
           <div className={styles.title}>{activeItem.title}</div>
-          {activeItem.body ? <div className={styles.body}>{activeItem.body}</div> : null}
+          {activeItem.body ? (
+            <div className={styles.body}>{activeItem.body}</div>
+          ) : null}
           {activeItem.ctaLabel && activeItem.ctaHref ? (
             <div className={styles.cta}>
-              <Button as="a" href={activeItem.ctaHref} variant="primary" size="md">
+              <Button
+                as="a"
+                href={activeItem.ctaHref}
+                variant="primary"
+                size="md"
+              >
                 {activeItem.ctaLabel}
               </Button>
             </div>
@@ -91,7 +98,11 @@ export const Carousel: React.FC<CarouselProps> = ({
           </div>
         </div>
         {activeItem.imageUrl ? (
-          <img className={styles.image} src={activeItem.imageUrl} alt={activeItem.title} />
+          <img
+            className={styles.image}
+            src={activeItem.imageUrl}
+            alt={activeItem.title}
+          />
         ) : null}
       </div>
 
@@ -116,7 +127,11 @@ export const Carousel: React.FC<CarouselProps> = ({
             </button>
           </div>
 
-          <div className={styles.dots} role="tablist" aria-label="Carousel slides">
+          <div
+            className={styles.dots}
+            role="tablist"
+            aria-label="Carousel slides"
+          >
             {limitedItems.map((item, index) => (
               <button
                 key={item.id}
@@ -124,7 +139,10 @@ export const Carousel: React.FC<CarouselProps> = ({
                 role="tab"
                 aria-selected={index === currentIndex}
                 aria-controls={`carousel-panel-${item.id}`}
-                className={cn(styles.dot, index === currentIndex && styles.dotActive)}
+                className={cn(
+                  styles.dot,
+                  index === currentIndex && styles.dotActive,
+                )}
                 onClick={() => goTo(index)}
               />
             ))}

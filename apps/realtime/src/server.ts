@@ -26,14 +26,20 @@ const port = Number(process.env.REALTIME_PORT ?? 4000);
 const ingestSecret = process.env.REALTIME_INGEST_SECRET;
 const defaultCountry = process.env.DEFAULT_COUNTRY_CODE ?? 'GB';
 
-const json = (res: ServerResponse, statusCode: number, payload: Record<string, unknown>) => {
+const json = (
+  res: ServerResponse,
+  statusCode: number,
+  payload: Record<string, unknown>,
+) => {
   res.writeHead(statusCode, { 'content-type': 'application/json' });
   res.end(JSON.stringify(payload));
 };
 
 const isLocalRequest = (req: IncomingMessage) => {
   const ip = req.socket.remoteAddress ?? '';
-  return ip.includes('127.0.0.1') || ip.includes('::1') || ip.includes('localhost');
+  return (
+    ip.includes('127.0.0.1') || ip.includes('::1') || ip.includes('localhost')
+  );
 };
 
 const authorized = (req: IncomingMessage) => {
@@ -65,7 +71,13 @@ const handleScore = async (req: IncomingMessage, res: ServerResponse) => {
   }
 
   const { gameId, userId, displayName, score, achievedAt } = payload;
-  if (!gameId || !userId || !displayName || typeof score !== 'number' || !achievedAt) {
+  if (
+    !gameId ||
+    !userId ||
+    !displayName ||
+    typeof score !== 'number' ||
+    !achievedAt
+  ) {
     return json(res, 400, { ok: false, error: 'invalid_payload' });
   }
 
@@ -95,13 +107,19 @@ const handleNotFound = (_req: IncomingMessage, res: ServerResponse) => {
   res.end(JSON.stringify({ error: 'not_found' }));
 };
 
-const routes: Record<string, (req: IncomingMessage, res: ServerResponse) => Promise<void> | void> = {
+const routes: Record<
+  string,
+  (req: IncomingMessage, res: ServerResponse) => Promise<void> | void
+> = {
   'GET:/health': handleHealth,
   'POST:/score': handleScore,
 };
 
 function dispatchHttp(req: IncomingMessage, res: ServerResponse) {
-  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+  const url = new URL(
+    req.url || '/',
+    `http://${req.headers.host || 'localhost'}`,
+  );
   const key = `${req.method}:${url.pathname}`;
   const handler = routes[key];
   if (handler) {
@@ -123,7 +141,10 @@ function send(ws: WebSocket, message: WsServerMessage) {
   }
 }
 
-function handleSubscribe(ws: WebSocket, message: Extract<WsClientMessage, { type: 'subscribe' }>) {
+function handleSubscribe(
+  ws: WebSocket,
+  message: Extract<WsClientMessage, { type: 'subscribe' }>,
+) {
   const scopes = new Set<LeaderboardScope>(message.scopes ?? []);
   const subscription: Subscription = {
     gameId: message.gameId,
@@ -139,7 +160,7 @@ function handleSubscribe(ws: WebSocket, message: Extract<WsClientMessage, { type
       message.gameId,
       scope,
       subscription.countryCode,
-      scope === 'personal' ? message.userId : undefined
+      scope === 'personal' ? message.userId : undefined,
     );
     send(ws, { type: 'leaderboard:state', payload: state });
   }
@@ -177,7 +198,11 @@ function broadcastUpdate(update: {
   for (const [ws, sub] of subscriptions.entries()) {
     if (ws.readyState !== WebSocket.OPEN) continue;
 
-    if (update.global && sub.gameId === update.global.gameId && sub.scopes.has('global')) {
+    if (
+      update.global &&
+      sub.gameId === update.global.gameId &&
+      sub.scopes.has('global')
+    ) {
       send(ws, { type: 'leaderboard:update', payload: update.global });
     }
 

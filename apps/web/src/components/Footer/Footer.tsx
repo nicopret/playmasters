@@ -40,7 +40,9 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className={styles.copyright}>{'\u00a9'} {year} Playmasters</div>
+        <div className={styles.copyright}>
+          {'\u00a9'} {year} Playmasters
+        </div>
       </Container>
     </footer>
   );

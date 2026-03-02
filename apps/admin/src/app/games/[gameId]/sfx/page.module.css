@@ -1,0 +1,73 @@
+.headingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headingIcon {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.headingIconImage {
+  object-fit: contain;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.contentSection {
+  margin-top: 8px;
+  display: grid;
+  gap: 12px;
+  max-width: 1080px;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #0f172a;
+  background: #ffffff;
+  padding: 8px 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.backButton:hover,
+.backButton:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+.card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 6px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 20px;
+}
+
+.meta {
+  margin: 0;
+  color: #374151;
+}
+
+.sfxList {
+  display: grid;
+  gap: 14px;
+}

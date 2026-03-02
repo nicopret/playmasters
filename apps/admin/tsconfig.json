@@ -59,6 +59,9 @@
   ],
   "references": [
     {
+      "path": "../../packages/games/space-blaster"
+    },
+    {
       "path": "../../packages/brand"
     },
     {

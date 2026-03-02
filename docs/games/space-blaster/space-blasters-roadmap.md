@@ -8,10 +8,10 @@ Before the steps, these principles drive the roadmap order:
    Space Blaster must steadily move toward “fun + complete”, not stall behind tooling.
 
 2. **Tooling grows just-in-time**
-   Admin features are built *when the game needs them*, not all at once.
+   Admin features are built _when the game needs them_, not all at once.
 
 3. **Safety first**
-   Versioning, staging, validation, and rollback come *before* powerful editors.
+   Versioning, staging, validation, and rollback come _before_ powerful editors.
 
 4. **Data-driven, not hardcoded**
    Anything designers may tweak later should move out of game code early.
@@ -24,28 +24,28 @@ Before the steps, these principles drive the roadmap order:
 
 ### Admin features
 
-* Background upload
-* Crop/resize
-* Parallax layer definitions
-* Background preview at multiple aspect ratios
-* Background catalog + versioning
+- Background upload
+- Crop/resize
+- Parallax layer definitions
+- Background preview at multiple aspect ratios
+- Background catalog + versioning
 
 ### Platform work
 
-* Background schema
-* Runtime background loader
-* Optional parallax engine in Space Blaster
+- Background schema
+- Runtime background loader
+- Optional parallax engine in Space Blaster
 
 ### Gameplay impact
 
-* Levels visually distinct
-* Difficulty can be communicated visually
+- Levels visually distinct
+- Difficulty can be communicated visually
 
 ✅ **Exit criteria**
 
-* Background changes don’t require code deploy
-* Assets are CDN-optimized
-* Visual regression is recoverable via rollback
+- Background changes don’t require code deploy
+- Assets are CDN-optimized
+- Visual regression is recoverable via rollback
 
 ---
 
@@ -55,83 +55,82 @@ Before the steps, these principles drive the roadmap order:
 
 ### Deliverables
 
-* Clean up Space Blaster skeleton:
+- Clean up Space Blaster skeleton:
+  - deterministic enemy grid movement
+  - consistent scoring
+  - stable game-over states
 
-  * deterministic enemy grid movement
-  * consistent scoring
-  * stable game-over states
-* Lock in **Game SDK contract**
+- Lock in **Game SDK contract**
+  - `startRun()`
+  - `submitScore()`
 
-  * `startRun()`
-  * `submitScore()`
-* Finalize `/api/game-sessions` and `/api/scores/submit`
-* Ensure realtime leaderboard reliability:
+- Finalize `/api/game-sessions` and `/api/scores/submit`
+- Ensure realtime leaderboard reliability:
+  - reconnect logic
+  - snapshot restore verified
 
-  * reconnect logic
-  * snapshot restore verified
-* Add basic telemetry hooks (events only, no dashboards yet)
+- Add basic telemetry hooks (events only, no dashboards yet)
 
 ### Why this comes first
 
-* Prevents rewriting later
-* Ensures admin-driven config won’t fight unstable runtime logic
+- Prevents rewriting later
+- Ensures admin-driven config won’t fight unstable runtime logic
 
 ✅ **Exit criteria**
 
-* Space Blaster playable end-to-end
-* Scores reliably hit leaderboards
-* No hardcoded gameplay constants left without clear TODOs
+- Space Blaster playable end-to-end
+- Scores reliably hit leaderboards
+- No hardcoded gameplay constants left without clear TODOs
 
 ---
 
 ## Phase 2 — Game Metadata & Versioning (Admin MVP) (2–3 weeks)
 
-**Goal:** Admin can safely manage *what* a game is, without touching gameplay yet.
+**Goal:** Admin can safely manage _what_ a game is, without touching gameplay yet.
 
 ### Admin features
 
-* Game list (read/write)
-* Game metadata editor:
+- Game list (read/write)
+- Game metadata editor:
+  - description
+  - tagline
+  - logo
+  - splash screen
 
-  * description
-  * tagline
-  * logo
-  * splash screen
-* Game-level notifications:
+- Game-level notifications:
+  - message
+  - severity
+  - start/end time
 
-  * message
-  * severity
-  * start/end time
-* Game versioning:
+- Game versioning:
+  - Draft / Staged / Published
+  - One-click rollback
 
-  * Draft / Staged / Published
-  * One-click rollback
-* Asset upload (logos, splash screens)
-
-  * private → published promotion
+- Asset upload (logos, splash screens)
+  - private → published promotion
 
 ### Platform work
 
-* DynamoDB schema for:
+- DynamoDB schema for:
+  - Game
+  - GameVersion
 
-  * Game
-  * GameVersion
-* S3/CDN setup for images
-* Content API:
+- S3/CDN setup for images
+- Content API:
+  - `GET /api/games/{gameId}/config`
 
-  * `GET /api/games/{gameId}/config`
-* Public site consumes game metadata from API (SSR)
+- Public site consumes game metadata from API (SSR)
 
 ### Why now
 
-* Enables non-code iteration
-* Validates versioning + publish flow before complexity increases
+- Enables non-code iteration
+- Validates versioning + publish flow before complexity increases
 
 ✅ **Exit criteria**
 
-* Game metadata can be changed without redeploy
-* Rollback works in under 1 minute
-* Public site reflects published version only
+- Game metadata can be changed without redeploy
+- Rollback works in under 1 minute
+- Public site reflects published version only
 
 ---
 
@@ -141,40 +140,38 @@ Before the steps, these principles drive the roadmap order:
 
 ### Admin features
 
-* Level list per game
-* Level ordering
-* Level versioning (Draft / Staged / Published)
-* Level config editor (form-based, no visuals yet):
-
-  * background selection
-  * enemy spawn positions (JSON input)
-  * difficulty multipliers
-  * music selection
-  * score rules
+- Level list per game
+- Level ordering
+- Level versioning (Draft / Staged / Published)
+- Level config editor (form-based, no visuals yet):
+  - background selection
+  - enemy spawn positions (JSON input)
+  - difficulty multipliers
+  - music selection
+  - score rules
 
 ### Platform work
 
-* Level + LevelVersion Dynamo schema
-* Level config JSON schema + validation
-* Content API:
+- Level + LevelVersion Dynamo schema
+- Level config JSON schema + validation
+- Content API:
+  - `GET /api/games/{gameId}/levels/{levelId}`
 
-  * `GET /api/games/{gameId}/levels/{levelId}`
-* Space Blaster loads level config at runtime
-* Difficulty curve now data-driven
+- Space Blaster loads level config at runtime
+- Difficulty curve now data-driven
 
 ### Gameplay impact
 
-* Space Blaster now supports:
-
-  * multiple levels
-  * increasing difficulty
-  * no hardcoded spawn logic
+- Space Blaster now supports:
+  - multiple levels
+  - increasing difficulty
+  - no hardcoded spawn logic
 
 ✅ **Exit criteria**
 
-* Levels can be added/edited without redeploy
-* Broken configs are rejected before publish
-* Game behaves identically across reloads
+- Levels can be added/edited without redeploy
+- Broken configs are rejected before publish
+- Game behaves identically across reloads
 
 ---
 
@@ -184,48 +181,47 @@ Before the steps, these principles drive the roadmap order:
 
 ### Admin features
 
-* Enemy catalog:
+- Enemy catalog:
+  - sprite
+  - base score
+  - base health
 
-  * sprite
-  * base score
-  * base health
-* Ammo catalog:
+- Ammo catalog:
+  - damage
+  - speed
 
-  * damage
-  * speed
-* Hero catalog:
+- Hero catalog:
+  - sprite
+  - movement speed
 
-  * sprite
-  * movement speed
-* Obstacle catalog:
-
-  * hitbox
-  * durability
+- Obstacle catalog:
+  - hitbox
+  - durability
 
 Levels reference **catalog IDs**, not raw values.
 
 ### Platform work
 
-* Catalog Dynamo tables
-* Schema validation
-* Content API:
+- Catalog Dynamo tables
+- Schema validation
+- Content API:
+  - `/api/catalog/enemies`
+  - `/api/catalog/ammo`
+  - etc.
 
-  * `/api/catalog/enemies`
-  * `/api/catalog/ammo`
-  * etc.
-* Space Blaster resolves catalogs at runtime
+- Space Blaster resolves catalogs at runtime
 
 ### Why this matters
 
-* Designers can’t “break” the game accidentally
-* Balance changes are centralized
-* Enables reuse across future games
+- Designers can’t “break” the game accidentally
+- Balance changes are centralized
+- Enables reuse across future games
 
 ✅ **Exit criteria**
 
-* Levels only reference catalog entries
-* Score/damage tuning requires no code changes
-* One enemy tweak affects all levels safely
+- Levels only reference catalog entries
+- Score/damage tuning requires no code changes
+- One enemy tweak affects all levels safely
 
 ---
 
@@ -235,33 +231,33 @@ Levels reference **catalog IDs**, not raw values.
 
 ### Admin features
 
-* Sprite upload (PNG/WebP/SVG)
-* Sprite metadata editor:
+- Sprite upload (PNG/WebP/SVG)
+- Sprite metadata editor:
+  - size
+  - hitbox
+  - type (enemy/hero/ammo)
 
-  * size
-  * hitbox
-  * type (enemy/hero/ammo)
-* Sprite preview
-* Sprite versioning
-* Assign sprite to catalog entries
+- Sprite preview
+- Sprite versioning
+- Assign sprite to catalog entries
 
 ### Platform work
 
-* Sprite + SpriteVersion schema
-* Private → public asset promotion
-* CDN cache-busting
-* Runtime sprite loading
+- Sprite + SpriteVersion schema
+- Private → public asset promotion
+- CDN cache-busting
+- Runtime sprite loading
 
 ### What this unlocks
 
-* Designers don’t need devs for asset tweaks
-* Visual iteration speed increases dramatically
+- Designers don’t need devs for asset tweaks
+- Visual iteration speed increases dramatically
 
 ✅ **Exit criteria**
 
-* Sprite changes reflect in-game without redeploy
-* Rollback of broken sprites works
-* No raw asset URLs in level configs
+- Sprite changes reflect in-game without redeploy
+- Rollback of broken sprites works
+- No raw asset URLs in level configs
 
 ---
 
@@ -271,11 +267,11 @@ Levels reference **catalog IDs**, not raw values.
 
 ### Features
 
-* Canvas-based level editor
-* Drag-and-drop enemy spawns
-* Obstacle placement
-* Hitbox overlays
-* Real-time preview in admin
+- Canvas-based level editor
+- Drag-and-drop enemy spawns
+- Obstacle placement
+- Hitbox overlays
+- Real-time preview in admin
 
 This phase is **not required** to launch, but is a major productivity multiplier.
 
@@ -287,17 +283,17 @@ This phase is **not required** to launch, but is a major productivity multiplier
 
 ### Features
 
-* Level completion metrics
-* Difficulty heatmaps
-* Score distribution
-* Drop-off analysis
-* A/B testing for difficulty
+- Level completion metrics
+- Difficulty heatmaps
+- Score distribution
+- Drop-off analysis
+- A/B testing for difficulty
 
 This informs:
 
-* balance changes
-* future monetization
-* event design
+- balance changes
+- future monetization
+- event design
 
 ---
 
@@ -319,10 +315,10 @@ This informs:
 
 By the end of **Phase 3**, you already have:
 
-* A fully playable Space Blaster
-* Admin-controlled gameplay
-* Safe publishing & rollback
-* A reusable platform for future games
+- A fully playable Space Blaster
+- Admin-controlled gameplay
+- Safe publishing & rollback
+- A reusable platform for future games
 
 By **Phase 5**, Playmasters becomes:
 
@@ -340,6 +336,6 @@ Before coding:
 
 If you want, next I can:
 
-* Convert this roadmap into **Jira epics + stories**
-* Create a **Codex prompt for Phase 1**
-* Or define **Space Blaster Level Config v1 (JSON schema)** so implementation starts cleanly
+- Convert this roadmap into **Jira epics + stories**
+- Create a **Codex prompt for Phase 1**
+- Or define **Space Blaster Level Config v1 (JSON schema)** so implementation starts cleanly

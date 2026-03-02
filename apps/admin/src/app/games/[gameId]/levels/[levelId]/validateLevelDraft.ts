@@ -10,10 +10,22 @@ type EnemyCatalog = { enemyId: string }[];
 type LayoutCatalog = { layoutId: string }[];
 
 type Wave = { enemies?: { enemyId?: string; count?: number }[] };
+type FormationGrid = {
+  columns?: number;
+  rows?: number;
+  placements?: Array<{
+    enemyId?: string;
+    col?: number;
+    row?: number;
+    width?: number;
+    height?: number;
+  }>;
+};
 
 type Draft = {
   layoutId?: string;
   waves?: Wave[];
+  formationGrid?: FormationGrid;
   fleetSpeed?: number;
   rampFactor?: number;
   descendStep?: number;
@@ -56,16 +68,41 @@ export function validateLevelDraft(
     });
   }
 
+  const hasFormationPlacements =
+    (draft.formationGrid?.placements ?? []).length > 0;
   const waves = draft.waves ?? [];
-  if (waves.length === 0) {
+  if (!hasFormationPlacements && waves.length === 0) {
     add({
       severity: 'error',
       stage: 'structural',
       domain: 'LevelConfig',
-      path: 'waves',
-      message: 'At least one wave is required.',
+      path: 'formationGrid',
+      message: 'Place at least one enemy in the formation grid.',
     });
   }
+
+  (draft.formationGrid?.placements ?? []).forEach((placement, index) => {
+    const enemyId = placement.enemyId ?? '';
+    if (!enemyId) {
+      add({
+        severity: 'error',
+        stage: 'schema',
+        domain: 'LevelConfig',
+        path: `formationGrid.placements[${index}].enemyId`,
+        message: 'enemyId is required.',
+      });
+      return;
+    }
+    if (!catalogs.enemies.some((enemy) => enemy.enemyId === enemyId)) {
+      add({
+        severity: 'error',
+        stage: 'cross-reference',
+        domain: 'LevelConfig',
+        path: `formationGrid.placements[${index}].enemyId`,
+        message: `enemyId '${enemyId}' not found in EnemyCatalog.`,
+      });
+    }
+  });
 
   waves.forEach((w, wi) => {
     const enemies = w.enemies ?? [];

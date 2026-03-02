@@ -4,9 +4,9 @@
 
 Space Blaster content is authored and published through the Playmasters Admin system. The platform must support frequent tuning without rebuilding the game, while preserving:
 
-* deterministic gameplay per run
-* safe publishes and rollbacks
-* leaderboard fairness and comparability
+- deterministic gameplay per run
+- safe publishes and rollbacks
+- leaderboard fairness and comparability
 
 This document defines the **published version model**, the **version pointer** behavior, how the runtime resolves a version, and how rollbacks work.
 
@@ -18,11 +18,11 @@ This document defines the **published version model**, the **version pointer** b
 
 An immutable, validated config document of a given domain, e.g.:
 
-* `GameConfig`
-* `LevelConfig[]`
-* `HeroCatalog`, `EnemyCatalog`, `AmmoCatalog`
-* `FormationLayouts`
-* `ScoreConfig`
+- `GameConfig`
+- `LevelConfig[]`
+- `HeroCatalog`, `EnemyCatalog`, `AmmoCatalog`
+- `FormationLayouts`
+- `ScoreConfig`
 
 Once published, an artifact must never change.
 
@@ -50,14 +50,14 @@ Space Blaster versioning is **bundle-based**, not per-domain at runtime. The pla
 
 A Space Blaster published bundle includes:
 
-* GameConfig
-* LevelConfigs (all levels included in that release)
-* HeroCatalog
-* EnemyCatalog
-* AmmoCatalog
-* FormationLayouts
-* ScoreConfig
-* Bundle metadata: `configHash`, `publishedAt`, optional `bundleId`
+- GameConfig
+- LevelConfigs (all levels included in that release)
+- HeroCatalog
+- EnemyCatalog
+- AmmoCatalog
+- FormationLayouts
+- ScoreConfig
+- Bundle metadata: `configHash`, `publishedAt`, optional `bundleId`
 
 ---
 
@@ -68,23 +68,19 @@ Runtime must resolve the published version in a deterministic sequence:
 ### Step list (runtime resolution)
 
 1. **Read Version Pointer** for Space Blaster
-
-   * Example: `space-blaster/current` → `bundleId` (or direct artifact ids)
+   - Example: `space-blaster/current` → `bundleId` (or direct artifact ids)
 
 2. **Load Published Bundle** referenced by the pointer
-
-   * This can be a single bundle object, or a manifest containing references to each artifact.
+   - This can be a single bundle object, or a manifest containing references to each artifact.
 
 3. **Build ResolvedGameConfig**
+   - Resolve all references so runtime receives a **self-contained** object:
+     - levels embed the layout and enemy entries they require (or provide complete catalogs + layouts so runtime never fetches elsewhere)
 
-   * Resolve all references so runtime receives a **self-contained** object:
-
-     * levels embed the layout and enemy entries they require (or provide complete catalogs + layouts so runtime never fetches elsewhere)
-   * Attach `configHash`
+   - Attach `configHash`
 
 4. **Return ResolvedGameConfig to the game at mount/run start**
-
-   * Game boots using only `sdk + resolvedConfig`
+   - Game boots using only `sdk + resolvedConfig`
 
 ---
 
@@ -92,31 +88,30 @@ Runtime must resolve the published version in a deterministic sequence:
 
 ### What the hash represents
 
-`configHash` is a stable identifier for the *exact content* of a published bundle.
+`configHash` is a stable identifier for the _exact content_ of a published bundle.
 
-* If any field in any included artifact changes → hash changes
-* If order-only changes occur (e.g. JSON field order) → hash must remain stable (hash should be computed from a canonical representation)
+- If any field in any included artifact changes → hash changes
+- If order-only changes occur (e.g. JSON field order) → hash must remain stable (hash should be computed from a canonical representation)
 
 ### Hash generation (recommended)
 
 At publish time:
 
-* canonicalize the bundle manifest and artifact payloads (stable ordering)
-* compute hash (e.g. SHA-256)
-* store hash alongside the bundle
+- canonicalize the bundle manifest and artifact payloads (stable ordering)
+- compute hash (e.g. SHA-256)
+- store hash alongside the bundle
 
 ### Where the hash is used
 
-* **Runtime / RunContext**
+- **Runtime / RunContext**
+  - stored when the run starts
+  - never changes during the run
 
-  * stored when the run starts
-  * never changes during the run
-* **Score submission**
+- **Score submission**
+  - included in the submission payload so scores can be compared under the same config version
 
-  * included in the submission payload so scores can be compared under the same config version
-* **Operational debugging**
-
-  * enables reproducing player reports by reloading the exact config bundle
+- **Operational debugging**
+  - enables reproducing player reports by reloading the exact config bundle
 
 ---
 
@@ -124,9 +119,9 @@ At publish time:
 
 A run captures and freezes the resolved bundle:
 
-* The run stores `configHash`
-* All gameplay tuning during that run is derived from that frozen config
-* Publishing a new version while the run is in progress does **not** affect the run
+- The run stores `configHash`
+- All gameplay tuning during that run is derived from that frozen config
+- Publishing a new version while the run is in progress does **not** affect the run
 
 **Effect:** changes apply **next run only**.
 
@@ -138,10 +133,10 @@ Rollback is implemented by repointing the version pointer to a previous publishe
 
 ### Rollback rules
 
-* Rollback does not delete content
-* Rollback does not mutate published artifacts
-* Rollback only changes what *new runs* receive
-* Active runs remain unaffected (they keep their captured `configHash`)
+- Rollback does not delete content
+- Rollback does not mutate published artifacts
+- Rollback only changes what _new runs_ receive
+- Active runs remain unaffected (they keep their captured `configHash`)
 
 ### Step list (rollback)
 
@@ -152,13 +147,12 @@ Rollback is implemented by repointing the version pointer to a previous publishe
 
 ### Safety guarantees
 
-* Pointer update must be atomic
-* If pointer update fails, the previous pointer remains intact
-* Audit trail must record:
-
-  * who rolled back
-  * when
-  * from → to bundle id/hash
+- Pointer update must be atomic
+- If pointer update fails, the previous pointer remains intact
+- Audit trail must record:
+  - who rolled back
+  - when
+  - from → to bundle id/hash
 
 ---
 

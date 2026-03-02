@@ -4,7 +4,8 @@ import { GameTile } from './GameTile';
 const baseTile = {
   title: 'Neon Drift',
   href: '#',
-  imageUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=80',
+  imageUrl:
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=80',
   tags: ['Racing', 'Arcade'],
 };
 
@@ -36,11 +37,36 @@ export const GamesGrid: Story = {
     const tiles = [
       baseTile,
       { ...baseTile, title: 'Skyline Run', tags: ['Runner'], href: '#run' },
-      { ...baseTile, title: 'Quantum Clash', tags: ['Arena', '3v3'], href: '#clash' },
-      { ...baseTile, title: 'Synthwave Nights', status: 'coming-soon', tags: ['Music'] },
-      { ...baseTile, title: 'Midnight Raid', imageUrl: undefined, tags: ['Stealth'] },
-      { ...baseTile, title: 'Arcade Royale', tags: ['Battle'], href: '#royale' },
-      { ...baseTile, title: 'Turbo Trails', tags: ['Time Trial'], href: '#trails' },
+      {
+        ...baseTile,
+        title: 'Quantum Clash',
+        tags: ['Arena', '3v3'],
+        href: '#clash',
+      },
+      {
+        ...baseTile,
+        title: 'Synthwave Nights',
+        status: 'coming-soon',
+        tags: ['Music'],
+      },
+      {
+        ...baseTile,
+        title: 'Midnight Raid',
+        imageUrl: undefined,
+        tags: ['Stealth'],
+      },
+      {
+        ...baseTile,
+        title: 'Arcade Royale',
+        tags: ['Battle'],
+        href: '#royale',
+      },
+      {
+        ...baseTile,
+        title: 'Turbo Trails',
+        tags: ['Time Trial'],
+        href: '#trails',
+      },
       { ...baseTile, title: 'Holo Blocks', tags: ['Puzzle'], href: '#blocks' },
     ];
     return (
