@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import LevelPreviewComponent from '../../../admin/src/components/LevelPreviewComponent/LevelPreviewComponent';
+import LevelPreviewComponent from './LevelPreviewComponent/LevelPreviewComponent';
 
 type RuntimeBundle = {
   levelConfigs?: Array<{
