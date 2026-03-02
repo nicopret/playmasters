@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import dashStyles from '../../../../components/AdminDashboard/AdminDashboard.module.css';
-import CoreAssetsEditor from './CoreAssetsEditor';
+import AssetComponent from '../../../../../components/AssetComponent/AssetComponent';
 import styles from './page.module.css';
 import type { CoreAssetKind } from '../../../../lib/coreAssets';
 import { getGameDisplayName } from '../../../../lib/games';
@@ -177,13 +177,10 @@ export default async function GameAssetsPage({ params }: GameAssetsPageProps) {
         </header>
 
         <section className={styles.contentSection}>
-          <p className={styles.meta}>
-            Manage core gameplay assets for catalogs (Hero, Enemy, Ammo, VFX).
-          </p>
-          <CoreAssetsEditor
-            gameId={gameId}
-            scaffoldItems={SPACE_BLASTER_CORE_ASSETS}
-          />
+          <p className={styles.meta}>Manage game-specific assets here.</p>
+          <div className={styles.assetWrap}>
+            <AssetComponent />
+          </div>
           <Link href={`/games/${gameId}`} className={styles.link}>
             Back to {gameTitle} admin
           </Link>
