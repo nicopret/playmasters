@@ -1,0 +1,44 @@
+.contentSection {
+  margin-top: 8px;
+  max-width: 720px;
+  display: grid;
+  gap: 14px;
+}
+
+.meta {
+  margin: 0;
+  color: #374151;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.primary,
+.secondary {
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.primary {
+  background: #1d4ed8;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.primary:hover,
+.primary:focus-visible {
+  background: #1e40af;
+  outline: none;
+}
+
+.secondary {
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: not-allowed;
+}
