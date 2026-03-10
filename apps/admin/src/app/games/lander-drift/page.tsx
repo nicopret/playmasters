@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import dashStyles from '../../../components/AdminDashboard/AdminDashboard.module.css';
+import LanderDriftPublishPanel from '../../../components/LanderDriftPublish/LanderDriftPublishPanel';
 import styles from './page.module.css';
 
 const navItems = [
@@ -55,6 +56,9 @@ export default function LunarDriftPage() {
             <Link href="/games/lander-drift/sfx" className={styles.primary}>
               Audio / SFX
             </Link>
+            <Link href="/games/lander-drift/test" className={styles.primary}>
+              Test Setup
+            </Link>
             <button
               type="button"
               className={styles.secondary}
@@ -64,6 +68,18 @@ export default function LunarDriftPage() {
               Physics / Config
             </button>
           </div>
+
+          <section className={styles.testSetupSection}>
+            <h2 className={styles.sectionTitle}>Test Setup</h2>
+            <p className={styles.meta}>
+              Select a scenario, choose draft or published physics, and launch
+              Lunar Drift in admin test mode.
+            </p>
+            <Link href="/games/lander-drift/test" className={styles.primary}>
+              Open Test Setup
+            </Link>
+          </section>
+          <LanderDriftPublishPanel />
         </section>
       </main>
     </div>

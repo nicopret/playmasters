@@ -8,6 +8,18 @@
   color: #374151;
 }
 
+.info {
+  margin: 0;
+  color: #1d4ed8;
+  font-size: 13px;
+}
+
+.error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
 .contentColumn {
   width: 100%;
   max-width: 980px;

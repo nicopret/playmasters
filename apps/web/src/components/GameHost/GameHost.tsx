@@ -6,6 +6,7 @@ import { createGameSdk, type GameSdk } from '@playmasters/game-sdk';
 import type { EmbeddedGame } from '@playmasters/types';
 import styles from './GameHost.module.css';
 import SpaceBlasterLightHost from '../SpaceBlasterLightHost';
+import LanderDriftHost from '../LanderDriftHost/LanderDriftHost';
 
 type Props = {
   gameId: string;
@@ -57,6 +58,8 @@ const ACTIVE_RUN_STATES = new Set([
 const isSpaceBlasterGame = (gameId: string): boolean =>
   gameId === 'space-blaster' || gameId === 'game-space-blaster';
 
+const isLanderDriftGame = (gameId: string): boolean => gameId === 'lander-drift';
+
 const extractConfigHash = (bundle: unknown): string | undefined => {
   if (!bundle || typeof bundle !== 'object') return undefined;
   const carrier = bundle as ConfigHashCarrier;
@@ -98,6 +101,12 @@ export const GameHost = ({
     const mount = async () => {
       const el = mountRef.current;
       if (!el && !isSpaceBlasterGame(gameId)) return;
+
+      if (isLanderDriftGame(gameId)) {
+        setStatus('ready');
+        setMessage('Published config is loaded from /api/games/lander-drift/config.');
+        return;
+      }
 
       if (!loader) {
         setStatus('error');
@@ -295,8 +304,8 @@ export const GameHost = ({
           </span>
         </div>
         <div className={styles.instructions}>
-          <span>Move with arrows or A/D.</span>
-          <span>Space to shoot, auto-fire enabled.</span>
+          <span>Move with keyboard controls.</span>
+          <span>Gameplay bindings depend on the selected game.</span>
         </div>
       </div>
 
@@ -308,6 +317,10 @@ export const GameHost = ({
                 bundle={runtimeBundle as Record<string, unknown>}
               />
             ) : null}
+          </div>
+        ) : isLanderDriftGame(gameId) ? (
+          <div className={styles.canvas}>
+            <LanderDriftHost />
           </div>
         ) : (
           <div ref={mountRef} className={styles.canvas} />

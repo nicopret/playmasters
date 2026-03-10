@@ -33,6 +33,7 @@ type AssetCardProps = {
   onSavePhysics: (physics: PhysicsValues) => void;
   onEditImage: () => void;
   editImageDisabled?: boolean;
+  fixedUploadName?: string;
 };
 
 const formatPhysicsValue = (value: number): string => {
@@ -49,6 +50,7 @@ export default function AssetCard({
   onSavePhysics,
   onEditImage,
   editImageDisabled = false,
+  fixedUploadName,
 }: AssetCardProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -70,6 +72,10 @@ export default function AssetCard({
     const file = files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) return;
+    if (fixedUploadName?.trim()) {
+      onCreateAsset(fixedUploadName.trim(), file);
+      return;
+    }
     setPendingFile(file);
     setIsModalOpen(true);
   };
@@ -256,11 +262,13 @@ export default function AssetCard({
         </section>
       )}
 
-      <UploadNameModal
-        isOpen={isModalOpen}
-        onCancel={closeModal}
-        onConfirm={confirmAssetName}
-      />
+      {fixedUploadName ? null : (
+        <UploadNameModal
+          isOpen={isModalOpen}
+          onCancel={closeModal}
+          onConfirm={confirmAssetName}
+        />
+      )}
     </article>
   );
 }
