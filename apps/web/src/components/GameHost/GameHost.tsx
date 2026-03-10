@@ -58,7 +58,8 @@ const ACTIVE_RUN_STATES = new Set([
 const isSpaceBlasterGame = (gameId: string): boolean =>
   gameId === 'space-blaster' || gameId === 'game-space-blaster';
 
-const isLanderDriftGame = (gameId: string): boolean => gameId === 'lander-drift';
+const isLanderDriftGame = (gameId: string): boolean =>
+  gameId === 'lander-drift';
 
 const extractConfigHash = (bundle: unknown): string | undefined => {
   if (!bundle || typeof bundle !== 'object') return undefined;
@@ -104,7 +105,9 @@ export const GameHost = ({
 
       if (isLanderDriftGame(gameId)) {
         setStatus('ready');
-        setMessage('Published config is loaded from /api/games/lander-drift/config.');
+        setMessage(
+          'Published config is loaded from /api/games/lander-drift/config.',
+        );
         return;
       }
 

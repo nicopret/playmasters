@@ -61,7 +61,8 @@ export default function LanderDriftTestRunner() {
     () => scenarioById(searchParams.get('scenario')),
     [searchParams],
   );
-  const requestedSource = (searchParams.get('configSource') ?? 'defaults') as ConfigSource;
+  const requestedSource = (searchParams.get('configSource') ??
+    'defaults') as ConfigSource;
   const effectiveSource: ConfigSource =
     requestedSource === 'draft' || requestedSource === 'published'
       ? requestedSource
@@ -75,11 +76,12 @@ export default function LanderDriftTestRunner() {
   );
 
   const [config, setConfig] = useState<LanderDriftConfigV1 | null>(null);
-  const [configSource, setConfigSource] = useState<ConfigSource>(effectiveSource);
+  const [configSource, setConfigSource] =
+    useState<ConfigSource>(effectiveSource);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'landed' | 'crashed'>(
-    'loading',
-  );
+  const [status, setStatus] = useState<
+    'loading' | 'ready' | 'landed' | 'crashed'
+  >('loading');
   const [score, setScore] = useState(0);
   const [rescuedCount, setRescuedCount] = useState(0);
   const [carriedCount, setCarriedCount] = useState(0);
@@ -96,7 +98,9 @@ export default function LanderDriftTestRunner() {
     fuel: 100,
     angle: 0,
   });
-  const targetPointsRef = useRef<Array<{ x: number; y: number; active: boolean }>>([]);
+  const targetPointsRef = useRef<
+    Array<{ x: number; y: number; active: boolean }>
+  >([]);
   const terrainRef = useRef<Array<{ x: number; y: number }>>([]);
   const shipImageRef = useRef<HTMLImageElement | null>(null);
   const elapsedSecondsRef = useRef(0);
@@ -112,13 +116,13 @@ export default function LanderDriftTestRunner() {
       fuel:
         Number.isFinite(initialFuelOverride) && initialFuelOverride > 0
           ? initialFuelOverride
-          : scenario.runtimeOverrides?.initialFuel ?? maxFuel,
+          : (scenario.runtimeOverrides?.initialFuel ?? maxFuel),
       angle: 0,
     };
     const initialScore =
       Number.isFinite(initialScoreOverride) && initialScoreOverride >= 0
         ? initialScoreOverride
-        : scenario.runtimeOverrides?.initialScore ?? 0;
+        : (scenario.runtimeOverrides?.initialScore ?? 0);
     setScore(initialScore);
     setRescuedCount(0);
     setCarriedCount(0);
@@ -130,12 +134,12 @@ export default function LanderDriftTestRunner() {
 
     const rng = createRng(seed);
     const points: Array<{ x: number; y: number; active: boolean }> = [];
-    for (let cluster = 0; cluster < scenario.rescueProfile.clusterCount; cluster += 1) {
-      const centerX = clamp(
-        WIDTH * (0.2 + rng() * 0.6),
-        70,
-        WIDTH - 70,
-      );
+    for (
+      let cluster = 0;
+      cluster < scenario.rescueProfile.clusterCount;
+      cluster += 1
+    ) {
+      const centerX = clamp(WIDTH * (0.2 + rng() * 0.6), 70, WIDTH - 70);
       for (let i = 0; i < scenario.rescueProfile.targetsPerCluster; i += 1) {
         points.push({
           x: clamp(centerX + (rng() - 0.5) * 120, 40, WIDTH - 40),
@@ -168,7 +172,9 @@ export default function LanderDriftTestRunner() {
           `/api/admin/games/lander-drift/test/config?source=${effectiveSource}`,
           { cache: 'no-store' },
         );
-        const json = (await res.json().catch(() => ({}))) as TestConfigResponse & {
+        const json = (await res
+          .json()
+          .catch(() => ({}))) as TestConfigResponse & {
           error?: string;
         };
         if (!res.ok) throw new Error(json.error ?? 'Failed to resolve config');
@@ -239,10 +245,18 @@ export default function LanderDriftTestRunner() {
         setTimeSeconds(elapsedSecondsRef.current);
         const physics = config.ship.physics;
         if (keyRef.current.left) {
-          ship.angle = clamp(ship.angle - physics.rotationSpeed * dt * 40, -70, 70);
+          ship.angle = clamp(
+            ship.angle - physics.rotationSpeed * dt * 40,
+            -70,
+            70,
+          );
         }
         if (keyRef.current.right) {
-          ship.angle = clamp(ship.angle + physics.rotationSpeed * dt * 40, -70, 70);
+          ship.angle = clamp(
+            ship.angle + physics.rotationSpeed * dt * 40,
+            -70,
+            70,
+          );
         }
 
         ship.vy += (9.8 / Math.max(physics.mass, 0.1)) * dt;
@@ -273,7 +287,8 @@ export default function LanderDriftTestRunner() {
           : 1;
         if (
           scenarioDegradationEnabled &&
-          elapsedSecondsRef.current > scenario.degradationProfile.startAfterSeconds
+          elapsedSecondsRef.current >
+            scenario.degradationProfile.startAfterSeconds
         ) {
           degradationRef.current = Math.min(
             1,
@@ -324,7 +339,8 @@ export default function LanderDriftTestRunner() {
       context.fillRect(0, 0, WIDTH, HEIGHT);
 
       const visibilityHeight =
-        scenario.terrainProfile.visibilityRadius + Math.abs(shipRef.current.y - BASELINE_Y);
+        scenario.terrainProfile.visibilityRadius +
+        Math.abs(shipRef.current.y - BASELINE_Y);
       context.globalAlpha = clamp(visibilityHeight / 500, 0.18, 0.7);
       context.fillStyle = '#cbd5e1';
       context.fillRect(0, 0, WIDTH, BASELINE_Y + 20);
@@ -417,7 +433,9 @@ export default function LanderDriftTestRunner() {
         </div>
       </div>
 
-      {loadError ? <div className={styles.error}>Error: {loadError}</div> : null}
+      {loadError ? (
+        <div className={styles.error}>Error: {loadError}</div>
+      ) : null}
 
       <div className={styles.layout}>
         <div className={styles.stageWrap}>

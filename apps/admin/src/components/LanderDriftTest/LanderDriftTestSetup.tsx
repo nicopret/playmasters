@@ -28,9 +28,8 @@ const SOURCE_LABELS: Record<ConfigSource, string> = {
 };
 
 export default function LanderDriftTestSetup() {
-  const [scenarioId, setScenarioId] = useState<LanderDriftTestScenarioId>(
-    'intro-basic-flight',
-  );
+  const [scenarioId, setScenarioId] =
+    useState<LanderDriftTestScenarioId>('intro-basic-flight');
   const [configSource, setConfigSource] = useState<ConfigSource>('draft');
   const [configData, setConfigData] = useState<TestConfigResponse | null>(null);
   const [loadingConfig, setLoadingConfig] = useState(false);
@@ -38,15 +37,16 @@ export default function LanderDriftTestSetup() {
   const [seedOverride, setSeedOverride] = useState('');
   const [initialScore, setInitialScore] = useState('');
   const [initialFuel, setInitialFuel] = useState('');
-  const [degradationEnabled, setDegradationEnabled] = useState<'auto' | 'on' | 'off'>(
-    'auto',
-  );
+  const [degradationEnabled, setDegradationEnabled] = useState<
+    'auto' | 'on' | 'off'
+  >('auto');
   const [degradationMultiplier, setDegradationMultiplier] = useState('1');
 
   const selectedScenario = useMemo(
     () =>
-      LANDER_DRIFT_TEST_SCENARIOS.find((scenario) => scenario.id === scenarioId) ??
-      LANDER_DRIFT_TEST_SCENARIOS[0],
+      LANDER_DRIFT_TEST_SCENARIOS.find(
+        (scenario) => scenario.id === scenarioId,
+      ) ?? LANDER_DRIFT_TEST_SCENARIOS[0],
     [scenarioId],
   );
 
@@ -62,7 +62,9 @@ export default function LanderDriftTestSetup() {
             cache: 'no-store',
           },
         );
-        const json = (await res.json().catch(() => ({}))) as TestConfigResponse & {
+        const json = (await res
+          .json()
+          .catch(() => ({}))) as TestConfigResponse & {
           error?: string;
         };
         if (!res.ok) throw new Error(json.error ?? 'Failed to load config');
@@ -94,7 +96,8 @@ export default function LanderDriftTestSetup() {
     if (seedOverride.trim()) query.set('seed', seedOverride.trim());
     if (initialScore.trim()) query.set('initialScore', initialScore.trim());
     if (initialFuel.trim()) query.set('initialFuel', initialFuel.trim());
-    if (degradationEnabled !== 'auto') query.set('degradationEnabled', degradationEnabled);
+    if (degradationEnabled !== 'auto')
+      query.set('degradationEnabled', degradationEnabled);
     if (degradationMultiplier.trim()) {
       query.set('degradationSpeedMultiplier', degradationMultiplier.trim());
     }
@@ -140,34 +143,38 @@ export default function LanderDriftTestSetup() {
           Select which physics/config source should be applied for this run.
         </p>
         <div className={styles.radioGrid}>
-          {(['draft', 'published', 'defaults'] as ConfigSource[]).map((source) => {
-            const enabled = configData
-              ? configData.availableSources[source].enabled
-              : source === 'defaults';
-            const reason =
-              source === 'defaults'
-                ? undefined
-                : configData?.availableSources[source].reason;
-            return (
-              <label
-                key={source}
-                className={`${styles.radioCard} ${!enabled ? styles.radioCardDisabled : ''}`}
-              >
-                <input
-                  type="radio"
-                  name="config-source"
-                  value={source}
-                  checked={configSource === source}
-                  disabled={!enabled}
-                  onChange={() => setConfigSource(source)}
-                />
-                <span>{SOURCE_LABELS[source]}</span>
-                {!enabled && reason ? <small>{reason}</small> : null}
-              </label>
-            );
-          })}
+          {(['draft', 'published', 'defaults'] as ConfigSource[]).map(
+            (source) => {
+              const enabled = configData
+                ? configData.availableSources[source].enabled
+                : source === 'defaults';
+              const reason =
+                source === 'defaults'
+                  ? undefined
+                  : configData?.availableSources[source].reason;
+              return (
+                <label
+                  key={source}
+                  className={`${styles.radioCard} ${!enabled ? styles.radioCardDisabled : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="config-source"
+                    value={source}
+                    checked={configSource === source}
+                    disabled={!enabled}
+                    onChange={() => setConfigSource(source)}
+                  />
+                  <span>{SOURCE_LABELS[source]}</span>
+                  {!enabled && reason ? <small>{reason}</small> : null}
+                </label>
+              );
+            },
+          )}
         </div>
-        {loadingConfig ? <p className={styles.meta}>Resolving config...</p> : null}
+        {loadingConfig ? (
+          <p className={styles.meta}>Resolving config...</p>
+        ) : null}
       </section>
 
       <section className={styles.card}>
@@ -188,7 +195,9 @@ export default function LanderDriftTestSetup() {
               className={styles.input}
               type="number"
               value={initialScore}
-              placeholder={String(selectedScenario.runtimeOverrides?.initialScore ?? 0)}
+              placeholder={String(
+                selectedScenario.runtimeOverrides?.initialScore ?? 0,
+              )}
               onChange={(event) => setInitialScore(event.target.value)}
             />
           </label>
@@ -198,7 +207,9 @@ export default function LanderDriftTestSetup() {
               className={styles.input}
               type="number"
               value={initialFuel}
-              placeholder={String(selectedScenario.runtimeOverrides?.initialFuel ?? 100)}
+              placeholder={String(
+                selectedScenario.runtimeOverrides?.initialFuel ?? 100,
+              )}
               onChange={(event) => setInitialFuel(event.target.value)}
             />
           </label>
@@ -208,7 +219,9 @@ export default function LanderDriftTestSetup() {
               className={styles.input}
               value={degradationEnabled}
               onChange={(event) =>
-                setDegradationEnabled(event.target.value as 'auto' | 'on' | 'off')
+                setDegradationEnabled(
+                  event.target.value as 'auto' | 'on' | 'off',
+                )
               }
             >
               <option value="auto">Scenario Default</option>
@@ -242,17 +255,28 @@ export default function LanderDriftTestSetup() {
             <li>
               maxVelocityX:{' '}
               {'maxVelocityX' in physicsSummary.ship.physics
-                ? String((physicsSummary.ship.physics as Record<string, unknown>).maxVelocityX)
+                ? String(
+                    (physicsSummary.ship.physics as Record<string, unknown>)
+                      .maxVelocityX,
+                  )
                 : 'n/a'}
             </li>
             <li>
               maxVelocityY:{' '}
               {'maxVelocityY' in physicsSummary.ship.physics
-                ? String((physicsSummary.ship.physics as Record<string, unknown>).maxVelocityY)
+                ? String(
+                    (physicsSummary.ship.physics as Record<string, unknown>)
+                      .maxVelocityY,
+                  )
                 : 'n/a'}
             </li>
-            <li>landing.safeVerticalSpeed: {physicsSummary.landing.safeVerticalSpeed}</li>
-            <li>landing.maxTiltDegrees: {physicsSummary.landing.maxTiltDegrees}</li>
+            <li>
+              landing.safeVerticalSpeed:{' '}
+              {physicsSummary.landing.safeVerticalSpeed}
+            </li>
+            <li>
+              landing.maxTiltDegrees: {physicsSummary.landing.maxTiltDegrees}
+            </li>
             <li>fuel.maxFuel: {physicsSummary.fuel.maxFuel}</li>
             <li>fuel.burnRate: {physicsSummary.fuel.burnRate}</li>
             <li>fuel.idleDrainRate: {physicsSummary.fuel.idleDrainRate}</li>

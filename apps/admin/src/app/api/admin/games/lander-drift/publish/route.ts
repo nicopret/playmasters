@@ -5,11 +5,11 @@ import type { LanderDriftPublishResponse } from '@playmasters/types';
 
 export const runtime = 'nodejs';
 
-const bad = (
-  message: string,
-  status = 400,
-  details?: unknown,
-) => NextResponse.json(details ? { error: message, details } : { error: message }, { status });
+const bad = (message: string, status = 400, details?: unknown) =>
+  NextResponse.json(
+    details ? { error: message, details } : { error: message },
+    { status },
+  );
 
 export async function POST(req: Request) {
   let session;

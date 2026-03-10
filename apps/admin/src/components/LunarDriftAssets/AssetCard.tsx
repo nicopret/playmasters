@@ -172,7 +172,11 @@ export default function AssetCard({
         <section className={styles.body}>
           <div className={styles.imageColumn}>
             <div className={styles.previewWrap}>
-              <img src={asset.imageUrl} alt={asset.name} className={styles.preview} />
+              <img
+                src={asset.imageUrl}
+                alt={asset.name}
+                className={styles.preview}
+              />
             </div>
             <div className={styles.fileName}>{asset.fileName}</div>
             <button
@@ -194,7 +198,8 @@ export default function AssetCard({
                   <li>mass: {formatPhysicsValue(asset.physics.mass)}</li>
                   <li>thrust: {formatPhysicsValue(asset.physics.thrust)}</li>
                   <li>
-                    rotationSpeed: {formatPhysicsValue(asset.physics.rotationSpeed)}
+                    rotationSpeed:{' '}
+                    {formatPhysicsValue(asset.physics.rotationSpeed)}
                   </li>
                   <li>damping: {formatPhysicsValue(asset.physics.damping)}</li>
                 </ul>

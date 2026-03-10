@@ -259,13 +259,19 @@ export function validateLanderDriftConfig(config: unknown): Array<{
       });
     }
     if (!num(physics.damping)) {
-      issues.push({ path: 'ship.physics.damping', message: 'Must be numeric.' });
+      issues.push({
+        path: 'ship.physics.damping',
+        message: 'Must be numeric.',
+      });
     }
   }
 
   const landing = candidate.landing;
   if (!landing) {
-    issues.push({ path: 'landing', message: 'landing thresholds are required.' });
+    issues.push({
+      path: 'landing',
+      message: 'landing thresholds are required.',
+    });
   } else {
     if (!num(landing.safeVerticalSpeed)) {
       issues.push({
@@ -274,10 +280,16 @@ export function validateLanderDriftConfig(config: unknown): Array<{
       });
     }
     if (!num(landing.maxTiltDegrees)) {
-      issues.push({ path: 'landing.maxTiltDegrees', message: 'Must be numeric.' });
+      issues.push({
+        path: 'landing.maxTiltDegrees',
+        message: 'Must be numeric.',
+      });
     }
     if (!num(landing.padSnapDistance)) {
-      issues.push({ path: 'landing.padSnapDistance', message: 'Must be numeric.' });
+      issues.push({
+        path: 'landing.padSnapDistance',
+        message: 'Must be numeric.',
+      });
     }
   }
 
@@ -643,7 +655,10 @@ export async function publishLanderDrift(args: {
 
   const now = nowIso();
   const publishedAssetVersionId = randomUUID();
-  const shipExt = inferImageExtension(draftShip.fileName, draftShip.contentType);
+  const shipExt = inferImageExtension(
+    draftShip.fileName,
+    draftShip.contentType,
+  );
   const publishedShipKey = shipPublishedS3Key(publishedAssetVersionId, shipExt);
 
   if (DRAFT_BUCKET && PUBLISHED_BUCKET && draftShip.s3Key) {
@@ -672,7 +687,7 @@ export async function publishLanderDrift(args: {
   const publishedShipUrl =
     PUBLISHED_BUCKET || ASSETS_PUBLIC_BASE_URL
       ? toPublicUrl(publishedShipKey)
-      : draftShip.inlineDataUrl ?? '';
+      : (draftShip.inlineDataUrl ?? '');
 
   const publishedConfigVersionId = randomUUID();
   const publishedConfigKey = configPublishedS3Key(publishedConfigVersionId);
@@ -818,7 +833,10 @@ export async function getPublishedLanderDriftConfig(
   const configDoc = await getMeta<ConfigDocMeta>(CONFIG_PK);
   const publishedId = configDoc?.currentPublishedVersionId;
   if (publishedId) {
-    const published = await getVersion<ConfigDocVersion>(CONFIG_PK, publishedId);
+    const published = await getVersion<ConfigDocVersion>(
+      CONFIG_PK,
+      publishedId,
+    );
     return published?.config ?? null;
   }
 
@@ -847,10 +865,16 @@ export async function resolveLanderDriftConfigForSource(
     ? await getVersion<ConfigDocVersion>(CONFIG_PK, publishedVersionId)
     : null;
   const draftShipVersion = shipMeta?.currentDraftVersionId
-    ? await getVersion<ShipAssetVersion>(ASSET_PK, shipMeta.currentDraftVersionId)
+    ? await getVersion<ShipAssetVersion>(
+        ASSET_PK,
+        shipMeta.currentDraftVersionId,
+      )
     : null;
   const publishedShipVersion = shipMeta?.currentPublishedVersionId
-    ? await getVersion<ShipAssetVersion>(ASSET_PK, shipMeta.currentPublishedVersionId)
+    ? await getVersion<ShipAssetVersion>(
+        ASSET_PK,
+        shipMeta.currentPublishedVersionId,
+      )
     : null;
 
   const shipVersionToRuntimeUrl = (

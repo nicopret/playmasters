@@ -220,7 +220,9 @@ export default function LunarDriftAssetsPage() {
 
   return (
     <div className={styles.layout}>
-      <p className={styles.meta}>Manage image assets and placeholder physics values.</p>
+      <p className={styles.meta}>
+        Manage image assets and placeholder physics values.
+      </p>
       {saving ? <p className={styles.info}>Saving draft...</p> : null}
       {error ? <p className={styles.error}>Error: {error}</p> : null}
       <div className={styles.contentColumn}>

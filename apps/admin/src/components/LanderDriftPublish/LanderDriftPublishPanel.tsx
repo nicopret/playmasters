@@ -68,7 +68,8 @@ export default function LanderDriftPublishPanel() {
       const json = (await res.json().catch(() => ({}))) as StatusResponse & {
         error?: string;
       };
-      if (!res.ok) throw new Error(json.error ?? 'Failed to load publish status');
+      if (!res.ok)
+        throw new Error(json.error ?? 'Failed to load publish status');
       setData(json);
     } catch (err) {
       setError((err as Error).message);
@@ -85,7 +86,8 @@ export default function LanderDriftPublishPanel() {
     if (canPublish) return 'Ready to publish';
     if (data.status.readiness.state === 'missing_ship_asset')
       return 'Missing ship asset';
-    if (data.status.readiness.state === 'missing_config') return 'Missing config';
+    if (data.status.readiness.state === 'missing_config')
+      return 'Missing config';
     return 'Validation failed';
   }, [canPublish, data.status.readiness.state]);
 
@@ -134,10 +136,13 @@ export default function LanderDriftPublishPanel() {
     <section className={styles.panel}>
       <h2 className={styles.heading}>Publish to Web</h2>
       <p className={styles.meta}>
-        Promote the current Lunar Drift draft asset + config for the public web game.
+        Promote the current Lunar Drift draft asset + config for the public web
+        game.
       </p>
 
-      {loading ? <p className={styles.meta}>Loading publish status...</p> : null}
+      {loading ? (
+        <p className={styles.meta}>Loading publish status...</p>
+      ) : null}
       {success ? <p className={styles.success}>{success}</p> : null}
       {error ? <p className={styles.error}>Error: {error}</p> : null}
 
@@ -145,19 +150,24 @@ export default function LanderDriftPublishPanel() {
         <div>
           <h3 className={styles.subHeading}>Ship</h3>
           <p>Draft: {data.status.ship.currentDraftVersionId ?? 'None'}</p>
-          <p>Published: {data.status.ship.currentPublishedVersionId ?? 'None'}</p>
+          <p>
+            Published: {data.status.ship.currentPublishedVersionId ?? 'None'}
+          </p>
         </div>
         <div>
           <h3 className={styles.subHeading}>Config</h3>
           <p>Draft: {data.status.config.currentDraftVersionId ?? 'None'}</p>
-          <p>Published: {data.status.config.currentPublishedVersionId ?? 'None'}</p>
+          <p>
+            Published: {data.status.config.currentPublishedVersionId ?? 'None'}
+          </p>
         </div>
       </div>
 
       <p className={styles.readiness}>{readinessLabel}</p>
       {data.status.ship.lastPublishedAt ? (
         <p className={styles.meta}>
-          Last published: {new Date(data.status.ship.lastPublishedAt).toLocaleString()}
+          Last published:{' '}
+          {new Date(data.status.ship.lastPublishedAt).toLocaleString()}
         </p>
       ) : null}
 
@@ -198,10 +208,13 @@ export default function LanderDriftPublishPanel() {
               Publish Lunar Drift?
             </h3>
             <p className={styles.meta}>
-              This will make the current draft ship asset and config available to the
-              web frontend.
+              This will make the current draft ship asset and config available
+              to the web frontend.
             </p>
-            <form className={styles.form} onSubmit={(event) => void handlePublish(event)}>
+            <form
+              className={styles.form}
+              onSubmit={(event) => void handlePublish(event)}
+            >
               <label className={styles.field}>
                 <span>Change notes</span>
                 <textarea
@@ -220,7 +233,11 @@ export default function LanderDriftPublishPanel() {
                 >
                   Cancel
                 </button>
-                <button type="submit" className={styles.publishButton} disabled={isPublishing}>
+                <button
+                  type="submit"
+                  className={styles.publishButton}
+                  disabled={isPublishing}
+                >
                   {isPublishing ? 'Publishing...' : 'Confirm Publish'}
                 </button>
               </div>

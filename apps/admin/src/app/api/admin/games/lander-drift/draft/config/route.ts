@@ -8,11 +8,11 @@ import type { LanderDriftConfigV1 } from '@playmasters/types';
 
 export const runtime = 'nodejs';
 
-const bad = (
-  message: string,
-  status = 400,
-  details?: unknown,
-) => NextResponse.json(details ? { error: message, details } : { error: message }, { status });
+const bad = (message: string, status = 400, details?: unknown) =>
+  NextResponse.json(
+    details ? { error: message, details } : { error: message },
+    { status },
+  );
 
 export async function POST(req: Request) {
   let session;
@@ -51,7 +51,8 @@ export async function POST(req: Request) {
   } catch (err) {
     const code = (err as Error).message;
     const details = (err as Error & { details?: unknown }).details;
-    if (code === 'validation_failed') return bad('validation_failed', 400, details);
+    if (code === 'validation_failed')
+      return bad('validation_failed', 400, details);
     if (code === 'draft_bucket_not_configured')
       return bad('draft_bucket_not_configured', 500);
     console.error('lander_drift_draft_config_failed', err);

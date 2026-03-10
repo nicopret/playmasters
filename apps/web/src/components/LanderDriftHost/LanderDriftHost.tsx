@@ -65,7 +65,9 @@ export default function LanderDriftHost() {
           | LanderDriftConfigV1
           | { error?: string };
         if (!res.ok) {
-          throw new Error((json as { error?: string }).error ?? 'config_failed');
+          throw new Error(
+            (json as { error?: string }).error ?? 'config_failed',
+          );
         }
         if (cancelled) return;
         setConfig(json as LanderDriftConfigV1);
@@ -199,7 +201,13 @@ export default function LanderDriftHost() {
       ctx.rotate((ship.angleDeg * Math.PI) / 180);
       const shipImage = imageRef.current;
       if (shipImage) {
-        ctx.drawImage(shipImage, -SHIP_SIZE / 2, -SHIP_SIZE / 2, SHIP_SIZE, SHIP_SIZE);
+        ctx.drawImage(
+          shipImage,
+          -SHIP_SIZE / 2,
+          -SHIP_SIZE / 2,
+          SHIP_SIZE,
+          SHIP_SIZE,
+        );
       } else {
         ctx.fillStyle = '#f8fafc';
         ctx.beginPath();
@@ -237,7 +245,9 @@ export default function LanderDriftHost() {
   }, [status, error]);
 
   const fuelPct = config
-    ? Math.round((shipRef.current.fuel / Math.max(config.fuel.maxFuel, 1)) * 100)
+    ? Math.round(
+        (shipRef.current.fuel / Math.max(config.fuel.maxFuel, 1)) * 100,
+      )
     : 0;
 
   return (
@@ -246,7 +256,12 @@ export default function LanderDriftHost() {
         <span>{hudLabel}</span>
         <span>Fuel: {fuelPct}%</span>
       </div>
-      <canvas ref={canvasRef} className={styles.canvas} width={WIDTH} height={HEIGHT} />
+      <canvas
+        ref={canvasRef}
+        className={styles.canvas}
+        width={WIDTH}
+        height={HEIGHT}
+      />
     </div>
   );
 }

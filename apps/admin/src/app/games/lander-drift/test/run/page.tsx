@@ -49,7 +49,9 @@ export default function LanderDriftTestRunPage() {
           </p>
         </header>
         <section className={styles.contentSection}>
-          <Suspense fallback={<div className={styles.meta}>Loading test runner...</div>}>
+          <Suspense
+            fallback={<div className={styles.meta}>Loading test runner...</div>}
+          >
             <LanderDriftTestRunner />
           </Suspense>
         </section>
