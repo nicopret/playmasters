@@ -1,0 +1,19 @@
+.root {
+  display: grid;
+  gap: 8px;
+}
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.canvas {
+  width: 100%;
+  max-width: 720px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 10px;
+  background: #0f172a;
+}

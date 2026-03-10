@@ -1,0 +1,168 @@
+.card {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.header {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.slotLabel {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.body {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.imageColumn,
+.physicsColumn {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.previewWrap {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+}
+
+.fileName {
+  color: #374151;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.sectionHeading {
+  margin: 0;
+  font-size: 16px;
+}
+
+.physicsList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.primaryButton,
+.secondaryButton {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.primaryButton {
+  background: #1d4ed8;
+  color: #ffffff;
+  justify-self: flex-start;
+}
+
+.primaryButton:hover,
+.primaryButton:focus-visible {
+  background: #1e40af;
+  outline: none;
+}
+
+.secondaryButton {
+  border-color: #d1d5db;
+  background: #f9fafb;
+  color: #111827;
+  justify-self: flex-start;
+}
+
+.secondaryButton:disabled {
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.form {
+  display: grid;
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #1f2937;
+}
+
+.field input {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+}
+
+.emptyPanel {
+  margin: 16px;
+  border: 2px dashed #9ca3af;
+  border-radius: 10px;
+  min-height: 220px;
+  padding: 20px;
+  display: grid;
+  gap: 8px;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+  background: #f9fafb;
+  cursor: pointer;
+}
+
+.emptyPanelActive {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.emptyText {
+  margin: 0;
+  color: #374151;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+}

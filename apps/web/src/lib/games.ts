@@ -13,6 +13,16 @@ export type Game = {
 
 const games: Game[] = [
   {
+    id: 'lander-drift',
+    slug: 'lander-drift',
+    title: 'Lunar Drift',
+    description:
+      'Precision lander challenge with fuel, descent control, and rescue runs.',
+    tags: ['Lander', 'Arcade'],
+    status: 'available',
+    maxScore: 99999,
+  },
+  {
     id: 'game-space-blaster',
     slug: 'space-blaster',
     title: 'Space Blaster',

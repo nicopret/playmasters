@@ -22,7 +22,7 @@ const navItems = [
   { label: 'Assets', href: '/assets' },
 ];
 
-const SFX_ENTRIES = [
+const SPACE_BLASTER_SFX_ENTRIES = [
   { title: 'Player Fire', definitionId: 'sfx.player.fire' },
   { title: 'Enemy Fire', definitionId: 'sfx.enemy.fire' },
   { title: 'Explosion Small', definitionId: 'sfx.explosion.small' },
@@ -35,9 +35,27 @@ const SFX_ENTRIES = [
   { title: 'Dive Warning', definitionId: 'sfx.diveWarning' },
 ];
 
+const LUNAR_DRIFT_SFX_ENTRIES = [
+  { title: 'Thruster Feedback', definitionId: 'sfx.player.fire' },
+  { title: 'Landing Feedback', definitionId: 'sfx.waveClear' },
+  { title: 'Crash Feedback', definitionId: 'sfx.explosion.large' },
+  { title: 'Rescue and Delivery Feedback', definitionId: 'sfx.tierUp' },
+  { title: 'Fuel Awareness', definitionId: 'sfx.hit' },
+  { title: 'Terrain Degradation', definitionId: 'sfx.explosion.medium' },
+  { title: 'Music', definitionId: 'sfx.enemy.fire' },
+];
+
+const getSfxEntriesForGame = (gameId: string) => {
+  if (gameId === 'lander-drift') {
+    return LUNAR_DRIFT_SFX_ENTRIES;
+  }
+  return SPACE_BLASTER_SFX_ENTRIES;
+};
+
 export default async function GameSfxPage({ params }: GameSfxPageProps) {
   const { gameId } = await params;
   const gameTitle = getGameDisplayName(gameId);
+  const sfxEntries = getSfxEntriesForGame(gameId);
   const draft = await getCoreAssetsDraft(gameId);
   const presetByDefinitionId = new Map(
     draft.definitions.map((definition) => [
@@ -103,7 +121,7 @@ export default async function GameSfxPage({ params }: GameSfxPageProps) {
           </Link>
 
           <div className={styles.sfxList}>
-            {SFX_ENTRIES.map((entry) => {
+            {sfxEntries.map((entry) => {
               const spec = SPACE_BLASTER_CORE_ASSET_SPECS.find(
                 (item) => item.id === entry.definitionId,
               );

@@ -1,6 +1,7 @@
-import Link from 'next/link';
 import Image from 'next/image';
-import dashStyles from '../../components/AdminDashboard/AdminDashboard.module.css';
+import Link from 'next/link';
+import dashStyles from '../../../../components/AdminDashboard/AdminDashboard.module.css';
+import LanderDriftTestSetup from '../../../../components/LanderDriftTest/LanderDriftTestSetup';
 import styles from './page.module.css';
 
 const navItems = [
@@ -10,12 +11,7 @@ const navItems = [
   { label: 'Assets', href: '/assets' },
 ];
 
-const games = [
-  { id: 'lander-drift', name: 'Lunar Drift' },
-  { id: 'space-blaster', name: 'Space Blaster' },
-];
-
-export default function GamesPage() {
+export default function LanderDriftTestSetupPage() {
   return (
     <div className={dashStyles.shell}>
       <aside className={dashStyles.sidebar}>
@@ -46,20 +42,14 @@ export default function GamesPage() {
 
       <main className={dashStyles.main}>
         <header className={dashStyles.pageHeader}>
-          <h1>Games Admin</h1>
+          <h1>Lunar Drift Test Setup</h1>
+          <p className={styles.meta}>
+            Select a test scenario and physics configuration, then launch the
+            game in test mode.
+          </p>
         </header>
-
-        <section className={styles.listSection}>
-          <h2 className={styles.listHeading}>Games</h2>
-          <ul className={styles.gameList}>
-            {games.map((game) => (
-              <li key={game.id}>
-                <Link href={`/games/${game.id}`} className={styles.gameLink}>
-                  {game.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <section className={styles.contentSection}>
+          <LanderDriftTestSetup />
         </section>
       </main>
     </div>

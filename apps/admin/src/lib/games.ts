@@ -1,5 +1,6 @@
 const GAME_DISPLAY_NAMES: Record<string, string> = {
   'space-blaster': 'Space Blaster',
+  'lander-drift': 'Lunar Drift',
 };
 
 const toTitleCaseWords = (value: string): string =>
