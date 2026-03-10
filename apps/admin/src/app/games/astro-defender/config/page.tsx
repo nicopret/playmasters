@@ -1,6 +1,7 @@
-import Link from 'next/link';
 import Image from 'next/image';
-import dashStyles from '../../components/AdminDashboard/AdminDashboard.module.css';
+import Link from 'next/link';
+import dashStyles from '../../../../components/AdminDashboard/AdminDashboard.module.css';
+import AstroDefenderConfigEditor from '../../../../components/AstroDefenderConfig/AstroDefenderConfigEditor';
 import styles from './page.module.css';
 
 const navItems = [
@@ -10,13 +11,7 @@ const navItems = [
   { label: 'Assets', href: '/assets' },
 ];
 
-const games = [
-  { id: 'lander-drift', name: 'Lunar Drift' },
-  { id: 'space-blaster', name: 'Space Blaster' },
-  { id: 'astro-defender', name: 'Astro Defender' },
-];
-
-export default function GamesPage() {
+export default function AstroDefenderConfigPage() {
   return (
     <div className={dashStyles.shell}>
       <aside className={dashStyles.sidebar}>
@@ -47,20 +42,18 @@ export default function GamesPage() {
 
       <main className={dashStyles.main}>
         <header className={dashStyles.pageHeader}>
-          <h1>Games Admin</h1>
+          <h1>Astro Defender Runtime Config</h1>
         </header>
 
-        <section className={styles.listSection}>
-          <h2 className={styles.listHeading}>Games</h2>
-          <ul className={styles.gameList}>
-            {games.map((game) => (
-              <li key={game.id}>
-                <Link href={`/games/${game.id}`} className={styles.gameLink}>
-                  {game.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <section className={styles.contentSection}>
+          <p className={styles.meta}>
+            Edit seeded gameplay defaults for wave pacing, enemies, defended
+            assets, scoring, and difficulty scaling.
+          </p>
+          <Link href="/games/astro-defender" className={styles.backLink}>
+            Back to Astro Defender
+          </Link>
+          <AstroDefenderConfigEditor />
         </section>
       </main>
     </div>

@@ -7,3 +7,4 @@ export * from './space-blaster/publish/hash';
 export * from './space-blaster/runtime';
 export * from './lander-drift/config';
 export * from './lander-drift/test-scenarios';
+export * from './astro-defender/config';

@@ -1,6 +1,6 @@
-import Link from 'next/link';
 import Image from 'next/image';
-import dashStyles from '../../components/AdminDashboard/AdminDashboard.module.css';
+import Link from 'next/link';
+import dashStyles from '../../../components/AdminDashboard/AdminDashboard.module.css';
 import styles from './page.module.css';
 
 const navItems = [
@@ -10,13 +10,7 @@ const navItems = [
   { label: 'Assets', href: '/assets' },
 ];
 
-const games = [
-  { id: 'lander-drift', name: 'Lunar Drift' },
-  { id: 'space-blaster', name: 'Space Blaster' },
-  { id: 'astro-defender', name: 'Astro Defender' },
-];
-
-export default function GamesPage() {
+export default function AstroDefenderPage() {
   return (
     <div className={dashStyles.shell}>
       <aside className={dashStyles.sidebar}>
@@ -47,20 +41,36 @@ export default function GamesPage() {
 
       <main className={dashStyles.main}>
         <header className={dashStyles.pageHeader}>
-          <h1>Games Admin</h1>
+          <h1>Astro Defender</h1>
         </header>
 
-        <section className={styles.listSection}>
-          <h2 className={styles.listHeading}>Games</h2>
-          <ul className={styles.gameList}>
-            {games.map((game) => (
-              <li key={game.id}>
-                <Link href={`/games/${game.id}`} className={styles.gameLink}>
-                  {game.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <section className={styles.contentSection}>
+          <p className={styles.meta}>
+            Manage Astro Defender metadata and runtime balancing.
+          </p>
+          <div className={styles.actions}>
+            <Link
+              href="/games/astro-defender/config"
+              className={styles.primary}
+            >
+              Runtime Config
+            </Link>
+            <Link
+              href="/games/astro-defender/assets"
+              className={styles.primary}
+            >
+              Assets
+            </Link>
+            <Link href="/games/astro-defender/sfx" className={styles.primary}>
+              Audio / SFX
+            </Link>
+            <Link
+              href="/games/astro-defender/levels"
+              className={styles.primary}
+            >
+              Test Levels
+            </Link>
+          </div>
         </section>
       </main>
     </div>
